@@ -1,0 +1,391 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { api, clearSession, getActiveAccountId, getAccessToken, setActiveAccountId } from "@/lib/api";
+import type { Account, User } from "@/lib/types";
+import { BrandMark } from "@/components/BrandMark";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { money, signed, tone } from "@/lib/format";
+
+const NAV = [
+  { href: "/dashboard", label: "Dashboard" },
+  { href: "/trades/new", label: "New trade" },
+  { href: "/trades", label: "History" },
+  { href: "/risk", label: "Risk monitor" },
+  { href: "/analytics", label: "Analytics" },
+  { href: "/intelligence", label: "Intelligence" },
+  { href: "/accounts", label: "Accounts" },
+  { href: "/settings", label: "Settings" },
+];
+
+function navActive(href: string, pathname: string): boolean {
+  if (href === "/trades") {
+    return pathname === "/trades" || (pathname.startsWith("/trades/") && !pathname.startsWith("/trades/new"));
+  }
+  if (href === "/dashboard") return pathname === "/dashboard";
+  if (href === "/accounts") return pathname === "/accounts" || pathname.startsWith("/accounts/");
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+export function Shell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const [user, setUser] = useState<User | null>(null);
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [accountId, setAccountId] = useState<string | null>(null);
+  const [navOpen, setNavOpen] = useState(false);
+
+  useEffect(() => {
+    setNavOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    function onResize() {
+      if (window.innerWidth > 900) setNavOpen(false);
+    }
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  useEffect(() => {
+    if (!getAccessToken()) {
+      router.replace("/login");
+      return;
+    }
+    void (async () => {
+      try {
+        const me = await api<User>("/api/auth/me");
+        setUser(me);
+        const list = await api<Account[]>("/api/accounts");
+        setAccounts(list);
+        const stored = getActiveAccountId();
+        const next = list.find((a) => a.id === stored)?.id ?? list[0]?.id ?? null;
+        if (next) {
+          setActiveAccountId(next);
+          setAccountId(next);
+        }
+      } catch {
+        clearSession();
+        router.replace("/login");
+      }
+    })();
+  }, [router]);
+
+  function onAccount(id: string) {
+    setActiveAccountId(id);
+    setAccountId(id);
+    window.dispatchEvent(new Event("traderos-account"));
+  }
+
+  function logout() {
+    clearSession();
+    router.replace("/login");
+  }
+
+  const active = useMemo(() => accounts.find((a) => a.id === accountId) ?? null, [accounts, accountId]);
+  const pnl = active ? Number(active.current_equity) - Number(active.starting_balance) : 0;
+
+  const nav = (
+    <>
+      <Link href="/dashboard" className="brand" onClick={() => setNavOpen(false)}>
+        <BrandMark size={26} />
+        <span className="brand-name">Trader OS</span>
+      </Link>
+      <nav>
+        {NAV.map((item) => (
+          <Link
+            key={item.href}
+            href={item.href}
+            className={navActive(item.href, pathname) ? "nav-link active" : "nav-link"}
+            onClick={() => setNavOpen(false)}
+          >
+            {item.label}
+          </Link>
+        ))}
+      </nav>
+    </>
+  );
+
+  return (
+    <div className="shell-wrap">
+      <div className="shell">
+      <aside className="rail desktop">{nav}</aside>
+      <div className="main">
+        <header className="top">
+          <div className="top-left">
+            <button type="button" className="menu" aria-label="Open menu" onClick={() => setNavOpen(true)}>
+              Menu
+            </button>
+            <div className="crumb">
+              {active ? `${active.firm} · ${active.program}` : `Times in ${user?.timezone ?? "Africa/Lagos"}`}
+            </div>
+          </div>
+          <div className="top-right">
+            {active && (
+              <div className="eq-chip">
+                <span className="muted">Equity</span>
+                <span className="num">{money(active.current_equity)}</span>
+                <span className={`num ${tone(pnl)}`}>{signed(pnl)}</span>
+              </div>
+            )}
+            <ThemeToggle compact />
+            <select
+              id="acct"
+              aria-label="Account"
+              value={accountId ?? ""}
+              onChange={(e) => onAccount(e.target.value)}
+              disabled={accounts.length === 0}
+            >
+              {accounts.length === 0 && <option value="">No account</option>}
+              {accounts.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.account_name}
+                </option>
+              ))}
+            </select>
+            <div className="who">
+              <span className="who-name">{user?.display_name || user?.email || "Signed in"}</span>
+              <button type="button" className="who-out" onClick={logout}>
+                Sign out
+              </button>
+            </div>
+          </div>
+        </header>
+        <div className="page">{children}</div>
+      </div>
+      </div>
+      {navOpen && (
+        <div className="overlay" role="dialog" aria-label="Navigation">
+          <button type="button" className="scrim" aria-label="Close menu" onClick={() => setNavOpen(false)} />
+          <aside className="rail drawer">{nav}</aside>
+        </div>
+      )}
+      <style jsx>{`
+        .shell-wrap {
+          min-height: 100vh;
+          font-size: 17px;
+          font-weight: 500;
+          line-height: 1.55;
+        }
+        .shell {
+          display: grid;
+          grid-template-columns: 260px minmax(0, 1fr);
+          min-height: 100vh;
+        }
+        .rail {
+          background: var(--rail-bg);
+          color: var(--rail-text);
+          display: flex;
+          flex-direction: column;
+          padding: 24px 16px 18px;
+          position: sticky;
+          top: 0;
+          height: 100vh;
+          max-height: 100vh;
+          overflow: auto;
+          z-index: 2;
+        }
+        :global(a.brand) {
+          display: flex;
+          gap: 10px;
+          align-items: center;
+          margin-bottom: 28px;
+          padding: 0 8px;
+          color: inherit;
+          text-decoration: none;
+        }
+        :global(a.brand:hover) {
+          color: inherit;
+        }
+        .brand-name {
+          font-weight: 600;
+          letter-spacing: 0.06em;
+          font-size: 14px;
+        }
+        nav {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          flex: 1;
+        }
+        :global(a.nav-link) {
+          display: flex;
+          align-items: center;
+          width: 100%;
+          box-sizing: border-box;
+          padding: 12px 14px;
+          color: var(--rail-text);
+          border-left: 2px solid transparent;
+          border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+          font-size: 16px;
+          font-weight: 500;
+          line-height: 1.3;
+          cursor: pointer;
+          position: relative;
+          z-index: 1;
+        }
+        :global(a.nav-link:hover) {
+          background: var(--rail-hover);
+          color: var(--rail-text);
+        }
+        :global(a.nav-link.active) {
+          color: var(--rail-text);
+          background: var(--rail-active);
+          border-left-color: var(--accent);
+        }
+        .main {
+          display: flex;
+          flex-direction: column;
+          min-width: 0;
+          background: var(--bg);
+        }
+        .top {
+          min-height: 48px;
+          border-bottom: 1px solid var(--border);
+          background: var(--surface);
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 0 20px;
+          gap: 12px;
+        }
+        .top-left,
+        .top-right {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          min-width: 0;
+        }
+        .menu {
+          display: none;
+          border: 1px solid var(--border);
+          background: transparent;
+          padding: 5px 10px;
+          font-size: 12px;
+          border-radius: var(--radius-sm);
+        }
+        .crumb {
+          color: var(--text-secondary);
+          font-size: 14px;
+          font-weight: 500;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .eq-chip {
+          display: flex;
+          align-items: baseline;
+          gap: 8px;
+          font-size: 14px;
+          font-weight: 600;
+        }
+        select {
+          background: var(--surface);
+          border: 1px solid var(--border);
+          padding: 8px 10px;
+          min-width: 180px;
+          max-width: 260px;
+          color: var(--text-primary);
+          border-radius: var(--radius-sm);
+          font-size: 15px;
+          font-weight: 500;
+        }
+        .who {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          min-width: 0;
+        }
+        .who-name {
+          font-size: 15px;
+          font-weight: 600;
+          color: var(--text-primary);
+          max-width: 220px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .who-out {
+          border: 1px solid var(--line-strong);
+          background: var(--surface);
+          color: var(--text-primary);
+          font-size: 15px;
+          font-weight: 600;
+          padding: 8px 12px;
+          border-radius: var(--radius-sm);
+          cursor: pointer;
+        }
+        .who-out:hover {
+          border-color: var(--text-secondary);
+        }
+        .page {
+          padding: 20px 24px 48px;
+          position: relative;
+          z-index: 0;
+          color: var(--text-primary);
+        }
+        .page :global(h1) {
+          font-size: 30px;
+          font-weight: 700;
+        }
+        .page :global(.page-kicker) {
+          font-size: 13px;
+          font-weight: 600;
+        }
+        .page :global(.blotter) {
+          font-size: 15px;
+        }
+        .page :global(.blotter th) {
+          font-size: 12px;
+          font-weight: 700;
+        }
+        .page :global(.btn) {
+          font-size: 15px;
+          font-weight: 600;
+          padding: 10px 16px;
+        }
+        .overlay {
+          position: fixed;
+          inset: 0;
+          z-index: 40;
+        }
+        .scrim {
+          position: absolute;
+          inset: 0;
+          border: 0;
+          background: rgba(0, 0, 0, 0.45);
+          cursor: pointer;
+        }
+        @media (max-width: 1024px) {
+          .eq-chip {
+            display: none;
+          }
+        }
+        @media (max-width: 900px) {
+          .shell {
+            grid-template-columns: minmax(0, 1fr);
+          }
+          .desktop {
+            display: none;
+          }
+          .menu {
+            display: inline-flex;
+            cursor: pointer;
+          }
+          .drawer {
+            position: relative;
+            z-index: 1;
+            width: min(280px, 86vw);
+            min-height: 100vh;
+            max-height: 100vh;
+          }
+          select {
+            min-width: 140px;
+          }
+        }
+      `}</style>
+    </div>
+  );
+}
