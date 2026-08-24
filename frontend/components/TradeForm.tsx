@@ -1,12 +1,15 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ApiError, api, getActiveAccountId } from "@/lib/api";
 import type { ChecklistTemplate, Instrument, Setup, Trade, TradePreview } from "@/lib/types";
 import { Alert, Button, Field, Panel } from "@/components/ui";
 import { money, num } from "@/lib/format";
 import { PreTradeCheck, processCheckStatus } from "@/components/PreTradeCheck";
+import { CalculatorDrawer } from "@/components/CalculatorDrawer";
+import { consumeCalcPlan } from "@/lib/calcPlan";
 
 const EMOTIONS = [
   "calm",
@@ -86,6 +89,7 @@ export function TradeForm({ mode, trade = null }: Props) {
   const [busy, setBusy] = useState(false);
   const [accountId, setAccountId] = useState<string | null>(trade?.account_id ?? null);
   const [ready, setReady] = useState(false);
+  const [calcOpen, setCalcOpen] = useState(false);
 
   const showExit = isClose || isEdit || recordClosed;
   const showPostTrade = isClose || isEdit || recordClosed;
@@ -98,6 +102,15 @@ export function TradeForm({ mode, trade = null }: Props) {
     }
     setAccountId(getActiveAccountId());
     setWhen(nowLocalInput());
+    const plan = consumeCalcPlan();
+    if (plan) {
+      if (plan.symbol) setSymbol(plan.symbol);
+      if (plan.direction) setDirection(plan.direction);
+      if (plan.entry) setEntry(plan.entry);
+      if (plan.stop_loss) setSl(plan.stop_loss);
+      if (plan.take_profit) setTp(plan.take_profit);
+      if (plan.lot_size) setLot(plan.lot_size);
+    }
     setReady(true);
     const on = () => setAccountId(getActiveAccountId());
     window.addEventListener("traderos-account", on);
@@ -484,6 +497,16 @@ export function TradeForm({ mode, trade = null }: Props) {
                 </div>
               </dl>
             )}
+            {!lockInitial && (
+              <div className="calc-tools">
+                <Button type="button" kind="ghost" onClick={() => setCalcOpen(true)}>
+                  Calculate risk
+                </Button>
+                <Link href="/calculator" className="calc-link">
+                  Open Calculator
+                </Link>
+              </div>
+            )}
           </Panel>
         )}
 
@@ -658,6 +681,27 @@ export function TradeForm({ mode, trade = null }: Props) {
           {submitLabel}
         </Button>
       </form>
+      <CalculatorDrawer
+        open={calcOpen}
+        onClose={() => setCalcOpen(false)}
+        initial={{
+          symbol,
+          direction,
+          entry,
+          stop_loss: sl,
+          take_profit: tp,
+          lot_size: lot,
+          risk_amount: preview?.risk_amount ?? "5",
+        }}
+        onApply={(v) => {
+          setSymbol(v.symbol);
+          setDirection(v.direction);
+          setEntry(v.entry);
+          if (v.stop_loss) setSl(v.stop_loss);
+          if (v.take_profit) setTp(v.take_profit);
+          if (v.lot_size) setLot(v.lot_size);
+        }}
+      />
       <style jsx>{`
         .trade-form {
           --warning: var(--accent);
@@ -694,6 +738,19 @@ export function TradeForm({ mode, trade = null }: Props) {
         .metrics dd {
           margin: 0;
           font-size: 15px;
+        }
+        .calc-tools {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 12px;
+          align-items: center;
+          margin-top: 12px;
+        }
+        .calc-link {
+          color: var(--accent);
+          font-weight: 600;
+          font-size: 14px;
+          text-decoration: none;
         }
         .calc-note {
           margin: 10px 0 0;

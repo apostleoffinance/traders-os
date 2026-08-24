@@ -11,6 +11,7 @@ from app.api.catalog import (
     media_router,
     setups_router,
 )
+from app.api.calculator import router as calculator_router
 from app.api.push import router as push_router
 from app.api.trades import router as trades_router
 
@@ -28,3 +29,4 @@ api_router.include_router(events_router)
 api_router.include_router(media_router)
 api_router.include_router(push_router)
 api_router.include_router(ai_router)
+api_router.include_router(calculator_router)

@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type ComponentType } from "react";
 import {
   BrainCircuit,
+  Calculator,
   ChartNoAxesCombined,
   History,
   LayoutDashboard,
@@ -35,6 +36,7 @@ type NavItem = {
 
 const NAV: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, group: "workspace" },
+  { href: "/calculator", label: "Trade Calculator", icon: Calculator, group: "workspace" },
   { href: "/trades/new", label: "New trade", icon: PlusCircle, group: "workspace" },
   { href: "/trades", label: "History", icon: History, group: "workspace" },
   { href: "/risk", label: "Risk monitor", icon: ShieldAlert, group: "workspace" },

@@ -8,7 +8,7 @@ for persisted results.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from decimal import Decimal, ROUND_HALF_EVEN
+from decimal import Decimal, ROUND_FLOOR, ROUND_HALF_EVEN
 from typing import Mapping
 
 from app.core.enums import AssetClass, Direction, TradeResult, TradeStatus
@@ -297,6 +297,7 @@ def holding_seconds(entry_ts, exit_ts) -> int | None:
 
 
 def quantize_size(raw: Decimal, spec: InstrumentSpec) -> Decimal:
+    """Round to instrument step (half-even). Prefer quantize_size_floor for risk caps."""
     step = spec.volume_step if spec.volume_step > ZERO else Decimal("0.01")
     steps = (raw / step).quantize(Decimal("1"), rounding=ROUND_HALF_EVEN)
     sized = steps * step
@@ -306,6 +307,64 @@ def quantize_size(raw: Decimal, spec: InstrumentSpec) -> Decimal:
         sized = spec.volume_max
     q = Decimal("1").scaleb(-spec.volume_precision)
     return sized.quantize(q, rounding=ROUND_HALF_EVEN)
+
+
+def quantize_size_floor(raw: Decimal, spec: InstrumentSpec) -> Decimal:
+    """Round DOWN to instrument step so sized risk does not exceed the request."""
+    step = spec.volume_step if spec.volume_step > ZERO else Decimal("0.01")
+    if raw <= ZERO:
+        return ZERO
+    steps = (raw / step).to_integral_value(rounding=ROUND_FLOOR)
+    sized = steps * step
+    if sized > spec.volume_max:
+        sized = spec.volume_max
+    if sized > ZERO and sized < spec.volume_min:
+        # Below minimum step: cannot size without exceeding or using zero.
+        return ZERO
+    q = Decimal("1").scaleb(-spec.volume_precision)
+    return sized.quantize(q, rounding=ROUND_FLOOR) if sized > ZERO else ZERO
+
+
+def price_from_distance(
+    *,
+    direction: Direction,
+    entry: Decimal,
+    distance: Decimal,
+    for_stop: bool,
+) -> Decimal:
+    """Map a positive price distance to SL or TP from entry and direction."""
+    if distance < ZERO:
+        raise ValueError("distance must be >= 0")
+    if for_stop:
+        # Long SL below entry; short SL above entry
+        return entry - distance if direction == Direction.LONG else entry + distance
+    # Long TP above entry; short TP below entry
+    return entry + distance if direction == Direction.LONG else entry - distance
+
+
+def distance_from_money(
+    *,
+    money_amount: Decimal,
+    lot_size: Decimal,
+    spec: InstrumentSpec,
+    quote_to_account_rate: Decimal,
+) -> Decimal:
+    """Invert notional_move: account-currency amount → absolute price distance."""
+    if money_amount < ZERO:
+        raise ValueError("money_amount must be >= 0")
+    if lot_size <= ZERO:
+        raise ValueError("lot_size must be > 0")
+    if quote_to_account_rate <= ZERO:
+        raise ValueError("quote_to_account_rate must be > 0")
+    denom = lot_size * spec.contract_size * quote_to_account_rate
+    if denom <= ZERO:
+        raise ValueError("Cannot derive price distance with the given size")
+    return money_amount / denom
+
+
+def quantize_price(price: Decimal, spec: InstrumentSpec) -> Decimal:
+    q = Decimal("1").scaleb(-spec.price_decimals)
+    return price.quantize(q, rounding=ROUND_HALF_EVEN)
 
 
 def position_size_from_risk(
@@ -319,7 +378,10 @@ def position_size_from_risk(
     take_profit: Decimal | None = None,
     direction: Direction = Direction.LONG,
 ) -> dict:
-    """Invert planned_metrics: given $ risk, return position size. Does not fabricate a rate."""
+    """Invert planned_metrics: given $ risk, return position size. Does not fabricate a rate.
+
+    Size is floored to the instrument step so calculated risk does not exceed requested risk.
+    """
     if quote_to_account_rate is None:
         raise ValueError("quote_to_account_rate is required")
     if quote_to_account_rate <= ZERO:
@@ -334,7 +396,11 @@ def position_size_from_risk(
     if denom <= ZERO:
         raise ValueError("Cannot size this instrument with the given prices")
     raw = risk_amount / denom
-    lots = quantize_size(raw, spec)
+    lots = quantize_size_floor(raw, spec)
+    if lots <= ZERO:
+        raise ValueError(
+            "Stop is too wide for the requested risk at this instrument's minimum size."
+        )
     metrics = planned_metrics(
         symbol=symbol,
         direction=direction,
@@ -345,10 +411,36 @@ def position_size_from_risk(
         account_balance=account_balance,
         quote_to_account_rate=quote_to_account_rate,
     )
+    # Safety: if half-even money rounding still edges over, step down once.
+    step = spec.volume_step if spec.volume_step > ZERO else Decimal("0.01")
+    while (
+        metrics["risk_amount"] is not None
+        and metrics["risk_amount"] > risk_amount
+        and lots > spec.volume_min
+    ):
+        lots = quantize_size_floor(lots - step, spec)
+        if lots <= ZERO:
+            break
+        metrics = planned_metrics(
+            symbol=symbol,
+            direction=direction,
+            entry=entry,
+            stop_loss=stop_loss,
+            take_profit=take_profit,
+            lot_size=lots,
+            account_balance=account_balance,
+            quote_to_account_rate=quote_to_account_rate,
+        )
+    if lots <= ZERO or (metrics["risk_amount"] is not None and metrics["risk_amount"] > risk_amount):
+        raise ValueError(
+            "Cannot size within the requested risk at this instrument's minimum size."
+        )
     return {
         "lot_size": lots,
         "size_unit": spec.size_unit,
         "display_symbol": spec.display_symbol or spec.symbol,
         "conversion_rate": quote_to_account_rate,
+        "requested_risk": money(risk_amount),
+        "risk_difference": money(metrics["risk_amount"] - risk_amount),
         **metrics,
     }

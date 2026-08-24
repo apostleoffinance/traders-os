@@ -55,6 +55,11 @@ class Settings(BaseSettings):
     oanda_account_id: str = ""
     oanda_environment: str = "practice"
     ccxt_exchanges: str = "binance,bybit,kraken"
+    # FX conversion freshness for calculator (seconds). Stale rates refused unless opted in.
+    fx_rate_fresh_seconds: int = 60
+    fx_rate_recent_seconds: int = 300
+    fx_quote_cache_ttl_seconds: int = 45
+    fx_provider: str = "market"  # market = Dukascopy/CCXT chain; no paid FX API
 
     # Web Push — empty keys disable reminders. Private key stays server-side.
     vapid_public_key: str = ""

@@ -95,6 +95,7 @@ def test_position_size_from_five_dollar_eurusd_risk() -> None:
 
 def test_usdjpy_size_uses_conversion_rate() -> None:
     # 10 pip (0.10 JPY) stop, $5 risk, USDJPY=150 → rate = 1/150
+    # Floor sizing: raw ≈ 0.075 → 0.07 lots → risk ≈ $4.67 (does not exceed $5)
     sized = position_size_from_risk(
         symbol="USDJPY",
         entry=Decimal("150.00"),
@@ -104,8 +105,10 @@ def test_usdjpy_size_uses_conversion_rate() -> None:
         quote_to_account_rate=Decimal("1") / Decimal("150"),
         direction=Direction.LONG,
     )
-    assert sized["lot_size"] == Decimal("0.08")
-    assert sized["risk_amount"] == Decimal("5.33")
+    assert sized["lot_size"] == Decimal("0.07")
+    assert sized["risk_amount"] == Decimal("4.67")
+    assert sized["risk_amount"] <= Decimal("5.00")
+    assert sized["requested_risk"] == Decimal("5.00")
 
 
 def test_pip_distance() -> None:
