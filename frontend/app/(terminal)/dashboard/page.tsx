@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { api, getActiveAccountId, getStoredUser } from "@/lib/api";
 import type { Dashboard, Trade, User } from "@/lib/types";
 import { Alert, Badge, EmptyState, LimitBar, Panel, Stat } from "@/components/ui";
@@ -19,7 +18,6 @@ function healthLabel(status: string): string {
 }
 
 export default function DashboardPage() {
-  const router = useRouter();
   const [data, setData] = useState<Dashboard | null>(null);
   const [recent, setRecent] = useState<Trade[]>([]);
   const [openTrades, setOpenTrades] = useState<Trade[]>([]);
@@ -230,16 +228,32 @@ export default function DashboardPage() {
                 </tr>
               </thead>
               <tbody>
-                {recent.map((t) => (
-                  <tr key={t.id} onClick={() => router.push(`/trades/${t.id}`)}>
-                    <td>{sessionLabel(t.session)}</td>
-                    <td>{t.setup_name ?? t.symbol}</td>
-                    <td>
-                      <Badge status={t.result} />
-                    </td>
-                    <td className={`num ${tone(t.realized_r)}`}>{t.realized_r ? `${num(t.realized_r)}R` : "-"}</td>
-                  </tr>
-                ))}
+                {recent.map((t) => {
+                  const href = `/trades/${t.id}`;
+                  const label = t.setup_name ?? t.symbol;
+                  const cells = [
+                    sessionLabel(t.session),
+                    <Link key="label" href={href} className="trade-link">{label}</Link>,
+                    <Badge key="result" status={t.result} />,
+                    t.realized_r ? `${num(t.realized_r)}R` : "-",
+                  ];
+                  return (
+                    <tr key={t.id} className="recent-row">
+                      {cells.map((cell, i) => (
+                        <td key={i} className={i === 3 ? `num ${tone(t.realized_r)}` : undefined}>
+                          <Link
+                            href={href}
+                            className="row-hit"
+                            aria-label={i === 0 ? `Open ${label} trade` : undefined}
+                            aria-hidden={i === 0 ? undefined : true}
+                            tabIndex={i === 0 ? 0 : -1}
+                          />
+                          {cell}
+                        </td>
+                      ))}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}
@@ -310,6 +324,24 @@ export default function DashboardPage() {
         .active-list a {
           text-decoration: underline;
           white-space: nowrap;
+        }
+        .recent-row td {
+          position: relative;
+        }
+        .recent-row:hover td {
+          background: var(--surface-2);
+        }
+        .recent-row :global(.row-hit) {
+          position: absolute;
+          inset: 0;
+          z-index: 1;
+        }
+        .recent-row :global(.trade-link) {
+          position: relative;
+          z-index: 2;
+          color: inherit;
+          text-decoration: underline;
+          text-underline-offset: 2px;
         }
         @media (max-width: 900px) {
           .head {

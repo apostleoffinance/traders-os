@@ -1,14 +1,71 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import Link from "next/link";
 import { api, getActiveAccountId } from "@/lib/api";
 import type { Setup, Trade } from "@/lib/types";
 import { Badge, Field, Panel } from "@/components/ui";
 import { formatDate, formatTime, money, num, sessionLabel, signed, tone } from "@/lib/format";
 
+function TradeRow({ trade: t }: { trade: Trade }) {
+  const href = `/trades/${t.id}`;
+  const cells: { content: ReactNode; className?: string }[] = [
+    { content: formatDate(t.trade_timestamp) },
+    { content: formatTime(t.trade_timestamp), className: "num" },
+    {
+      content: (
+        <Link href={href} className="cell-link">
+          {t.symbol}
+        </Link>
+      ),
+      className: "num",
+    },
+    { content: sessionLabel(t.session) },
+    { content: t.direction },
+    { content: t.setup_name ?? "-" },
+    { content: t.entry_price, className: "num" },
+    { content: t.stop_loss, className: "num" },
+    { content: t.take_profit ?? "-", className: "num" },
+    { content: t.lot_size, className: "num" },
+    { content: money(t.risk_amount), className: "num" },
+    { content: <Badge status={t.status} /> },
+    { content: <Badge status={t.result} /> },
+    {
+      content: t.status === "open" ? "—" : (t.realized_r ?? "-"),
+      className: `num ${tone(t.realized_r)}`,
+    },
+    {
+      content: t.status === "open" ? "—" : signed(t.realized_pnl),
+      className: `num ${tone(t.realized_pnl)}`,
+    },
+    { content: t.discipline_score ?? "-", className: "num" },
+    { content: t.psychology?.emotion_before ?? "-" },
+  ];
+
+  return (
+    <tr className="trade-row">
+      {cells.map((cell, i) => (
+        <td key={i} className={cell.className}>
+          <Link
+            href={href}
+            className="row-hit"
+            aria-label={i === 0 ? `Open ${t.symbol} trade` : undefined}
+            aria-hidden={i === 0 ? undefined : true}
+            tabIndex={i === 0 ? 0 : -1}
+          />
+          {cell.content}
+        </td>
+      ))}
+      <td className="actions">
+        <Link href={href} className="open-link">
+          Open
+        </Link>
+      </td>
+    </tr>
+  );
+}
+
 export default function TradeHistoryPage() {
-  const router = useRouter();
   const [trades, setTrades] = useState<Trade[]>([]);
   const [setups, setSetups] = useState<Setup[]>([]);
   const [session, setSession] = useState("");
@@ -115,37 +172,12 @@ export default function TradeHistoryPage() {
               <th>P/L</th>
               <th>Disc.</th>
               <th>Emotion</th>
+              <th />
             </tr>
           </thead>
           <tbody>
             {rows.map((t) => (
-              <tr key={t.id} onClick={() => router.push(`/trades/${t.id}`)}>
-                <td>{formatDate(t.trade_timestamp)}</td>
-                <td className="num">{formatTime(t.trade_timestamp)}</td>
-                <td className="num">{t.symbol}</td>
-                <td>{sessionLabel(t.session)}</td>
-                <td>{t.direction}</td>
-                <td>{t.setup_name ?? "-"}</td>
-                <td className="num">{t.entry_price}</td>
-                <td className="num">{t.stop_loss}</td>
-                <td className="num">{t.take_profit ?? "-"}</td>
-                <td className="num">{t.lot_size}</td>
-                <td className="num">{money(t.risk_amount)}</td>
-                <td>
-                  <Badge status={t.status} />
-                </td>
-                <td>
-                  <Badge status={t.result} />
-                </td>
-                <td className={`num ${tone(t.realized_r)}`}>
-                  {t.status === "open" ? "—" : (t.realized_r ?? "-")}
-                </td>
-                <td className={`num ${tone(t.realized_pnl)}`}>
-                  {t.status === "open" ? "—" : signed(t.realized_pnl)}
-                </td>
-                <td className="num">{t.discipline_score ?? "-"}</td>
-                <td>{t.psychology?.emotion_before ?? "-"}</td>
-              </tr>
+              <TradeRow key={t.id} trade={t} />
             ))}
           </tbody>
         </table>
@@ -180,13 +212,33 @@ export default function TradeHistoryPage() {
           white-space: nowrap;
         }
         td {
+          position: relative;
           padding: 8px;
           border-bottom: 1px solid var(--line);
           white-space: nowrap;
-          cursor: pointer;
         }
-        tr:hover td {
+        .trade-row:hover td {
           background: var(--surface-2);
+        }
+        .trade-row :global(.row-hit) {
+          position: absolute;
+          inset: 0;
+          z-index: 1;
+        }
+        .trade-row :global(.cell-link),
+        .trade-row :global(.open-link) {
+          position: relative;
+          z-index: 2;
+          color: inherit;
+          text-decoration: underline;
+          text-underline-offset: 2px;
+        }
+        .trade-row :global(.open-link) {
+          color: var(--accent);
+          font-weight: 600;
+        }
+        .actions {
+          text-align: right;
         }
         @media (max-width: 800px) {
           .filters {
