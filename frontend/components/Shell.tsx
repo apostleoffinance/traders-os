@@ -142,20 +142,38 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const workspace = NAV.filter((i) => i.group === "workspace");
   const account = NAV.filter((i) => i.group === "account");
 
-  function renderNav(opts: { collapsedMode: boolean; onNavigate?: () => void }) {
-    const { collapsedMode, onNavigate } = opts;
+  function renderNav(opts: { collapsedMode: boolean; showToggle?: boolean; onNavigate?: () => void }) {
+    const { collapsedMode, showToggle = false, onNavigate } = opts;
+    const toggleLabel = collapsedMode ? "Expand sidebar" : "Collapse sidebar";
     return (
       <>
-        <Link
-          href="/dashboard"
-          className={collapsedMode ? "brand brand-collapsed" : "brand"}
-          onClick={onNavigate}
-          title={collapsedMode ? "Trader OS" : undefined}
-          aria-label="Trader OS"
-        >
-          <BrandMark size={collapsedMode ? 28 : 26} />
-          {!collapsedMode && <span className="brand-name">Trader OS</span>}
-        </Link>
+        <div className={collapsedMode ? "brand-block brand-block-collapsed" : "brand-block"}>
+          <Link
+            href="/dashboard"
+            className={collapsedMode ? "brand brand-collapsed" : "brand"}
+            onClick={onNavigate}
+            title={collapsedMode ? "Trader OS" : undefined}
+            aria-label="Trader OS"
+          >
+            <BrandMark size={collapsedMode ? 28 : 26} />
+            {!collapsedMode && <span className="brand-name">Trader OS</span>}
+          </Link>
+          {showToggle && (
+            <button
+              type="button"
+              className="sidebar-toggle"
+              onClick={toggleCollapsed}
+              aria-label={toggleLabel}
+              title={toggleLabel}
+            >
+              {collapsedMode ? (
+                <PanelLeftOpen size={18} strokeWidth={1.75} aria-hidden />
+              ) : (
+                <PanelLeftClose size={18} strokeWidth={1.75} aria-hidden />
+              )}
+            </button>
+          )}
+        </div>
         <nav aria-label="Workspace">
           {!collapsedMode && <p className="nav-kicker">Workspace</p>}
           {workspace.map((item) => {
@@ -204,19 +222,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className={`shell-wrap${ready && collapsed ? " is-collapsed" : ""}${ready ? " is-ready" : ""}`}>
       <div className="shell">
-        <aside className="rail desktop">
-          {renderNav({ collapsedMode: collapsed })}
-          <button
-            type="button"
-            className="collapse-btn"
-            onClick={toggleCollapsed}
-            aria-label={collapsed ? "Expand navigation" : "Collapse navigation"}
-            title={collapsed ? "Expand navigation" : "Collapse navigation"}
-          >
-            {collapsed ? <PanelLeftOpen size={20} strokeWidth={1.75} /> : <PanelLeftClose size={20} strokeWidth={1.75} />}
-            {!collapsed && <span>Collapse</span>}
-          </button>
-        </aside>
+        <aside className="rail desktop">{renderNav({ collapsedMode: collapsed, showToggle: true })}</aside>
         <div className="main">
           <header className="top">
             <div className="top-left">
@@ -274,7 +280,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           font-weight: 500;
           line-height: 1.55;
           --rail-width: 260px;
-          --rail-width-collapsed: 72px;
+          --rail-width-collapsed: 68px;
         }
         .shell-wrap.is-collapsed {
           --rail-width: var(--rail-width-collapsed);
@@ -306,22 +312,32 @@ export function Shell({ children }: { children: React.ReactNode }) {
           padding-right: 10px;
           align-items: center;
         }
+        .brand-block {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 8px;
+          margin-bottom: 18px;
+          width: 100%;
+        }
+        .brand-block-collapsed {
+          align-items: center;
+        }
         :global(a.brand) {
           display: flex;
           gap: 10px;
           align-items: center;
-          margin-bottom: 22px;
-          padding: 4px 8px;
+          padding: 2px 6px;
           color: inherit;
           text-decoration: none;
-          min-height: 40px;
+          min-height: 36px;
         }
         :global(a.brand:hover) {
           color: inherit;
         }
         .shell-wrap.is-collapsed :global(a.brand-collapsed) {
           justify-content: center;
-          padding: 4px 0;
+          padding: 2px 0;
           width: 100%;
         }
         .brand-name {
@@ -329,6 +345,33 @@ export function Shell({ children }: { children: React.ReactNode }) {
           letter-spacing: 0.06em;
           font-size: 14px;
           white-space: nowrap;
+        }
+        .sidebar-toggle {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 36px;
+          height: 36px;
+          margin: 0 4px;
+          padding: 0;
+          border: 1px solid transparent;
+          border-radius: var(--radius-sm);
+          background: transparent;
+          color: var(--rail-muted, var(--muted));
+          cursor: pointer;
+          flex-shrink: 0;
+        }
+        .brand-block-collapsed .sidebar-toggle {
+          margin: 0;
+        }
+        .sidebar-toggle:hover {
+          background: var(--rail-hover);
+          color: var(--rail-text);
+          border-color: var(--rail-border, var(--border));
+        }
+        .sidebar-toggle:focus-visible {
+          outline: 2px solid var(--accent);
+          outline-offset: 2px;
         }
         nav {
           display: flex;
@@ -393,35 +436,12 @@ export function Shell({ children }: { children: React.ReactNode }) {
           border-left-color: transparent;
           box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent);
         }
-        :global(a.nav-link:focus-visible),
-        .collapse-btn:focus-visible {
+        :global(a.nav-link:focus-visible) {
           outline: 2px solid var(--accent);
           outline-offset: 2px;
         }
         .nav-label {
           white-space: nowrap;
-        }
-        .collapse-btn {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          width: 100%;
-          margin-top: 12px;
-          padding: 10px 12px;
-          border: 1px solid transparent;
-          border-radius: var(--radius-sm);
-          background: transparent;
-          color: var(--rail-text);
-          font-size: 13px;
-          font-weight: 500;
-          cursor: pointer;
-        }
-        .shell-wrap.is-collapsed .desktop .collapse-btn {
-          justify-content: center;
-          padding: 10px 0;
-        }
-        .collapse-btn:hover {
-          background: var(--rail-hover);
         }
         .main {
           display: flex;
@@ -545,9 +565,6 @@ export function Shell({ children }: { children: React.ReactNode }) {
           border: 0;
           background: rgba(0, 0, 0, 0.45);
           cursor: pointer;
-        }
-        .drawer .collapse-btn {
-          display: none;
         }
         @media (max-width: 1024px) {
           .eq-chip {

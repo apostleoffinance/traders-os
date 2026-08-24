@@ -1,63 +1,77 @@
 "use client";
 
+import { Moon, Sun } from "lucide-react";
 import { useTheme } from "@/components/ThemeProvider";
 
 export function ThemeToggle({ compact = false }: { compact?: boolean }) {
   const { resolved, setPreference } = useTheme();
+  const isDark = resolved === "dark";
+  const label = isDark ? "Switch to light mode" : "Switch to dark mode";
 
   return (
-    <div className={compact ? "theme-switch compact" : "theme-switch"} role="group" aria-label="Theme">
-      <button
-        type="button"
-        className={resolved === "light" ? "on" : ""}
-        aria-pressed={resolved === "light"}
-        onClick={() => setPreference("light")}
-      >
-        Light
-      </button>
-      <button
-        type="button"
-        className={resolved === "dark" ? "on" : ""}
-        aria-pressed={resolved === "dark"}
-        onClick={() => setPreference("dark")}
-      >
-        Dark
-      </button>
+    <button
+      type="button"
+      className={compact ? "theme-toggle compact" : "theme-toggle"}
+      aria-label={label}
+      title={label}
+      onClick={() => setPreference(isDark ? "light" : "dark")}
+    >
+      <span className="icon" key={resolved} aria-hidden>
+        {isDark ? <Sun size={compact ? 17 : 18} strokeWidth={1.75} /> : <Moon size={compact ? 17 : 18} strokeWidth={1.75} />}
+      </span>
       <style jsx>{`
-        .theme-switch {
-          display: inline-grid;
-          grid-template-columns: 1fr 1fr;
-          border: 1px solid var(--line-strong);
+        .theme-toggle {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 40px;
+          height: 40px;
+          padding: 0;
+          border: 1px solid var(--border);
+          border-radius: 10px;
           background: var(--surface);
-          padding: 3px;
-          gap: 3px;
-          border-radius: 999px;
-          min-width: 132px;
+          color: var(--text-primary);
+          cursor: pointer;
+          flex-shrink: 0;
+          transition:
+            border-color 180ms ease,
+            background-color 180ms ease,
+            color 180ms ease;
         }
         .compact {
-          min-width: 112px;
-          padding: 2px;
+          width: 36px;
+          height: 36px;
+          border-radius: 8px;
         }
-        button {
-          border: 0;
-          background: transparent;
-          padding: 6px 12px;
-          font-size: 11px;
-          letter-spacing: 0.06em;
-          text-transform: uppercase;
-          color: var(--text-secondary);
-          border-radius: 999px;
-          cursor: pointer;
+        .theme-toggle:hover {
+          border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+          background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+          color: var(--accent);
         }
-        .compact button {
-          padding: 4px 8px;
-          font-size: 10px;
+        .theme-toggle:focus-visible {
+          outline: 2px solid var(--accent);
+          outline-offset: 2px;
         }
-        .on {
-          background: var(--accent);
-          color: var(--accent-contrast);
+        .icon {
+          display: inline-flex;
+          animation: theme-icon-in 180ms ease;
+        }
+        @keyframes theme-icon-in {
+          from {
+            opacity: 0.35;
+            transform: rotate(-18deg) scale(0.92);
+          }
+          to {
+            opacity: 1;
+            transform: rotate(0deg) scale(1);
+          }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .icon {
+            animation: none;
+          }
         }
       `}</style>
-    </div>
+    </button>
   );
 }
