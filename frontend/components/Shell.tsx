@@ -17,7 +17,7 @@ import {
   WalletCards,
   type LucideProps,
 } from "lucide-react";
-import { api, clearSession, getActiveAccountId, getAccessToken, setActiveAccountId } from "@/lib/api";
+import { api, clearSession, ensureFreshAccessToken, getActiveAccountId, hasSession, isAuthFailure, setActiveAccountId } from "@/lib/api";
 import type { Account, User } from "@/lib/types";
 import { BrandMark } from "@/components/BrandMark";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -73,6 +73,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const [navOpen, setNavOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [ready, setReady] = useState(false);
+  const [bootError, setBootError] = useState<string | null>(null);
 
   useEffect(() => {
     setCollapsed(readCollapsed());
@@ -92,12 +93,18 @@ export function Shell({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (!getAccessToken()) {
+    if (!hasSession()) {
       router.replace("/login");
       return;
     }
     void (async () => {
+      setBootError(null);
       try {
+        const sessionOk = await ensureFreshAccessToken();
+        if (!sessionOk) {
+          router.replace("/login");
+          return;
+        }
         const me = await api<User>("/api/auth/me");
         setUser(me);
         const list = await api<Account[]>("/api/accounts");
@@ -108,9 +115,13 @@ export function Shell({ children }: { children: React.ReactNode }) {
           setActiveAccountId(next);
           setAccountId(next);
         }
-      } catch {
-        clearSession();
-        router.replace("/login");
+      } catch (err) {
+        if (isAuthFailure(err)) {
+          clearSession();
+          router.replace("/login");
+          return;
+        }
+        setBootError(err instanceof Error ? err.message : "Unable to load workspace.");
       }
     })();
   }, [router]);
@@ -266,7 +277,10 @@ export function Shell({ children }: { children: React.ReactNode }) {
               </div>
             </div>
           </header>
-          <div className="page">{children}</div>
+          <div className="page">
+            {bootError && <p className="boot-error">{bootError}</p>}
+            {children}
+          </div>
         </div>
       </div>
       {navOpen && (
@@ -529,6 +543,15 @@ export function Shell({ children }: { children: React.ReactNode }) {
         }
         .who-out:hover {
           border-color: var(--text-secondary);
+        }
+        .boot-error {
+          margin: 0 0 16px;
+          padding: 10px 12px;
+          border: 1px solid var(--warn, #b8860b);
+          border-radius: var(--radius-sm);
+          background: color-mix(in srgb, var(--warn, #b8860b) 12%, transparent);
+          color: var(--text-primary);
+          font-size: 14px;
         }
         .page {
           padding: 20px 24px 48px;
