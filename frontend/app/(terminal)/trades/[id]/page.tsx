@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { api, fetchMediaBlob } from "@/lib/api";
@@ -13,10 +13,12 @@ function Shot({
   url,
   label,
   editHref,
+  onMissing,
 }: {
   url: string;
   label: string;
   editHref: string;
+  onMissing?: () => void;
 }) {
   const [src, setSrc] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -38,13 +40,18 @@ function Shot({
       })
       .catch((err: unknown) => {
         if (!alive) return;
+        const missing = err instanceof Error && (err as Error & { code?: string }).code === "media_missing";
+        if (missing) {
+          onMissing?.();
+          return;
+        }
         setError(err instanceof Error ? err.message : "Unable to load image");
       });
     return () => {
       alive = false;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [url, retry]);
+  }, [url, retry, onMissing]);
 
   if (error) {
     return (
@@ -98,6 +105,7 @@ function ChartSlot({
   actionHref,
   actionLabel,
   editHref,
+  onMissing,
 }: {
   label: string;
   shot: Screenshot | undefined;
@@ -105,9 +113,10 @@ function ChartSlot({
   actionHref: string;
   actionLabel: string;
   editHref: string;
+  onMissing?: () => void;
 }) {
   if (shot) {
-    return <Shot url={shot.url} label={label} editHref={editHref} />;
+    return <Shot url={shot.url} label={label} editHref={editHref} onMissing={onMissing} />;
   }
   return (
     <figure className="shot-slot">
@@ -126,13 +135,18 @@ export default function TradeDetailPage() {
   const params = useParams<{ id: string }>();
   const [trade, setTrade] = useState<Trade | null>(null);
 
-  useEffect(() => {
+  const reload = useCallback(() => {
     void api<Trade>(`/api/trades/${params.id}`).then(setTrade);
   }, [params.id]);
+
+  useEffect(() => {
+    reload();
+  }, [reload]);
 
   if (!trade) return <p className="muted">Loading…</p>;
 
   const isOpen = trade.status === "open";
+  const editHref = `/trades/${trade.id}/edit`;
 
   return (
     <div>
@@ -269,9 +283,10 @@ export default function TradeDetailPage() {
             label="Entry chart"
             shot={latestShot(trade.screenshots, "entry")}
             emptyCopy="No entry screenshot yet."
-            actionHref={`/trades/${trade.id}/edit`}
+            actionHref={editHref}
             actionLabel="Add on Edit trade"
-            editHref={`/trades/${trade.id}/edit`}
+            editHref={editHref}
+            onMissing={reload}
           />
           <ChartSlot
             label="Exit chart"
@@ -281,9 +296,10 @@ export default function TradeDetailPage() {
                 ? "Available after you close the trade."
                 : "No exit screenshot yet."
             }
-            actionHref={isOpen ? `/trades/${trade.id}/close` : `/trades/${trade.id}/edit`}
+            actionHref={isOpen ? `/trades/${trade.id}/close` : editHref}
             actionLabel={isOpen ? "Close trade" : "Add on Edit trade"}
-            editHref={`/trades/${trade.id}/edit`}
+            editHref={editHref}
+            onMissing={reload}
           />
         </div>
       </Panel>

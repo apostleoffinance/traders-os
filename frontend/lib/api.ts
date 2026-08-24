@@ -173,7 +173,18 @@ export async function fetchMediaBlob(url: string): Promise<string> {
   }
 
   if (!res.ok) {
-    if (res.status === 404) throw new Error("Image file is missing. Re-upload from Edit trade.");
+    if (res.status === 404) {
+      let detail = "Image file is missing. Re-upload from Edit trade.";
+      try {
+        const body = (await res.json()) as { detail?: string };
+        if (typeof body?.detail === "string" && body.detail.trim()) detail = body.detail;
+      } catch {
+        /* ignore */
+      }
+      const err = new Error(detail) as Error & { code?: string };
+      err.code = "media_missing";
+      throw err;
+    }
     throw new Error("Unable to load image");
   }
   const blob = await res.blob();

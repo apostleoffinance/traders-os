@@ -50,7 +50,7 @@ Business logic lives in `backend/app/engines/` (pure, unit-tested) and `backend/
 - `setups` — user-defined classifications (Liquidity Sweep, Structure Break, …)
 - `trades` — full journal row, UTC timestamps, auto session, computed metrics, discipline score
 - `psychology` — before / during / after + intensity scales
-- `trade_screenshots` — metadata only; files in object storage
+- `trade_screenshots` — metadata + optional `file_data` when `STORAGE_BACKEND=db`
 - `checklist_templates` / `checklist_items` / `trade_checklist_responses`
 - `risk_events` — why the desk is green / yellow / red
 
@@ -163,7 +163,18 @@ Covers pip/P/L/R math, drawdown, session DST, discipline independence from P/L, 
 
 **Web (Vercel):** Import the GitHub repo, then set **Root Directory** to `frontend` (required). Framework is Next.js. Set `NEXT_PUBLIC_API_URL` to the Render URL. Redeploy after changing Root Directory. A Vercel `404: NOT_FOUND` page means the project was built from the repo root or has no Ready deploy. Do not put provider keys in Vercel.
 
-Screenshots are not stored in Postgres. Swap `STORAGE_BACKEND=s3` when you attach a bucket.
+Screenshots use `STORAGE_BACKEND` (default **`db`**):
+
+- **`db`** — image bytes in Postgres (`trade_screenshots.file_data`). Survives Render redeploys with **no extra service**. Cap size with `STORAGE_MAX_UPLOAD_BYTES` (default ~1.5 MB) for Neon free tier (0.5 GB).
+- **`local`** — API disk only; **wiped on Render redeploy**.
+- **`s3`** — AWS S3 or Cloudflare R2 for large libraries.
+
+```
+STORAGE_BACKEND=db
+STORAGE_MAX_UPLOAD_BYTES=1572864
+```
+
+After deploying this migration, re-upload charts once. Orphan rows from old local disk storage are cleared when opened.
 
 ---
 

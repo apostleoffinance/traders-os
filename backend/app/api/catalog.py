@@ -228,8 +228,17 @@ def get_media(key: str, db: Session = Depends(get_db), user_id=Depends(get_curre
     )
     if shot is None:
         raise HTTPException(status_code=404, detail="Not found")
+    # Prefer Postgres bytes (STORAGE_BACKEND=db) — survives Render redeploys.
+    if shot.file_data:
+        return Response(content=bytes(shot.file_data), media_type=shot.content_type or "application/octet-stream")
     try:
         data = get_storage().get(key)
-    except FileNotFoundError as exc:
-        raise HTTPException(status_code=404, detail="Not found") from exc
+    except Exception as exc:
+        # Missing disk/S3 object, or STORAGE_BACKEND=db with no file_data (pre-migration orphan).
+        db.delete(shot)
+        db.commit()
+        raise HTTPException(
+            status_code=404,
+            detail="Image file is missing. Re-upload from Edit trade.",
+        ) from exc
     return Response(content=data, media_type=shot.content_type or "application/octet-stream")

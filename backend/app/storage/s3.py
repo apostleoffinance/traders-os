@@ -1,4 +1,7 @@
-"""S3-compatible object storage. Used when STORAGE_BACKEND=s3."""
+"""S3-compatible object storage. Used when STORAGE_BACKEND=s3.
+
+Works with AWS S3 and S3-compatible providers (Cloudflare R2, MinIO, etc.).
+"""
 
 from __future__ import annotations
 
@@ -6,6 +9,7 @@ from functools import cached_property
 
 import boto3
 from botocore.config import Config
+from botocore.exceptions import ClientError
 
 
 class S3Storage:
@@ -20,16 +24,16 @@ class S3Storage:
         if not bucket:
             raise ValueError("S3_BUCKET is required when STORAGE_BACKEND=s3")
         self.bucket = bucket
-        self.region = region
-        self.endpoint_url = endpoint_url
-        self.access_key = access_key
-        self.secret_key = secret_key
+        self.region = region or "auto"
+        self.endpoint_url = endpoint_url or None
+        self.access_key = access_key or None
+        self.secret_key = secret_key or None
 
     @cached_property
     def client(self):
         kwargs: dict = {
             "region_name": self.region,
-            "config": Config(s3={"addressing_style": "path"}),
+            "config": Config(s3={"addressing_style": "path"}, signature_version="s3v4"),
         }
         if self.endpoint_url:
             kwargs["endpoint_url"] = self.endpoint_url
@@ -42,15 +46,27 @@ class S3Storage:
         self.client.put_object(Bucket=self.bucket, Key=key, Body=data, ContentType=content_type)
 
     def get(self, key: str) -> bytes:
-        obj = self.client.get_object(Bucket=self.bucket, Key=key)
-        return obj["Body"].read()
+        try:
+            obj = self.client.get_object(Bucket=self.bucket, Key=key)
+            return obj["Body"].read()
+        except ClientError as exc:
+            code = (exc.response.get("Error") or {}).get("Code", "")
+            if code in {"404", "NoSuchKey", "NotFound", "NoSuchBucket"}:
+                raise FileNotFoundError(key) from exc
+            raise
 
     def delete(self, key: str) -> None:
-        self.client.delete_object(Bucket=self.bucket, Key=key)
+        try:
+            self.client.delete_object(Bucket=self.bucket, Key=key)
+        except ClientError as exc:
+            code = (exc.response.get("Error") or {}).get("Code", "")
+            if code in {"404", "NoSuchKey", "NotFound"}:
+                return
+            raise
 
     def exists(self, key: str) -> bool:
         try:
             self.client.head_object(Bucket=self.bucket, Key=key)
             return True
-        except Exception:
+        except ClientError:
             return False

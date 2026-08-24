@@ -15,6 +15,7 @@ from app.core.enums import (
     ScreenshotType,
     TradeStatus,
 )
+from app.core.config import settings
 from app.core.exceptions import ConflictError, DomainError, NotFoundError
 from app.core.time import as_utc, utcnow
 from app.engines.account_rules_engine import evaluate_submission, raise_if_blocked
@@ -580,12 +581,15 @@ def close_trade(db: Session, user: User, trade_id: UUID, payload: TradeClose) ->
 def delete_trade(db: Session, user: User, trade_id: UUID) -> None:
     trade = get_owned_trade(db, user.id, trade_id)
     account = get_owned_account(db, user.id, trade.account_id)
-    storage = get_storage()
-    for shot in list(trade.screenshots):
-        try:
-            storage.delete(shot.storage_key)
-        except Exception:
-            pass
+    if not _uses_db_storage():
+        storage = get_storage()
+        for shot in list(trade.screenshots):
+            if shot.file_data:
+                continue
+            try:
+                storage.delete(shot.storage_key)
+            except Exception:
+                pass
     db.delete(trade)
     db.flush()
     refresh_account_balances(db, account)
@@ -593,6 +597,10 @@ def delete_trade(db: Session, user: User, trade_id: UUID) -> None:
 
 
 ALLOWED_CONTENT = {"image/png", "image/jpeg", "image/webp", "image/gif"}
+
+
+def _uses_db_storage() -> bool:
+    return settings.storage_backend.lower().strip() == "db"
 
 
 def add_screenshot(
@@ -606,21 +614,33 @@ def add_screenshot(
 ) -> TradeScreenshot:
     if content_type not in ALLOWED_CONTENT:
         raise DomainError("Unsupported image type. Use PNG, JPEG, WebP or GIF.")
+    max_bytes = int(settings.storage_max_upload_bytes)
+    if len(file_bytes) > max_bytes:
+        raise DomainError(
+            f"Image is too large ({len(file_bytes)} bytes). Maximum is {max_bytes} bytes "
+            "(about 1.5 MB). Compress or crop the chart before uploading."
+        )
     trade = get_owned_trade(db, user.id, trade_id)
-    storage = get_storage()
+    storage = None if _uses_db_storage() else get_storage()
     # One chart per type: replace prior entry/exit/other shots so re-upload works.
     for old in list(trade.screenshots):
         if old.type != shot_type.value:
             continue
-        try:
-            storage.delete(old.storage_key)
-        except Exception:
-            pass
+        if storage is not None:
+            try:
+                storage.delete(old.storage_key)
+            except Exception:
+                pass
         db.delete(old)
     db.flush()
 
     key = f"{user.id}/{trade.id}/{shot_type.value}-{uuid4().hex}"
-    storage.put(key, file_bytes, content_type)
+    file_data: bytes | None = None
+    if _uses_db_storage():
+        file_data = file_bytes
+    else:
+        assert storage is not None
+        storage.put(key, file_bytes, content_type)
     shot = TradeScreenshot(
         user_id=user.id,
         trade_id=trade.id,
@@ -628,6 +648,7 @@ def add_screenshot(
         storage_key=key,
         original_filename=filename,
         content_type=content_type,
+        file_data=file_data,
     )
     db.add(shot)
     db.commit()
@@ -640,6 +661,10 @@ def delete_screenshot(db: Session, user: User, trade_id: UUID, screenshot_id: UU
     shot = next((s for s in trade.screenshots if s.id == screenshot_id), None)
     if shot is None:
         raise NotFoundError("Screenshot not found")
-    get_storage().delete(shot.storage_key)
+    if not _uses_db_storage() and not shot.file_data:
+        try:
+            get_storage().delete(shot.storage_key)
+        except Exception:
+            pass
     db.delete(shot)
     db.commit()
