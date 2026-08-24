@@ -161,7 +161,7 @@ Covers pip/P/L/R math, drawdown, session DST, discipline independence from P/L, 
 
 **API (Render):** Docker from `backend/Dockerfile` (`alembic upgrade head` then uvicorn). Set `DATABASE_URL`, `SECRET_KEY`, `CORS_ORIGINS` to the Vercel origin. Optional: `GEMINI_API_KEY`. For journal reminders set `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `CRON_SECRET`, and `WEB_ORIGIN`. Hit `POST /api/push/dispatch` hourly with `X-Cron-Secret`. The journal, risk engine and analytics work with no AI key and with reminders off.
 
-**Web (Vercel):** Root directory `frontend/`. Set `NEXT_PUBLIC_API_URL` to the Render URL. Do not put provider keys in Vercel.
+**Web (Vercel):** Import the GitHub repo, then set **Root Directory** to `frontend` (required). Framework is Next.js. Set `NEXT_PUBLIC_API_URL` to the Render URL. Redeploy after changing Root Directory. A Vercel `404: NOT_FOUND` page means the project was built from the repo root or has no Ready deploy. Do not put provider keys in Vercel.
 
 Screenshots are not stored in Postgres. Swap `STORAGE_BACKEND=s3` when you attach a bucket.
 

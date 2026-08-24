@@ -8,6 +8,9 @@
     "start": "next start",
     "lint": "next lint"
   },
+  "allowScripts": {
+    "sharp": true
+  },
   "dependencies": {
     "echarts": "^5.6.0",
     "echarts-for-react": "^3.0.2",
