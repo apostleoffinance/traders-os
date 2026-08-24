@@ -42,6 +42,7 @@ function Shot({
         if (!alive) return;
         const missing = err instanceof Error && (err as Error & { code?: string }).code === "media_missing";
         if (missing) {
+          setError(err instanceof Error ? err.message : "Image file is missing. Re-upload from Edit trade.");
           onMissing?.();
           return;
         }
@@ -51,7 +52,7 @@ function Shot({
       alive = false;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [url, retry, onMissing]);
+  }, [url, retry]);
 
   if (error) {
     return (

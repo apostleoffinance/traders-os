@@ -237,40 +237,58 @@ export async function fetchMediaBlob(url: string): Promise<string> {
   const token = getAccessToken();
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  let res: Response;
-  try {
-    res = await fetch(`${apiBase()}${url}`, { headers });
-  } catch {
-    throw new Error("Cannot reach the API. Confirm the backend is running on port 8000.");
-  }
+  const controller = new AbortController();
+  const timeout = typeof window !== "undefined" ? window.setTimeout(() => controller.abort(), 30_000) : undefined;
 
-  if (res.status === 401 && getRefreshToken()) {
+  async function load(attemptHeaders: Record<string, string>): Promise<Response> {
     try {
-      const next = await refreshAccessToken();
-      headers.Authorization = `Bearer ${next}`;
-      res = await fetch(`${apiBase()}${url}`, { headers });
+      return await fetch(`${apiBase()}${url}`, { headers: attemptHeaders, signal: controller.signal });
     } catch (err) {
-      if (err instanceof AuthError) throw err;
+      if (err instanceof DOMException && err.name === "AbortError") {
+        throw new Error("Image load timed out. Check your connection and retry.");
+      }
       throw new Error("Cannot reach the API. Confirm the backend is running on port 8000.");
     }
   }
 
-  if (!res.ok) {
-    if (res.status === 404) {
-      let detail = "Image file is missing. Re-upload from Edit trade.";
+  try {
+    let res = await load(headers);
+
+    if (res.status === 401 && getRefreshToken()) {
       try {
-        const body = (await res.json()) as { detail?: string };
-        if (typeof body?.detail === "string" && body.detail.trim()) detail = body.detail;
-      } catch {
-        /* ignore */
+        const next = await refreshAccessToken();
+        headers.Authorization = `Bearer ${next}`;
+        res = await load(headers);
+      } catch (err) {
+        if (err instanceof AuthError) throw err;
+        throw err;
       }
-      const err = new Error(detail) as Error & { code?: string };
+    }
+
+    if (!res.ok) {
+      if (res.status === 404) {
+        let detail = "Image file is missing. Re-upload from Edit trade.";
+        try {
+          const body = (await res.json()) as { detail?: string };
+          if (typeof body?.detail === "string" && body.detail.trim()) detail = body.detail;
+        } catch {
+          /* ignore */
+        }
+        const err = new Error(detail) as Error & { code?: string };
+        err.code = "media_missing";
+        throw err;
+      }
+      if (res.status === 401) throw new AuthError();
+      throw new Error("Unable to load image");
+    }
+    const blob = await res.blob();
+    if (!blob.size) {
+      const err = new Error("Image file is missing. Re-upload from Edit trade.") as Error & { code?: string };
       err.code = "media_missing";
       throw err;
     }
-    if (res.status === 401) throw new AuthError();
-    throw new Error("Unable to load image");
+    return URL.createObjectURL(blob);
+  } finally {
+    if (timeout !== undefined) window.clearTimeout(timeout);
   }
-  const blob = await res.blob();
-  return URL.createObjectURL(blob);
 }
