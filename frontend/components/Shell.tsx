@@ -370,12 +370,23 @@ export function Shell({ children }: { children: React.ReactNode }) {
           height: 36px;
           margin: 0 4px;
           padding: 0;
-          border: 1px solid transparent;
+          border: 1px solid var(--rail-border, var(--border));
           border-radius: var(--radius-sm);
-          background: transparent;
-          color: var(--rail-muted, var(--muted));
+          appearance: none;
+          -webkit-appearance: none;
+          background: color-mix(in srgb, var(--rail-text) 8%, var(--rail-bg));
+          color: var(--rail-muted);
           cursor: pointer;
           flex-shrink: 0;
+          transition:
+            background-color 160ms ease,
+            color 160ms ease,
+            border-color 160ms ease;
+        }
+        .sidebar-toggle :global(svg) {
+          display: block;
+          color: inherit;
+          stroke: currentColor;
         }
         .brand-block-collapsed .sidebar-toggle {
           margin: 0;
