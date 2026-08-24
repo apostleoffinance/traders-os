@@ -327,8 +327,23 @@ export function TradeForm({ mode, trade = null }: Props) {
 
       try {
         await uploadShots(saved.id);
-      } catch {
-        // Trade already persisted; detail page shows empty chart slots to re-upload.
+      } catch (uploadErr) {
+        const detail =
+          uploadErr instanceof ApiError
+            ? (() => {
+                const body = uploadErr.body as { detail?: { message?: string } | string };
+                if (typeof body?.detail === "object" && body.detail?.message) return body.detail.message;
+                if (typeof body?.detail === "string") return body.detail;
+                return uploadErr.message;
+              })()
+            : "Screenshot upload failed.";
+        if (isEdit || isClose) {
+          setError(`Trade saved, but chart upload failed: ${detail}. Pick the image again and save.`);
+          return;
+        }
+        // Avoid duplicate creates; detail page empty slots cover re-upload.
+        router.push(`/trades/${saved.id}`);
+        return;
       }
       router.push(`/trades/${saved.id}`);
     } catch (err) {

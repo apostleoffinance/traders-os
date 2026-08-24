@@ -77,7 +77,7 @@ def serialize_trade(trade: Trade, extra_warnings: list[str] | None = None) -> Tr
                 original_filename=s.original_filename,
                 created_at=s.created_at,
             )
-            for s in trade.screenshots
+            for s in sorted(trade.screenshots, key=lambda s: s.created_at or s.id, reverse=True)
         ],
         checklist=checklist,
         warnings=extra_warnings or [],

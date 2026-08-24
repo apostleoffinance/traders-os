@@ -85,6 +85,12 @@ function Shot({
   );
 }
 
+function latestShot(shots: Screenshot[], type: string): Screenshot | undefined {
+  return shots
+    .filter((s) => s.type === type)
+    .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))[0];
+}
+
 function ChartSlot({
   label,
   shot,
@@ -261,7 +267,7 @@ export default function TradeDetailPage() {
         <div className="shots">
           <ChartSlot
             label="Entry chart"
-            shot={trade.screenshots.find((s) => s.type === "entry")}
+            shot={latestShot(trade.screenshots, "entry")}
             emptyCopy="No entry screenshot yet."
             actionHref={`/trades/${trade.id}/edit`}
             actionLabel="Add on Edit trade"
@@ -269,7 +275,7 @@ export default function TradeDetailPage() {
           />
           <ChartSlot
             label="Exit chart"
-            shot={trade.screenshots.find((s) => s.type === "exit")}
+            shot={latestShot(trade.screenshots, "exit")}
             emptyCopy={
               isOpen
                 ? "Available after you close the trade."

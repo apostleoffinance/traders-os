@@ -607,8 +607,20 @@ def add_screenshot(
     if content_type not in ALLOWED_CONTENT:
         raise DomainError("Unsupported image type. Use PNG, JPEG, WebP or GIF.")
     trade = get_owned_trade(db, user.id, trade_id)
+    storage = get_storage()
+    # One chart per type: replace prior entry/exit/other shots so re-upload works.
+    for old in list(trade.screenshots):
+        if old.type != shot_type.value:
+            continue
+        try:
+            storage.delete(old.storage_key)
+        except Exception:
+            pass
+        db.delete(old)
+    db.flush()
+
     key = f"{user.id}/{trade.id}/{shot_type.value}-{uuid4().hex}"
-    get_storage().put(key, file_bytes, content_type)
+    storage.put(key, file_bytes, content_type)
     shot = TradeScreenshot(
         user_id=user.id,
         trade_id=trade.id,
