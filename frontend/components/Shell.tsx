@@ -2,22 +2,46 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ComponentType } from "react";
+import {
+  BrainCircuit,
+  ChartNoAxesCombined,
+  History,
+  LayoutDashboard,
+  PanelLeftClose,
+  PanelLeftOpen,
+  PlusCircle,
+  Settings,
+  ShieldAlert,
+  WalletCards,
+  type LucideProps,
+} from "lucide-react";
 import { api, clearSession, getActiveAccountId, getAccessToken, setActiveAccountId } from "@/lib/api";
 import type { Account, User } from "@/lib/types";
 import { BrandMark } from "@/components/BrandMark";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { money, signed, tone } from "@/lib/format";
 
-const NAV = [
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/trades/new", label: "New trade" },
-  { href: "/trades", label: "History" },
-  { href: "/risk", label: "Risk monitor" },
-  { href: "/analytics", label: "Analytics" },
-  { href: "/intelligence", label: "Intelligence" },
-  { href: "/accounts", label: "Accounts" },
-  { href: "/settings", label: "Settings" },
+const SIDEBAR_KEY = "trader-os-sidebar-collapsed";
+
+type NavIcon = ComponentType<LucideProps>;
+
+type NavItem = {
+  href: string;
+  label: string;
+  icon: NavIcon;
+  group: "workspace" | "account";
+};
+
+const NAV: NavItem[] = [
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, group: "workspace" },
+  { href: "/trades/new", label: "New trade", icon: PlusCircle, group: "workspace" },
+  { href: "/trades", label: "History", icon: History, group: "workspace" },
+  { href: "/risk", label: "Risk monitor", icon: ShieldAlert, group: "workspace" },
+  { href: "/analytics", label: "Analytics", icon: ChartNoAxesCombined, group: "workspace" },
+  { href: "/intelligence", label: "Intelligence", icon: BrainCircuit, group: "workspace" },
+  { href: "/accounts", label: "Accounts", icon: WalletCards, group: "account" },
+  { href: "/settings", label: "Settings", icon: Settings, group: "account" },
 ];
 
 function navActive(href: string, pathname: string): boolean {
@@ -29,6 +53,15 @@ function navActive(href: string, pathname: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+function readCollapsed(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.localStorage.getItem(SIDEBAR_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
 export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -36,6 +69,13 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [accountId, setAccountId] = useState<string | null>(null);
   const [navOpen, setNavOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    setCollapsed(readCollapsed());
+    setReady(true);
+  }, []);
 
   useEffect(() => {
     setNavOpen(false);
@@ -84,82 +124,147 @@ export function Shell({ children }: { children: React.ReactNode }) {
     router.replace("/login");
   }
 
+  function toggleCollapsed() {
+    setCollapsed((prev) => {
+      const next = !prev;
+      try {
+        window.localStorage.setItem(SIDEBAR_KEY, String(next));
+      } catch {
+        /* ignore quota / private mode */
+      }
+      return next;
+    });
+  }
+
   const active = useMemo(() => accounts.find((a) => a.id === accountId) ?? null, [accounts, accountId]);
   const pnl = active ? Number(active.current_equity) - Number(active.starting_balance) : 0;
 
-  const nav = (
-    <>
-      <Link href="/dashboard" className="brand" onClick={() => setNavOpen(false)}>
-        <BrandMark size={26} />
-        <span className="brand-name">Trader OS</span>
-      </Link>
-      <nav>
-        {NAV.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={navActive(item.href, pathname) ? "nav-link active" : "nav-link"}
-            onClick={() => setNavOpen(false)}
-          >
-            {item.label}
-          </Link>
-        ))}
-      </nav>
-    </>
-  );
+  const workspace = NAV.filter((i) => i.group === "workspace");
+  const account = NAV.filter((i) => i.group === "account");
+
+  function renderNav(opts: { collapsedMode: boolean; onNavigate?: () => void }) {
+    const { collapsedMode, onNavigate } = opts;
+    return (
+      <>
+        <Link
+          href="/dashboard"
+          className={collapsedMode ? "brand brand-collapsed" : "brand"}
+          onClick={onNavigate}
+          title={collapsedMode ? "Trader OS" : undefined}
+          aria-label="Trader OS"
+        >
+          <BrandMark size={collapsedMode ? 28 : 26} />
+          {!collapsedMode && <span className="brand-name">Trader OS</span>}
+        </Link>
+        <nav aria-label="Workspace">
+          {!collapsedMode && <p className="nav-kicker">Workspace</p>}
+          {workspace.map((item) => {
+            const Icon = item.icon;
+            const isActive = navActive(item.href, pathname);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={isActive ? "nav-link active" : "nav-link"}
+                onClick={onNavigate}
+                title={collapsedMode ? item.label : undefined}
+                aria-label={item.label}
+                aria-current={isActive ? "page" : undefined}
+              >
+                <Icon size={20} strokeWidth={1.75} aria-hidden />
+                {!collapsedMode && <span className="nav-label">{item.label}</span>}
+              </Link>
+            );
+          })}
+          {!collapsedMode && <p className="nav-kicker account-kicker">Account</p>}
+          {collapsedMode && <div className="nav-divider" aria-hidden />}
+          {account.map((item) => {
+            const Icon = item.icon;
+            const isActive = navActive(item.href, pathname);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={isActive ? "nav-link active" : "nav-link"}
+                onClick={onNavigate}
+                title={collapsedMode ? item.label : undefined}
+                aria-label={item.label}
+                aria-current={isActive ? "page" : undefined}
+              >
+                <Icon size={20} strokeWidth={1.75} aria-hidden />
+                {!collapsedMode && <span className="nav-label">{item.label}</span>}
+              </Link>
+            );
+          })}
+        </nav>
+      </>
+    );
+  }
 
   return (
-    <div className="shell-wrap">
+    <div className={`shell-wrap${ready && collapsed ? " is-collapsed" : ""}${ready ? " is-ready" : ""}`}>
       <div className="shell">
-      <aside className="rail desktop">{nav}</aside>
-      <div className="main">
-        <header className="top">
-          <div className="top-left">
-            <button type="button" className="menu" aria-label="Open menu" onClick={() => setNavOpen(true)}>
-              Menu
-            </button>
-            <div className="crumb">
-              {active ? `${active.firm} · ${active.program}` : `Times in ${user?.timezone ?? "Africa/Lagos"}`}
-            </div>
-          </div>
-          <div className="top-right">
-            {active && (
-              <div className="eq-chip">
-                <span className="muted">Equity</span>
-                <span className="num">{money(active.current_equity)}</span>
-                <span className={`num ${tone(pnl)}`}>{signed(pnl)}</span>
-              </div>
-            )}
-            <ThemeToggle compact />
-            <select
-              id="acct"
-              aria-label="Account"
-              value={accountId ?? ""}
-              onChange={(e) => onAccount(e.target.value)}
-              disabled={accounts.length === 0}
-            >
-              {accounts.length === 0 && <option value="">No account</option>}
-              {accounts.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.account_name}
-                </option>
-              ))}
-            </select>
-            <div className="who">
-              <span className="who-name">{user?.display_name || user?.email || "Signed in"}</span>
-              <button type="button" className="who-out" onClick={logout}>
-                Sign out
+        <aside className="rail desktop">
+          {renderNav({ collapsedMode: collapsed })}
+          <button
+            type="button"
+            className="collapse-btn"
+            onClick={toggleCollapsed}
+            aria-label={collapsed ? "Expand navigation" : "Collapse navigation"}
+            title={collapsed ? "Expand navigation" : "Collapse navigation"}
+          >
+            {collapsed ? <PanelLeftOpen size={20} strokeWidth={1.75} /> : <PanelLeftClose size={20} strokeWidth={1.75} />}
+            {!collapsed && <span>Collapse</span>}
+          </button>
+        </aside>
+        <div className="main">
+          <header className="top">
+            <div className="top-left">
+              <button type="button" className="menu" aria-label="Open menu" onClick={() => setNavOpen(true)}>
+                Menu
               </button>
+              <div className="crumb">
+                {active ? `${active.firm} · ${active.program}` : `Times in ${user?.timezone ?? "Africa/Lagos"}`}
+              </div>
             </div>
-          </div>
-        </header>
-        <div className="page">{children}</div>
-      </div>
+            <div className="top-right">
+              {active && (
+                <div className="eq-chip">
+                  <span className="muted">Equity</span>
+                  <span className="num">{money(active.current_equity)}</span>
+                  <span className={`num ${tone(pnl)}`}>{signed(pnl)}</span>
+                </div>
+              )}
+              <ThemeToggle compact />
+              <select
+                id="acct"
+                aria-label="Account"
+                value={accountId ?? ""}
+                onChange={(e) => onAccount(e.target.value)}
+                disabled={accounts.length === 0}
+              >
+                {accounts.length === 0 && <option value="">No account</option>}
+                {accounts.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.account_name}
+                  </option>
+                ))}
+              </select>
+              <div className="who">
+                <span className="who-name">{user?.display_name || user?.email || "Signed in"}</span>
+                <button type="button" className="who-out" onClick={logout}>
+                  Sign out
+                </button>
+              </div>
+            </div>
+          </header>
+          <div className="page">{children}</div>
+        </div>
       </div>
       {navOpen && (
         <div className="overlay" role="dialog" aria-label="Navigation">
           <button type="button" className="scrim" aria-label="Close menu" onClick={() => setNavOpen(false)} />
-          <aside className="rail drawer">{nav}</aside>
+          <aside className="rail drawer">{renderNav({ collapsedMode: false, onNavigate: () => setNavOpen(false) })}</aside>
         </div>
       )}
       <style jsx>{`
@@ -168,63 +273,112 @@ export function Shell({ children }: { children: React.ReactNode }) {
           font-size: 17px;
           font-weight: 500;
           line-height: 1.55;
+          --rail-width: 260px;
+          --rail-width-collapsed: 72px;
+        }
+        .shell-wrap.is-collapsed {
+          --rail-width: var(--rail-width-collapsed);
         }
         .shell {
           display: grid;
-          grid-template-columns: 260px minmax(0, 1fr);
+          grid-template-columns: var(--rail-width) minmax(0, 1fr);
           min-height: 100vh;
+        }
+        .shell-wrap.is-ready .shell {
+          transition: grid-template-columns 200ms ease;
         }
         .rail {
           background: var(--rail-bg);
           color: var(--rail-text);
           display: flex;
           flex-direction: column;
-          padding: 24px 16px 18px;
+          padding: 20px 12px 14px;
           position: sticky;
           top: 0;
           height: 100vh;
           max-height: 100vh;
           overflow: auto;
           z-index: 2;
+          box-sizing: border-box;
+        }
+        .shell-wrap.is-collapsed .desktop {
+          padding-left: 10px;
+          padding-right: 10px;
+          align-items: center;
         }
         :global(a.brand) {
           display: flex;
           gap: 10px;
           align-items: center;
-          margin-bottom: 28px;
-          padding: 0 8px;
+          margin-bottom: 22px;
+          padding: 4px 8px;
           color: inherit;
           text-decoration: none;
+          min-height: 40px;
         }
         :global(a.brand:hover) {
           color: inherit;
+        }
+        .shell-wrap.is-collapsed :global(a.brand-collapsed) {
+          justify-content: center;
+          padding: 4px 0;
+          width: 100%;
         }
         .brand-name {
           font-weight: 600;
           letter-spacing: 0.06em;
           font-size: 14px;
+          white-space: nowrap;
         }
         nav {
           display: flex;
           flex-direction: column;
-          gap: 6px;
+          gap: 4px;
           flex: 1;
+          width: 100%;
+        }
+        .nav-kicker {
+          margin: 4px 0 6px;
+          padding: 0 12px;
+          font-size: 11px;
+          font-weight: 600;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          color: var(--rail-muted, var(--muted));
+        }
+        .account-kicker {
+          margin-top: 18px;
+        }
+        .nav-divider {
+          height: 1px;
+          width: 60%;
+          margin: 12px auto;
+          background: var(--rail-border, var(--border));
+          opacity: 0.7;
         }
         :global(a.nav-link) {
           display: flex;
           align-items: center;
+          gap: 12px;
           width: 100%;
           box-sizing: border-box;
-          padding: 12px 14px;
+          padding: 11px 12px;
           color: var(--rail-text);
           border-left: 2px solid transparent;
           border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-          font-size: 16px;
+          font-size: 15px;
           font-weight: 500;
           line-height: 1.3;
           cursor: pointer;
           position: relative;
           z-index: 1;
+          text-decoration: none;
+        }
+        .shell-wrap.is-collapsed .desktop :global(a.nav-link) {
+          justify-content: center;
+          padding: 12px 0;
+          border-left-width: 0;
+          border-radius: var(--radius-sm);
         }
         :global(a.nav-link:hover) {
           background: var(--rail-hover);
@@ -234,6 +388,40 @@ export function Shell({ children }: { children: React.ReactNode }) {
           color: var(--rail-text);
           background: var(--rail-active);
           border-left-color: var(--accent);
+        }
+        .shell-wrap.is-collapsed .desktop :global(a.nav-link.active) {
+          border-left-color: transparent;
+          box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent);
+        }
+        :global(a.nav-link:focus-visible),
+        .collapse-btn:focus-visible {
+          outline: 2px solid var(--accent);
+          outline-offset: 2px;
+        }
+        .nav-label {
+          white-space: nowrap;
+        }
+        .collapse-btn {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          width: 100%;
+          margin-top: 12px;
+          padding: 10px 12px;
+          border: 1px solid transparent;
+          border-radius: var(--radius-sm);
+          background: transparent;
+          color: var(--rail-text);
+          font-size: 13px;
+          font-weight: 500;
+          cursor: pointer;
+        }
+        .shell-wrap.is-collapsed .desktop .collapse-btn {
+          justify-content: center;
+          padding: 10px 0;
+        }
+        .collapse-btn:hover {
+          background: var(--rail-hover);
         }
         .main {
           display: flex;
@@ -358,6 +546,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
           background: rgba(0, 0, 0, 0.45);
           cursor: pointer;
         }
+        .drawer .collapse-btn {
+          display: none;
+        }
         @media (max-width: 1024px) {
           .eq-chip {
             display: none;
@@ -366,6 +557,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
         @media (max-width: 900px) {
           .shell {
             grid-template-columns: minmax(0, 1fr);
+          }
+          .shell-wrap.is-ready .shell {
+            transition: none;
           }
           .desktop {
             display: none;
@@ -380,6 +574,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
             width: min(280px, 86vw);
             min-height: 100vh;
             max-height: 100vh;
+            padding: 24px 16px 18px;
           }
           select {
             min-width: 140px;
