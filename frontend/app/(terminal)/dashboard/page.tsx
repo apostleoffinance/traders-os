@@ -22,6 +22,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const [data, setData] = useState<Dashboard | null>(null);
   const [recent, setRecent] = useState<Trade[]>([]);
+  const [openTrades, setOpenTrades] = useState<Trade[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [hello, setHello] = useState("Good afternoon");
   const [name, setName] = useState("Trader");
@@ -32,6 +33,7 @@ export default function DashboardPage() {
       setError("Create an account to begin.");
       setData(null);
       setRecent([]);
+      setOpenTrades([]);
       return;
     }
     setError(null);
@@ -46,8 +48,10 @@ export default function DashboardPage() {
     try {
       const trades = await api<Trade[]>(`/api/trades?account_id=${id}`);
       setRecent(trades.slice(0, 8));
+      setOpenTrades(trades.filter((t) => t.status === "open"));
     } catch {
       setRecent([]);
+      setOpenTrades([]);
     }
   }, []);
 
@@ -132,12 +136,38 @@ export default function DashboardPage() {
       <Panel title="Equity curve">
         <div className="equity-head">
           <Stat label="Equity" value={money(data.equity)} tone={tone(data.total_pnl)} />
+          <Stat label="Realized P/L" value={signed(data.total_pnl)} tone={tone(data.total_pnl)} />
           <Stat label="Daily P/L" value={signed(data.daily_pnl)} tone={tone(data.daily_pnl)} />
-          <Stat label="Total P/L" value={signed(data.total_pnl)} tone={tone(data.total_pnl)} />
           <Stat label="Drawdown" value={money(data.drawdown)} tone={Number(data.drawdown) > 0 ? "neg" : ""} />
         </div>
         <EquitySparkline series={data.equity_series ?? []} height={140} />
       </Panel>
+
+      <div style={{ marginTop: 16 }}>
+        <Panel title="Active trades">
+          {openTrades.length === 0 ? (
+            <p className="muted">No active trades.</p>
+          ) : (
+            <ul className="active-list">
+              {openTrades.map((t) => (
+                <li key={t.id}>
+                  <div>
+                    <strong>
+                      {t.symbol} {t.direction.toUpperCase()}
+                    </strong>
+                    <span className="muted">
+                      {" "}
+                      · {sessionLabel(t.session)} · entry {t.entry_price} · risk {money(t.risk_amount)}
+                    </span>
+                    <div className="open-tag">OPEN</div>
+                  </div>
+                  <Link href={`/trades/${t.id}`}>View trade</Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
+      </div>
 
       <div className="kpi-grid" style={{ margin: "16px 0" }}>
         <Stat label="Win rate" value={data.win_rate ? `${num(data.win_rate, 1)}%` : "-"} />
@@ -250,6 +280,36 @@ export default function DashboardPage() {
           display: grid;
           grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
           gap: 16px;
+        }
+        .active-list {
+          list-style: none;
+          margin: 0;
+          padding: 0;
+          display: grid;
+          gap: 12px;
+        }
+        .active-list li {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 12px;
+          padding-bottom: 10px;
+          border-bottom: 1px solid var(--line);
+        }
+        .active-list li:last-child {
+          border-bottom: none;
+          padding-bottom: 0;
+        }
+        .open-tag {
+          margin-top: 4px;
+          font-size: 11px;
+          letter-spacing: 0.1em;
+          font-weight: 700;
+          color: var(--accent);
+        }
+        .active-list a {
+          text-decoration: underline;
+          white-space: nowrap;
         }
         @media (max-width: 900px) {
           .head {

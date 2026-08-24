@@ -61,6 +61,7 @@ class TradePreviewIn(BaseModel):
     stop_loss: Decimal = Field(gt=0)
     take_profit: Decimal | None = Field(default=None, gt=0)
     lot_size: Decimal = Field(gt=0)
+    exit_price: Decimal | None = Field(default=None, gt=0)
     quote_to_account_rate: Decimal = Field(default=Decimal("1"), gt=0)
     trade_timestamp: datetime | None = None
 
@@ -110,12 +111,18 @@ class TradeCreate(BaseModel):
 
 
 class TradeUpdate(BaseModel):
+    symbol: str | None = Field(default=None, max_length=32)
+    direction: Direction | None = None
+    trade_timestamp: datetime | None = None
     exit_timestamp: datetime | None = None
-    exit_price: Decimal | None = None
-    take_profit: Decimal | None = None
-    stop_loss: Decimal | None = None
-    lot_size: Decimal | None = None
     setup_id: UUID | None = None
+    timeframe: Timeframe | None = None
+    entry_price: Decimal | None = Field(default=None, gt=0)
+    exit_price: Decimal | None = Field(default=None, gt=0)
+    stop_loss: Decimal | None = Field(default=None, gt=0)
+    take_profit: Decimal | None = Field(default=None, gt=0)
+    lot_size: Decimal | None = Field(default=None, gt=0)
+    quote_to_account_rate: Decimal | None = Field(default=None, gt=0)
     setup_valid: bool | None = None
     rules_followed: bool | None = None
     emotional_trade: bool | None = None
@@ -125,6 +132,18 @@ class TradeUpdate(BaseModel):
     psychology: PsychologyIn | None = None
     checklist: list[ChecklistResponseIn] | None = None
     acknowledged_warnings: bool | None = None
+
+
+class TradeClose(BaseModel):
+    exit_price: Decimal = Field(gt=0)
+    exit_timestamp: datetime | None = None
+    notes: str | None = None
+    setup_valid: bool | None = None
+    rules_followed: bool | None = None
+    emotional_trade: bool | None = None
+    mistake: bool | None = None
+    mistake_notes: str | None = None
+    psychology: PsychologyIn | None = None
 
 
 class TradeOut(ORMModel):
@@ -184,6 +203,9 @@ class TradePreviewOut(BaseModel):
     planned_reward: Decimal | None
     planned_rr: Decimal | None
     estimated_pnl_at_tp: Decimal | None
+    estimated_realized_pnl: Decimal | None = None
+    estimated_realized_r: Decimal | None = None
+    estimated_result: str | None = None
     validation_notes: list[str]
     warnings: list[str]
     session: str | None = None

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { api, fetchMediaBlob } from "@/lib/api";
 import type { Trade } from "@/lib/types";
@@ -51,6 +52,8 @@ export default function TradeDetailPage() {
 
   if (!trade) return <p className="muted">Loading…</p>;
 
+  const isOpen = trade.status === "open";
+
   return (
     <div>
       <div className="head">
@@ -59,28 +62,37 @@ export default function TradeDetailPage() {
           <h1>
             {trade.symbol} {trade.direction.toUpperCase()}
           </h1>
-          <p className="muted">{formatWhen(trade.trade_timestamp, trade.timezone)}</p>
+          <p className="muted">
+            {trade.lot_size} lot · {formatWhen(trade.trade_timestamp, trade.timezone)}
+          </p>
+          <div className="status-row">
+            {isOpen ? <span className="open-pill">TRADE OPEN</span> : <Badge status="closed" />}
+            {!isOpen && <Badge status={trade.result} />}
+          </div>
         </div>
         <div className="head-right">
-          <Badge status={trade.result} />
-          <div className={`num r ${tone(trade.realized_r)}`}>
-            {trade.realized_r ? `${trade.realized_r}R` : "-"}
+          {!isOpen && (
+            <>
+              <div className={`num r ${tone(trade.realized_r)}`}>
+                {trade.realized_r ? `${trade.realized_r}R` : "-"}
+              </div>
+              <div className={`num ${tone(trade.realized_pnl)}`}>{signed(trade.realized_pnl)}</div>
+            </>
+          )}
+          {isOpen && <p className="muted open-copy">Position is still running. Close it when you exit.</p>}
+          <div className="actions">
+            <Link href={`/trades/${trade.id}/edit`} className="btn">
+              Edit trade
+            </Link>
+            {isOpen && (
+              <Link href={`/trades/${trade.id}/close`} className="btn primary">
+                Close trade
+              </Link>
+            )}
           </div>
-          <div className={`num ${tone(trade.realized_pnl)}`}>{signed(trade.realized_pnl)}</div>
         </div>
       </div>
-      <div style={{ marginBottom: 14 }}>
-        <IntelligenceRunner
-          path={`/api/ai/trades/${trade.id}/review`}
-          label="Analyze trade with AI"
-          hint="Separates P/L from discipline. Historical comparables exclude later trades (no look-ahead)."
-        />
-        <IntelligenceRunner
-          path={`/api/ai/trades/${trade.id}/challenge`}
-          label="Challenge my thinking"
-          hint="Questions assumptions. Never BUY / SELL / HOLD."
-        />
-      </div>
+
       <div className="cols">
         <Panel title="Setup">
           <table>
@@ -129,11 +141,15 @@ export default function TradeDetailPage() {
               </tr>
               <tr>
                 <td>Realized R</td>
-                <td className={`num ${tone(trade.realized_r)}`}>{trade.realized_r ?? "-"}</td>
+                <td className={`num ${tone(trade.realized_r)}`}>
+                  {isOpen ? "—" : (trade.realized_r ?? "-")}
+                </td>
               </tr>
               <tr>
                 <td>P/L</td>
-                <td className={`num ${tone(trade.realized_pnl)}`}>{signed(trade.realized_pnl)}</td>
+                <td className={`num ${tone(trade.realized_pnl)}`}>
+                  {isOpen ? "—" : signed(trade.realized_pnl)}
+                </td>
               </tr>
               <tr>
                 <td>Discipline</td>
@@ -151,6 +167,22 @@ export default function TradeDetailPage() {
           </table>
         </Panel>
       </div>
+
+      {!isOpen && (
+        <div style={{ marginBottom: 14 }}>
+          <IntelligenceRunner
+            path={`/api/ai/trades/${trade.id}/review`}
+            label="Analyze trade with AI"
+            hint="Separates P/L from discipline. Historical comparables exclude later trades (no look-ahead)."
+          />
+          <IntelligenceRunner
+            path={`/api/ai/trades/${trade.id}/challenge`}
+            label="Challenge my thinking"
+            hint="Questions assumptions. Never BUY / SELL / HOLD."
+          />
+        </div>
+      )}
+
       {trade.screenshots.length > 0 && (
         <Panel title="Chart">
           <div className="shots">
@@ -196,7 +228,8 @@ export default function TradeDetailPage() {
             <ul>
               {trade.checklist.map((c) => (
                 <li key={c.item_id}>
-                  {c.kind === "automatic" ? (c.checked ? "🟢" : "🔴") : c.checked ? "☑" : "☐"} {c.label ?? c.item_id}
+                  {c.kind === "automatic" ? (c.checked ? "🟢" : "🔴") : c.checked ? "☑" : "☐"}{" "}
+                  {c.label ?? c.item_id}
                   {c.kind === "automatic" ? <span className="muted"> auto</span> : null}
                 </li>
               ))}
@@ -221,7 +254,50 @@ export default function TradeDetailPage() {
           text-align: right;
           display: grid;
           justify-items: end;
-          gap: 4px;
+          gap: 8px;
+        }
+        .status-row {
+          display: flex;
+          gap: 8px;
+          align-items: center;
+          margin-top: 8px;
+        }
+        .open-pill {
+          display: inline-block;
+          font-family: var(--font-mono), "IBM Plex Mono", ui-monospace, Menlo, monospace;
+          font-size: 12px;
+          font-weight: 700;
+          letter-spacing: 0.1em;
+          padding: 5px 10px;
+          background: color-mix(in srgb, var(--accent) 18%, var(--surface));
+          color: var(--accent);
+        }
+        .open-copy {
+          max-width: 220px;
+          margin: 0;
+          font-size: 13px;
+        }
+        .actions {
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+          justify-content: flex-end;
+        }
+        .actions :global(.btn) {
+          display: inline-flex;
+          align-items: center;
+          padding: 8px 14px;
+          border: 1px solid var(--line-strong);
+          background: var(--surface);
+          color: var(--text);
+          text-decoration: none;
+          font-size: 14px;
+          font-weight: 600;
+        }
+        .actions :global(.btn.primary) {
+          background: var(--accent);
+          color: var(--accent-contrast);
+          border-color: var(--accent);
         }
         .r {
           font-size: 22px;
@@ -257,6 +333,16 @@ export default function TradeDetailPage() {
           .cols,
           .shots {
             grid-template-columns: 1fr;
+          }
+          .head {
+            flex-direction: column;
+          }
+          .head-right {
+            text-align: left;
+            justify-items: start;
+          }
+          .actions {
+            justify-content: flex-start;
           }
         }
       `}</style>

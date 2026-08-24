@@ -215,6 +215,9 @@ export type TradePreview = {
   planned_reward: string | null;
   planned_rr: string | null;
   estimated_pnl_at_tp: string | null;
+  estimated_realized_pnl?: string | null;
+  estimated_realized_r?: string | null;
+  estimated_result?: string | null;
   validation_notes: string[];
   warnings: string[];
   session: string | null;

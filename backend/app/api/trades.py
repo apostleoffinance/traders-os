@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.core.enums import ScreenshotType
 from app.core.exceptions import DomainError, http_error
 from app.core.security import get_current_user_id, get_db
-from app.schemas.trade import TradeCreate, TradeOut, TradePreviewIn, TradePreviewOut, TradeUpdate
+from app.schemas.trade import TradeClose, TradeCreate, TradeOut, TradePreviewIn, TradePreviewOut, TradeUpdate
 from app.services import auth_service, trade_service
 from app.services.serializers import serialize_trade
 
@@ -39,6 +39,7 @@ def list_trades(
     setup_id: UUID | None = None,
     direction: str | None = None,
     result: str | None = None,
+    status: str | None = None,
     date_from: datetime | None = None,
     date_to: datetime | None = None,
     db: Session = Depends(get_db),
@@ -52,6 +53,7 @@ def list_trades(
         setup_id=setup_id,
         direction=direction,
         result=result,
+        status=status,
         date_from=date_from,
         date_to=date_to,
     )
@@ -88,6 +90,19 @@ def update_trade(
 ):
     try:
         return serialize_trade(trade_service.update_trade(db, _user(db, user_id), trade_id, payload))
+    except DomainError as exc:
+        raise http_error(exc) from exc
+
+
+@router.post("/{trade_id}/close", response_model=TradeOut)
+def close_trade(
+    trade_id: UUID,
+    payload: TradeClose,
+    db: Session = Depends(get_db),
+    user_id=Depends(get_current_user_id),
+):
+    try:
+        return serialize_trade(trade_service.close_trade(db, _user(db, user_id), trade_id, payload))
     except DomainError as exc:
         raise http_error(exc) from exc
 

@@ -125,6 +125,16 @@ export function Badge({ status }: { status: string }) {
           color: var(--danger);
           border-color: transparent;
         }
+        .open {
+          background: color-mix(in srgb, var(--accent) 18%, var(--surface));
+          color: var(--accent);
+          border-color: transparent;
+        }
+        .closed,
+        .breakeven {
+          background: var(--surface-2);
+          color: var(--text);
+        }
       `}</style>
     </span>
   );

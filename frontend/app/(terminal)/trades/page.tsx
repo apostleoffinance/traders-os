@@ -35,11 +35,12 @@ export default function TradeHistoryPage() {
 
   const rows = useMemo(() => trades, [trades]);
   const summary = useMemo(() => {
-    const closed = rows.filter((t) => t.result && t.result !== "open");
+    const closed = rows.filter((t) => t.status === "closed");
+    const open = rows.filter((t) => t.status === "open").length;
     const wins = closed.filter((t) => t.result === "win").length;
     const totalR = closed.reduce((s, t) => s + (t.realized_r ? Number(t.realized_r) : 0), 0);
     const winRate = closed.length ? (wins / closed.length) * 100 : null;
-    return { n: rows.length, totalR, winRate };
+    return { n: rows.length, closed: closed.length, open, totalR, winRate };
   }, [rows]);
 
   return (
@@ -48,8 +49,10 @@ export default function TradeHistoryPage() {
       <h1>Trade history</h1>
       <p className="muted">
         {summary.n} trade{summary.n === 1 ? "" : "s"}
-        {summary.n > 0 ? ` · ${signed(summary.totalR, "R")}` : ""}
-        {summary.winRate != null ? ` · ${num(summary.winRate, 0)}% win rate` : ""}
+        {summary.open ? ` · ${summary.open} open` : ""}
+        {summary.closed ? ` · ${summary.closed} closed` : ""}
+        {summary.closed > 0 ? ` · ${signed(summary.totalR, "R")}` : ""}
+        {summary.winRate != null ? ` · ${num(summary.winRate, 0)}% win rate (closed)` : ""}
       </p>
       <Panel title="Filters">
         <div className="filters">
@@ -106,6 +109,7 @@ export default function TradeHistoryPage() {
               <th>TP</th>
               <th>Lot</th>
               <th>Risk</th>
+              <th>Status</th>
               <th>Result</th>
               <th>R</th>
               <th>P/L</th>
@@ -128,10 +132,17 @@ export default function TradeHistoryPage() {
                 <td className="num">{t.lot_size}</td>
                 <td className="num">{money(t.risk_amount)}</td>
                 <td>
+                  <Badge status={t.status} />
+                </td>
+                <td>
                   <Badge status={t.result} />
                 </td>
-                <td className={`num ${tone(t.realized_r)}`}>{t.realized_r ?? "-"}</td>
-                <td className={`num ${tone(t.realized_pnl)}`}>{signed(t.realized_pnl)}</td>
+                <td className={`num ${tone(t.realized_r)}`}>
+                  {t.status === "open" ? "—" : (t.realized_r ?? "-")}
+                </td>
+                <td className={`num ${tone(t.realized_pnl)}`}>
+                  {t.status === "open" ? "—" : signed(t.realized_pnl)}
+                </td>
                 <td className="num">{t.discipline_score ?? "-"}</td>
                 <td>{t.psychology?.emotion_before ?? "-"}</td>
               </tr>

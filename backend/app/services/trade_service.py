@@ -15,7 +15,7 @@ from app.core.enums import (
     ScreenshotType,
     TradeStatus,
 )
-from app.core.exceptions import DomainError, NotFoundError
+from app.core.exceptions import ConflictError, DomainError, NotFoundError
 from app.core.time import as_utc, utcnow
 from app.engines.account_rules_engine import evaluate_submission, raise_if_blocked
 from app.engines.discipline_engine import TradeDisciplineInput, score_trade
@@ -36,7 +36,7 @@ from app.models.risk_event import RiskEvent
 from app.models.setup import Setup
 from app.models.trade import Psychology, Trade, TradeScreenshot
 from app.models.user import User
-from app.schemas.trade import TradeCreate, TradePreviewIn, TradeUpdate
+from app.schemas.trade import TradeClose, TradeCreate, TradePreviewIn, TradeUpdate
 from app.services.access import get_owned_account, get_owned_trade
 from app.services.account_service import refresh_account_balances
 from app.services.checklist_service import resolve_template
@@ -121,6 +121,21 @@ def preview(db: Session, user: User, payload: TradePreviewIn) -> dict:
         max_trades = profile.max_trades_per_day
         warnings.extend(w.message for w in decision.warnings)
 
+    estimated_pnl = None
+    estimated_r = None
+    estimated_result = None
+    if payload.exit_price is not None:
+        estimated_pnl = realized_pnl(
+            symbol=payload.symbol,
+            direction=payload.direction,
+            entry=payload.entry_price,
+            exit_price=payload.exit_price,
+            lot_size=payload.lot_size,
+            quote_to_account_rate=payload.quote_to_account_rate,
+        )
+        estimated_r = realized_r(estimated_pnl, metrics["risk_amount"])
+        estimated_result = classify_result(TradeStatus.CLOSED, estimated_pnl).value
+
     return {
         "symbol": payload.symbol.upper().replace("/", ""),
         "stop_pips": metrics["stop_pips"],
@@ -130,6 +145,9 @@ def preview(db: Session, user: User, payload: TradePreviewIn) -> dict:
         "planned_reward": metrics["planned_reward"],
         "planned_rr": metrics["planned_rr"],
         "estimated_pnl_at_tp": metrics["planned_reward"],
+        "estimated_realized_pnl": estimated_pnl,
+        "estimated_realized_r": estimated_r,
+        "estimated_result": estimated_result,
         "validation_notes": notes,
         "warnings": warnings,
         "session": session.value,
@@ -143,67 +161,72 @@ def preview(db: Session, user: User, payload: TradePreviewIn) -> dict:
 
 
 def _compute_fields(payload: TradeCreate | TradeUpdate, trade: Trade | None, account: Account) -> dict:
-    symbol = (payload.symbol if hasattr(payload, "symbol") and payload.symbol else None) or (
-        trade.symbol if trade else "EURUSD"
-    )
-    direction = payload.direction if getattr(payload, "direction", None) else Direction(trade.direction)
-    entry = payload.entry_price if getattr(payload, "entry_price", None) else trade.entry_price
-    sl = payload.stop_loss if getattr(payload, "stop_loss", None) else trade.stop_loss
-    tp = payload.take_profit if getattr(payload, "take_profit", None) is not None else (
-        getattr(payload, "take_profit", None) if trade is None else trade.take_profit
-    )
-    if isinstance(payload, TradeUpdate):
-        tp = payload.take_profit if payload.take_profit is not None else (trade.take_profit if trade else None)
-        sl = payload.stop_loss if payload.stop_loss is not None else trade.stop_loss
-        lots = payload.lot_size if payload.lot_size is not None else trade.lot_size
-        entry = trade.entry_price
-        symbol = trade.symbol
-        direction = Direction(trade.direction)
-    else:
-        lots = payload.lot_size
-        tp = payload.take_profit
+    fields_set = payload.model_fields_set if hasattr(payload, "model_fields_set") else set()
 
-    rate = getattr(payload, "quote_to_account_rate", Decimal("1")) or Decimal("1")
+    if isinstance(payload, TradeUpdate) and trade is not None:
+        symbol = payload.symbol if payload.symbol else trade.symbol
+        direction = payload.direction if payload.direction is not None else Direction(trade.direction)
+        entry = payload.entry_price if payload.entry_price is not None else trade.entry_price
+        sl = payload.stop_loss if payload.stop_loss is not None else trade.stop_loss
+        tp = payload.take_profit if "take_profit" in fields_set else trade.take_profit
+        lots = payload.lot_size if payload.lot_size is not None else trade.lot_size
+        exit_price = payload.exit_price if payload.exit_price is not None else trade.exit_price
+        rate = payload.quote_to_account_rate if payload.quote_to_account_rate is not None else Decimal("1")
+    else:
+        symbol = payload.symbol
+        direction = payload.direction
+        entry = payload.entry_price
+        sl = payload.stop_loss
+        tp = payload.take_profit
+        lots = payload.lot_size
+        exit_price = payload.exit_price
+        rate = getattr(payload, "quote_to_account_rate", Decimal("1")) or Decimal("1")
+
+    symbol = str(symbol).upper().replace("/", "")
+    direction = direction if isinstance(direction, Direction) else Direction(direction)
+    entry = Decimal(entry)
+    sl = Decimal(sl)
+    lots = Decimal(lots)
+    tp_dec = Decimal(tp) if tp is not None else None
+    exit_dec = Decimal(exit_price) if exit_price is not None else None
+
     metrics = planned_metrics(
         symbol=symbol,
         direction=direction,
-        entry=Decimal(entry),
-        stop_loss=Decimal(sl),
-        take_profit=Decimal(tp) if tp is not None else None,
-        lot_size=Decimal(lots),
+        entry=entry,
+        stop_loss=sl,
+        take_profit=tp_dec,
+        lot_size=lots,
         account_balance=Decimal(account.current_equity or account.starting_balance),
         quote_to_account_rate=rate,
     )
-    exit_price = getattr(payload, "exit_price", None)
-    if isinstance(payload, TradeUpdate):
-        exit_price = payload.exit_price if payload.exit_price is not None else trade.exit_price
-    status = TradeStatus.CLOSED if exit_price is not None else TradeStatus.OPEN
+    status = TradeStatus.CLOSED if exit_dec is not None else TradeStatus.OPEN
     pnl = None
     r_mult = None
-    if exit_price is not None:
+    if exit_dec is not None:
         pnl = realized_pnl(
             symbol=symbol,
             direction=direction,
-            entry=Decimal(entry),
-            exit_price=Decimal(exit_price),
-            lot_size=Decimal(lots),
+            entry=entry,
+            exit_price=exit_dec,
+            lot_size=lots,
             quote_to_account_rate=rate,
         )
         r_mult = realized_r(pnl, metrics["risk_amount"])
     result = classify_result(status, pnl)
     return {
-        "symbol": symbol.upper().replace("/", ""),
+        "symbol": symbol,
         "metrics": metrics,
         "status": status,
         "pnl": pnl,
         "r": r_mult,
         "result": result,
         "direction": direction,
-        "entry": Decimal(entry),
-        "sl": Decimal(sl),
-        "tp": Decimal(tp) if tp is not None else None,
-        "lots": Decimal(lots),
-        "exit_price": Decimal(exit_price) if exit_price is not None else None,
+        "entry": entry,
+        "sl": sl,
+        "tp": tp_dec,
+        "lots": lots,
+        "exit_price": exit_dec,
     }
 
 
@@ -413,6 +436,7 @@ def list_trades(
     setup_id: UUID | None = None,
     direction: str | None = None,
     result: str | None = None,
+    status: str | None = None,
     date_from: datetime | None = None,
     date_to: datetime | None = None,
 ) -> list[Trade]:
@@ -431,6 +455,8 @@ def list_trades(
         q = q.filter(Trade.direction == direction)
     if result:
         q = q.filter(Trade.result == result)
+    if status:
+        q = q.filter(Trade.status == status)
     if date_from:
         q = q.filter(Trade.trade_timestamp >= as_utc(date_from))
     if date_to:
@@ -438,18 +464,25 @@ def list_trades(
     return q.order_by(Trade.trade_timestamp.desc()).all()
 
 
-def update_trade(db: Session, user: User, trade_id: UUID, payload: TradeUpdate) -> Trade:
-    trade = get_trade(db, user.id, trade_id)
-    account = get_owned_account(db, user.id, trade.account_id)
-    computed = _compute_fields(payload, trade, account)
+def _apply_psychology(db: Session, user: User, trade: Trade, psychology) -> None:
+    if psychology is None:
+        return
+    if trade.psychology is None:
+        psy = Psychology(user_id=user.id, trade_id=trade.id)
+        db.add(psy)
+        trade.psychology = psy
+    for k, v in psychology.model_dump().items():
+        setattr(trade.psychology, k, v.value if hasattr(v, "value") else v)
 
-    data = payload.model_dump(exclude_unset=True, exclude={"psychology", "checklist"})
-    for key, value in data.items():
-        if key in {"direction"} and value is not None:
-            setattr(trade, key, value.value if hasattr(value, "value") else value)
-        elif key not in {"quote_to_account_rate"}:
-            setattr(trade, key, value)
 
+def _apply_computed(trade: Trade, computed: dict, exit_ts: datetime | None = None) -> None:
+    trade.symbol = computed["symbol"]
+    trade.direction = computed["direction"].value
+    trade.entry_price = computed["entry"]
+    trade.stop_loss = computed["sl"]
+    trade.take_profit = computed["tp"]
+    trade.lot_size = computed["lots"]
+    trade.exit_price = computed["exit_price"]
     trade.stop_pips = computed["metrics"]["stop_pips"]
     trade.tp_pips = computed["metrics"]["tp_pips"]
     trade.risk_amount = computed["metrics"]["risk_amount"]
@@ -461,15 +494,52 @@ def update_trade(db: Session, user: User, trade_id: UUID, payload: TradeUpdate) 
     trade.realized_rr = computed["r"]
     trade.result = computed["result"].value
     trade.status = computed["status"].value
-    trade.holding_time_seconds = holding_seconds(trade.trade_timestamp, trade.exit_timestamp)
+    if exit_ts is not None or computed["exit_price"] is not None:
+        if exit_ts is not None:
+            trade.exit_timestamp = as_utc(exit_ts)
+        elif trade.exit_timestamp is None and computed["exit_price"] is not None:
+            trade.exit_timestamp = utcnow()
+    trade.holding_time_seconds = holding_seconds(
+        as_utc(trade.trade_timestamp) if trade.trade_timestamp else None,
+        as_utc(trade.exit_timestamp) if trade.exit_timestamp else None,
+    )
 
-    if payload.psychology:
-        if trade.psychology is None:
-            psy = Psychology(user_id=user.id, trade_id=trade.id)
-            db.add(psy)
-            trade.psychology = psy
-        for k, v in payload.psychology.model_dump().items():
-            setattr(trade.psychology, k, v.value if hasattr(v, "value") else v)
+
+def update_trade(db: Session, user: User, trade_id: UUID, payload: TradeUpdate) -> Trade:
+    trade = get_trade(db, user.id, trade_id)
+    account = get_owned_account(db, user.id, trade.account_id)
+    computed = _compute_fields(payload, trade, account)
+
+    data = payload.model_dump(exclude_unset=True, exclude={"psychology", "checklist", "quote_to_account_rate"})
+    for key, value in data.items():
+        if key in {
+            "symbol",
+            "direction",
+            "entry_price",
+            "stop_loss",
+            "take_profit",
+            "lot_size",
+            "exit_price",
+            "exit_timestamp",
+        }:
+            continue
+        if key == "timeframe" and value is not None:
+            setattr(trade, key, value.value if hasattr(value, "value") else value)
+        elif key == "trade_timestamp" and value is not None:
+            trade.trade_timestamp = as_utc(value)
+            trade.session = classify_session(trade.trade_timestamp).value
+            windows = parse_windows(account.risk_profile.preferred_windows) if account.risk_profile else []
+            trade.in_preferred_session = in_preferred_window(trade.trade_timestamp, windows)
+        else:
+            setattr(trade, key, value)
+
+    exit_ts = None
+    if "exit_timestamp" in payload.model_fields_set:
+        exit_ts = as_utc(payload.exit_timestamp) if payload.exit_timestamp else None
+        trade.exit_timestamp = exit_ts
+
+    _apply_computed(trade, computed, exit_ts=trade.exit_timestamp)
+    _apply_psychology(db, user, trade, payload.psychology)
 
     if payload.checklist is not None:
         db.query(TradeChecklistResponse).filter(TradeChecklistResponse.trade_id == trade.id).delete()
@@ -479,6 +549,32 @@ def update_trade(db: Session, user: User, trade_id: UUID, payload: TradeUpdate) 
     refresh_account_balances(db, account)
     db.commit()
     return get_trade(db, user.id, trade.id)
+
+
+def close_trade(db: Session, user: User, trade_id: UUID, payload: TradeClose) -> Trade:
+    trade = get_trade(db, user.id, trade_id)
+    if trade.status == TradeStatus.CLOSED.value:
+        raise ConflictError("Trade is already closed.")
+
+    data: dict = {
+        "exit_price": payload.exit_price,
+        "exit_timestamp": payload.exit_timestamp or utcnow(),
+    }
+    if payload.notes is not None:
+        data["notes"] = payload.notes
+    if payload.setup_valid is not None:
+        data["setup_valid"] = payload.setup_valid
+    if payload.rules_followed is not None:
+        data["rules_followed"] = payload.rules_followed
+    if payload.emotional_trade is not None:
+        data["emotional_trade"] = payload.emotional_trade
+    if payload.mistake is not None:
+        data["mistake"] = payload.mistake
+    if payload.mistake_notes is not None:
+        data["mistake_notes"] = payload.mistake_notes
+    if payload.psychology is not None:
+        data["psychology"] = payload.psychology
+    return update_trade(db, user, trade_id, TradeUpdate(**data))
 
 
 def delete_trade(db: Session, user: User, trade_id: UUID) -> None:
