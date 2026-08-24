@@ -125,12 +125,57 @@ async function parse<T>(res: Response): Promise<T> {
   return body as T;
 }
 
+async function refreshAccessToken(): Promise<string | null> {
+  const refresh = getRefreshToken();
+  if (!refresh) return null;
+  let refreshed: Response;
+  try {
+    refreshed = await fetch(`${apiBase()}/api/auth/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh_token: refresh }),
+    });
+  } catch {
+    return null;
+  }
+  if (!refreshed.ok) {
+    clearSession();
+    if (typeof window !== "undefined") window.location.href = "/login";
+    return null;
+  }
+  const data = (await refreshed.json()) as { access_token: string; refresh_token: string; user: unknown };
+  setSession(data.access_token, data.refresh_token, JSON.stringify(data.user));
+  return data.access_token;
+}
+
 export async function fetchMediaBlob(url: string): Promise<string> {
+  const headers: Record<string, string> = {};
   const token = getAccessToken();
-  const res = await fetch(`${apiBase()}${url}`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
-  if (!res.ok) throw new Error("Unable to load image");
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  let res: Response;
+  try {
+    res = await fetch(`${apiBase()}${url}`, { headers });
+  } catch {
+    throw new Error("Cannot reach the API. Confirm the backend is running on port 8000.");
+  }
+
+  if (res.status === 401 && getRefreshToken()) {
+    const next = await refreshAccessToken();
+    if (next) {
+      headers.Authorization = `Bearer ${next}`;
+      try {
+        res = await fetch(`${apiBase()}${url}`, { headers });
+      } catch {
+        throw new Error("Cannot reach the API. Confirm the backend is running on port 8000.");
+      }
+    }
+  }
+
+  if (!res.ok) {
+    if (res.status === 404) throw new Error("Image file is missing. Re-upload from Edit trade.");
+    throw new Error("Unable to load image");
+  }
   const blob = await res.blob();
   return URL.createObjectURL(blob);
 }

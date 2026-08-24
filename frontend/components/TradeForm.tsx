@@ -325,7 +325,11 @@ export function TradeForm({ mode, trade = null }: Props) {
         });
       }
 
-      await uploadShots(saved.id);
+      try {
+        await uploadShots(saved.id);
+      } catch {
+        // Trade already persisted; detail page shows empty chart slots to re-upload.
+      }
       router.push(`/trades/${saved.id}`);
     } catch (err) {
       if (err instanceof ApiError) {

@@ -4,40 +4,114 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { api, fetchMediaBlob } from "@/lib/api";
-import type { Trade } from "@/lib/types";
+import type { Screenshot, Trade } from "@/lib/types";
 import { Badge, Panel } from "@/components/ui";
 import { IntelligenceRunner } from "@/components/IntelligenceRunner";
 import { formatWhen, holdingLabel, money, sessionLabel, signed, tone } from "@/lib/format";
 
-function Shot({ url, label }: { url: string; label: string }) {
+function Shot({
+  url,
+  label,
+  editHref,
+}: {
+  url: string;
+  label: string;
+  editHref: string;
+}) {
   const [src, setSrc] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [retry, setRetry] = useState(0);
+
   useEffect(() => {
     let alive = true;
-    void fetchMediaBlob(url).then((u) => {
-      if (alive) setSrc(u);
-    });
+    let objectUrl: string | null = null;
+    setSrc(null);
+    setError(null);
+    void fetchMediaBlob(url)
+      .then((u) => {
+        if (!alive) {
+          URL.revokeObjectURL(u);
+          return;
+        }
+        objectUrl = u;
+        setSrc(u);
+      })
+      .catch((err: unknown) => {
+        if (!alive) return;
+        setError(err instanceof Error ? err.message : "Unable to load image");
+      });
     return () => {
       alive = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [url]);
-  if (!src) return <p className="muted">{label}: loading…</p>;
+  }, [url, retry]);
+
+  if (error) {
+    return (
+      <figure className="shot-slot">
+        <figcaption className="muted">{label}</figcaption>
+        <div className="shot-empty">
+          <p className="muted">{error}</p>
+          <div className="shot-actions">
+            <button type="button" className="btn ghost" onClick={() => setRetry((n) => n + 1)}>
+              Retry
+            </button>
+            <Link href={editHref} className="btn ghost">
+              Re-upload
+            </Link>
+          </div>
+        </div>
+      </figure>
+    );
+  }
+
+  if (!src) {
+    return (
+      <figure className="shot-slot">
+        <figcaption className="muted">{label}</figcaption>
+        <div className="shot-empty">
+          <p className="muted">Loading…</p>
+        </div>
+      </figure>
+    );
+  }
+
   return (
-    <figure>
+    <figure className="shot-slot">
       <figcaption className="muted">{label}</figcaption>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={src} alt={label} />
-      <style jsx>{`
-        img {
-          width: 100%;
-          border: 1px solid var(--line);
-        }
-        figcaption {
-          margin-bottom: 6px;
-          font-size: 11px;
-          letter-spacing: 0.08em;
-          text-transform: uppercase;
-        }
-      `}</style>
+    </figure>
+  );
+}
+
+function ChartSlot({
+  label,
+  shot,
+  emptyCopy,
+  actionHref,
+  actionLabel,
+  editHref,
+}: {
+  label: string;
+  shot: Screenshot | undefined;
+  emptyCopy: string;
+  actionHref: string;
+  actionLabel: string;
+  editHref: string;
+}) {
+  if (shot) {
+    return <Shot url={shot.url} label={label} editHref={editHref} />;
+  }
+  return (
+    <figure className="shot-slot">
+      <figcaption className="muted">{label}</figcaption>
+      <div className="shot-empty">
+        <p className="muted">{emptyCopy}</p>
+        <Link href={actionHref} className="btn ghost">
+          {actionLabel}
+        </Link>
+      </div>
     </figure>
   );
 }
@@ -183,15 +257,30 @@ export default function TradeDetailPage() {
         </div>
       )}
 
-      {trade.screenshots.length > 0 && (
-        <Panel title="Chart">
-          <div className="shots">
-            {trade.screenshots.map((s) => (
-              <Shot key={s.id} url={s.url} label={s.type} />
-            ))}
-          </div>
-        </Panel>
-      )}
+      <Panel title="Charts">
+        <div className="shots">
+          <ChartSlot
+            label="Entry chart"
+            shot={trade.screenshots.find((s) => s.type === "entry")}
+            emptyCopy="No entry screenshot yet."
+            actionHref={`/trades/${trade.id}/edit`}
+            actionLabel="Add on Edit trade"
+            editHref={`/trades/${trade.id}/edit`}
+          />
+          <ChartSlot
+            label="Exit chart"
+            shot={trade.screenshots.find((s) => s.type === "exit")}
+            emptyCopy={
+              isOpen
+                ? "Available after you close the trade."
+                : "No exit screenshot yet."
+            }
+            actionHref={isOpen ? `/trades/${trade.id}/close` : `/trades/${trade.id}/edit`}
+            actionLabel={isOpen ? "Close trade" : "Add on Edit trade"}
+            editHref={`/trades/${trade.id}/edit`}
+          />
+        </div>
+      </Panel>
       <div className="cols">
         <Panel title="Psychology">
           {trade.psychology ? (
@@ -323,6 +412,51 @@ export default function TradeDetailPage() {
           display: grid;
           grid-template-columns: 1fr 1fr;
           gap: 12px;
+        }
+        .shots :global(.shot-slot) {
+          margin: 0;
+        }
+        .shots :global(figcaption) {
+          margin-bottom: 6px;
+          font-size: 11px;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+        }
+        .shots :global(img) {
+          display: block;
+          width: 100%;
+          border: 1px solid var(--line);
+        }
+        .shots :global(.shot-empty) {
+          display: grid;
+          gap: 10px;
+          align-content: center;
+          justify-items: start;
+          min-height: 160px;
+          padding: 14px;
+          border: 1px dashed var(--line-strong);
+          background: color-mix(in srgb, var(--surface) 88%, var(--bg));
+        }
+        .shots :global(.shot-empty p) {
+          margin: 0;
+          font-size: 13px;
+        }
+        .shots :global(.shot-actions) {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+        .shots :global(.btn.ghost) {
+          display: inline-flex;
+          align-items: center;
+          padding: 6px 10px;
+          border: 1px solid var(--line-strong);
+          background: transparent;
+          color: var(--text);
+          text-decoration: none;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
         }
         ul {
           list-style: none;
