@@ -8,3 +8,7 @@ AI_UNAVAILABLE_MESSAGE = (
 AI_TEMPORARILY_UNAVAILABLE_MESSAGE = (
     "AI analysis is temporarily unavailable. Please try again in a few minutes."
 )
+
+AI_MALFORMED_MESSAGE = (
+    "We couldn't format this analysis. Please try again — if it keeps failing, use Regenerate."
+)

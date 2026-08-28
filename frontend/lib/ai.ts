@@ -4,6 +4,9 @@ import { api, ApiError } from "@/lib/api";
 export const AI_UNAVAILABLE_MESSAGE =
   "Analysis is unavailable right now. Your journal, risk metrics and analytics still work.";
 
+export const AI_MALFORMED_MESSAGE =
+  "We couldn't format this analysis. Please try again — if it keeps failing, use Regenerate.";
+
 export type AiStatus = {
   available: boolean;
   configured_providers?: string[];
@@ -17,6 +20,9 @@ export function formatAiError(err: unknown): string {
     if (obj?.code === "ai_unavailable" || err.status === 503) {
       return obj?.message && !looksInternal(obj.message) ? obj.message : AI_UNAVAILABLE_MESSAGE;
     }
+    if (obj?.code === "ai_malformed") {
+      return AI_MALFORMED_MESSAGE;
+    }
     if (typeof obj?.message === "string" && obj.message && !looksInternal(obj.message)) {
       return obj.message;
     }
@@ -29,7 +35,10 @@ export function formatAiError(err: unknown): string {
 }
 
 function looksInternal(message: string): boolean {
-  return /API_KEY|GEMINI_|OPENROUTER_|BAZAARLINK_|env var/i.test(message);
+  return (
+    /API_KEY|GEMINI_|OPENROUTER_|BAZAARLINK_|env var/i.test(message) ||
+    /schema validation|Model JSON failed|Model did not return JSON/i.test(message)
+  );
 }
 
 export function fetchAiStatus(): Promise<AiStatus> {

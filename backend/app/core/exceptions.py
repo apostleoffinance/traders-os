@@ -4,10 +4,17 @@ from fastapi import HTTPException, status
 
 
 class DomainError(Exception):
-    def __init__(self, message: str, code: str = "domain_error") -> None:
+    def __init__(
+        self,
+        message: str,
+        code: str = "domain_error",
+        *,
+        repair_hint: str | None = None,
+    ) -> None:
         super().__init__(message)
         self.message = message
         self.code = code
+        self.repair_hint = repair_hint
 
 
 class NotFoundError(DomainError):
@@ -64,6 +71,7 @@ def http_error(exc: DomainError) -> HTTPException:
         "policy_blocked": status.HTTP_409_CONFLICT,
         "ai_unavailable": status.HTTP_503_SERVICE_UNAVAILABLE,
         "ai_guardrail": status.HTTP_422_UNPROCESSABLE_ENTITY,
+        "ai_malformed": status.HTTP_422_UNPROCESSABLE_ENTITY,
         "invalid_period": status.HTTP_400_BAD_REQUEST,
         "provider_unavailable": status.HTTP_503_SERVICE_UNAVAILABLE,
         "unsupported_timeframe": status.HTTP_400_BAD_REQUEST,

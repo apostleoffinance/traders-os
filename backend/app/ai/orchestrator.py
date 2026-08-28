@@ -14,6 +14,7 @@ from app.ai.guardrails.output_validator import validate_response
 from app.ai.guardrails.trading_signal_guard import contains_prohibited
 from app.ai.prompts import SYSTEM_PROMPT
 from app.ai.providers.router import FailoverRouter
+from app.ai.schema_prompt import json_schema_for_prompt
 from app.ai.schemas import SCHEMA_BY_TYPE
 from app.ai.serialize import to_jsonable
 from app.core.exceptions import AIGuardrailRejected, AIUnavailable, DomainError
@@ -24,6 +25,24 @@ RETRY_SUFFIX = (
     "(buy/sell/enter/exit/signal language). Rewrite as process analysis only. "
     "JSON schema unchanged. recommendation if present must be 'none'."
 )
+
+SCHEMA_SUFFIX = (
+    "\n\nReturn a single JSON object matching this schema exactly. "
+    "Use UPPERCASE enum values only. List fields must be JSON arrays of strings. "
+    "No markdown, no extra keys."
+)
+
+
+def _system_with_schema(base: str, schema: type[BaseModel]) -> str:
+    return f"{base}{SCHEMA_SUFFIX}\n{json_schema_for_prompt(schema)}"
+
+
+def _schema_repair_suffix(exc: DomainError) -> str:
+    hint = exc.repair_hint or "Fix field types and enum casing."
+    return (
+        f"\n\nYour previous JSON failed validation: {hint}\n"
+        "Return corrected JSON only. Enum values must be UPPERCASE."
+    )
 
 
 def context_hash(payload: dict) -> str:
@@ -123,7 +142,7 @@ def run_analysis(
             }
 
     user_msg = json.dumps({"task": task_prompt, "context": context}, default=str)
-    system = SYSTEM_PROMPT
+    system = _system_with_schema(SYSTEM_PROMPT, schema)
     r = router or FailoverRouter()
     raw, provider, model = r.complete_json(system=system, user=user_msg, schema_name=analysis_type)
     parsed: BaseModel | None = None
@@ -138,10 +157,11 @@ def run_analysis(
         if contains_prohibited(raw2):
             raise AIGuardrailRejected()
         parsed = validate_response(raw2, schema)
-    except DomainError:
-        # one repair pass for malformed JSON
+    except DomainError as exc:
+        if exc.code != "ai_malformed":
+            raise
         raw2, provider, model = r.complete_json(
-            system=system + "\nReturn valid JSON only. No markdown.",
+            system=system + _schema_repair_suffix(exc),
             user=user_msg,
             schema_name=analysis_type,
         )
