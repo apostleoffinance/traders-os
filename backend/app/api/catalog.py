@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import DomainError, http_error
+from app.core.config import settings
 from app.core.security import get_current_user_id, get_db
 from app.models.risk_event import RiskEvent
 from app.models.setup import Setup
@@ -25,6 +26,10 @@ checklists_router = APIRouter(prefix="/checklists", tags=["checklists"])
 instruments_router = APIRouter(prefix="/instruments", tags=["catalog"])
 events_router = APIRouter(prefix="/risk/events", tags=["risk"])
 media_router = APIRouter(prefix="/media", tags=["media"])
+
+
+def _uses_db_storage() -> bool:
+    return settings.storage_backend.lower().strip() == "db"
 
 
 @setups_router.get("", response_model=list[SetupOut])
@@ -231,10 +236,18 @@ def get_media(key: str, db: Session = Depends(get_db), user_id=Depends(get_curre
     # Prefer Postgres bytes (STORAGE_BACKEND=db) — survives Render redeploys.
     if shot.file_data:
         return Response(content=bytes(shot.file_data), media_type=shot.content_type or "application/octet-stream")
+    if _uses_db_storage():
+        # Orphan metadata from pre-db uploads or failed writes — do not call object storage.
+        db.delete(shot)
+        db.commit()
+        raise HTTPException(
+            status_code=404,
+            detail="Image file is missing. Re-upload from Edit trade.",
+        )
     try:
         data = get_storage().get(key)
     except Exception as exc:
-        # Missing disk/S3 object, or STORAGE_BACKEND=db with no file_data (pre-migration orphan).
+        # Missing disk/S3 object.
         db.delete(shot)
         db.commit()
         raise HTTPException(

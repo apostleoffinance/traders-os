@@ -2,6 +2,7 @@ const TOKEN_KEY = "traderos.access";
 const REFRESH_KEY = "traderos.refresh";
 const USER_KEY = "traderos.user";
 const ACCOUNT_KEY = "traderos.account";
+const UPLOAD_WARN_KEY = "traderos.upload-warning";
 const REFRESH_BUFFER_SEC = 5 * 60;
 
 function authStore(): Storage | null {
@@ -291,4 +292,16 @@ export async function fetchMediaBlob(url: string): Promise<string> {
   } finally {
     if (timeout !== undefined) window.clearTimeout(timeout);
   }
+}
+
+export function setUploadWarning(message: string): void {
+  if (typeof window === "undefined") return;
+  sessionStorage.setItem(UPLOAD_WARN_KEY, message);
+}
+
+export function consumeUploadWarning(): string | null {
+  if (typeof window === "undefined") return null;
+  const raw = sessionStorage.getItem(UPLOAD_WARN_KEY);
+  if (raw) sessionStorage.removeItem(UPLOAD_WARN_KEY);
+  return raw;
 }

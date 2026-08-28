@@ -653,6 +653,10 @@ def add_screenshot(
     db.add(shot)
     db.commit()
     db.refresh(shot)
+    if _uses_db_storage() and not shot.file_data:
+        db.delete(shot)
+        db.commit()
+        raise DomainError("Screenshot could not be stored in the database. Retry the upload.")
     return shot
 
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import date, datetime
 from decimal import Decimal
 from json import dumps
@@ -14,6 +15,8 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api import api_router
 from app.core.config import settings
+
+log = logging.getLogger("traderos.startup")
 
 
 def _json_default(value: object) -> object:
@@ -67,6 +70,25 @@ async def unhandled_error(_request: Request, exc: Exception) -> JSONResponse:
     return JSONResponse(status_code=500, content={"detail": "Internal Server Error"})
 
 
+@app.on_event("startup")
+def warn_ephemeral_storage() -> None:
+    backend = settings.storage_backend.lower().strip()
+    if backend == "local" and not settings.is_dev:
+        log.critical(
+            "STORAGE_BACKEND=local in production — chart uploads are stored on ephemeral "
+            "disk and will disappear on redeploy. Set STORAGE_BACKEND=db (Postgres bytes) "
+            "or STORAGE_BACKEND=s3 for durable screenshots."
+        )
+    elif backend == "db":
+        log.info("storage backend=db — screenshot bytes stored in Postgres")
+
+
 @app.get("/health")
-def health() -> dict[str, str]:
-    return {"status": "ok", "service": settings.app_name}
+def health() -> dict[str, str | bool]:
+    backend = settings.storage_backend.lower().strip()
+    return {
+        "status": "ok",
+        "service": settings.app_name,
+        "storage_backend": backend,
+        "storage_durable": backend in {"db", "s3"},
+    }

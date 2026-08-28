@@ -3,9 +3,9 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { api, fetchMediaBlob } from "@/lib/api";
+import { api, consumeUploadWarning, fetchMediaBlob } from "@/lib/api";
 import type { Screenshot, Trade } from "@/lib/types";
-import { Badge, Panel } from "@/components/ui";
+import { Alert, Badge, Panel } from "@/components/ui";
 import { IntelligenceRunner } from "@/components/IntelligenceRunner";
 import { formatWhen, holdingLabel, money, sessionLabel, signed, tone } from "@/lib/format";
 
@@ -135,6 +135,7 @@ function ChartSlot({
 export default function TradeDetailPage() {
   const params = useParams<{ id: string }>();
   const [trade, setTrade] = useState<Trade | null>(null);
+  const [uploadWarning, setUploadWarning] = useState<string | null>(null);
 
   const reload = useCallback(() => {
     void api<Trade>(`/api/trades/${params.id}`).then(setTrade);
@@ -144,6 +145,11 @@ export default function TradeDetailPage() {
     reload();
   }, [reload]);
 
+  useEffect(() => {
+    const warning = consumeUploadWarning();
+    if (warning) setUploadWarning(warning);
+  }, []);
+
   if (!trade) return <p className="muted">Loading…</p>;
 
   const isOpen = trade.status === "open";
@@ -151,6 +157,7 @@ export default function TradeDetailPage() {
 
   return (
     <div>
+      {uploadWarning && <Alert kind="warn">{uploadWarning}</Alert>}
       <div className="head">
         <div>
           <p className="page-kicker">{sessionLabel(trade.session)} · {trade.timeframe}</p>

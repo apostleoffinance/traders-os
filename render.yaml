@@ -15,7 +15,9 @@ services:
       - key: APP_ENV
         value: production
       - key: STORAGE_BACKEND
-        value: local
+        value: db
+      - key: STORAGE_MAX_UPLOAD_BYTES
+        value: "1572864"
       - key: GEMINI_API_KEY
         sync: false
       - key: OANDA_API_KEY

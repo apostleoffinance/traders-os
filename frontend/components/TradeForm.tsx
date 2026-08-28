@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ApiError, api, getActiveAccountId } from "@/lib/api";
+import { ApiError, api, getActiveAccountId, setUploadWarning } from "@/lib/api";
 import type { ChecklistTemplate, Instrument, Setup, Trade, TradePreview } from "@/lib/types";
 import { Alert, Button, Field, Panel } from "@/components/ui";
 import { money, num } from "@/lib/format";
@@ -354,7 +354,7 @@ export function TradeForm({ mode, trade = null }: Props) {
           setError(`Trade saved, but chart upload failed: ${detail}. Pick the image again and save.`);
           return;
         }
-        // Avoid duplicate creates; detail page empty slots cover re-upload.
+        setUploadWarning(`Trade saved, but chart upload failed: ${detail}. Re-upload from Edit trade.`);
         router.push(`/trades/${saved.id}`);
         return;
       }
