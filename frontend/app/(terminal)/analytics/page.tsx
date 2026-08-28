@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { api, getActiveAccountId } from "@/lib/api";
+import { useAiStatus } from "@/lib/ai";
 import { Alert } from "@/components/ui";
 import { IntelligenceRunner } from "@/components/IntelligenceRunner";
 import {
@@ -30,6 +31,7 @@ export default function AnalyticsPage() {
   const [applied, setApplied] = useState<FilterState>(EMPTY_FILTERS);
   const [data, setData] = useState<AnalyticsDashboard | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const aiStatus = useAiStatus();
 
   const load = useCallback(async (id: string, filters: FilterState) => {
     setError(null);
@@ -101,8 +103,13 @@ export default function AnalyticsPage() {
               path={`/api/ai/accounts/${accountId}/journal-summary`}
               label="Explain my performance"
               hint="Interprets the same deterministic stats. Does not predict the next trade."
+              available={aiStatus?.available ?? true}
             />
-            <IntelligenceRunner path={`/api/ai/accounts/${accountId}/patterns`} label="Find behavioral patterns" />
+            <IntelligenceRunner
+              path={`/api/ai/accounts/${accountId}/patterns`}
+              label="Find behavioral patterns"
+              available={aiStatus?.available ?? true}
+            />
           </div>
         </div>
       )}

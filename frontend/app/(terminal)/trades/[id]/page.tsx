@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { api, consumeUploadWarning, fetchMediaBlob } from "@/lib/api";
+import { useAiStatus } from "@/lib/ai";
 import type { Screenshot, Trade } from "@/lib/types";
 import { Alert, Badge, Panel } from "@/components/ui";
 import { IntelligenceRunner } from "@/components/IntelligenceRunner";
@@ -136,6 +137,7 @@ export default function TradeDetailPage() {
   const params = useParams<{ id: string }>();
   const [trade, setTrade] = useState<Trade | null>(null);
   const [uploadWarning, setUploadWarning] = useState<string | null>(null);
+  const aiStatus = useAiStatus();
 
   const reload = useCallback(() => {
     void api<Trade>(`/api/trades/${params.id}`).then(setTrade);
@@ -276,11 +278,13 @@ export default function TradeDetailPage() {
             path={`/api/ai/trades/${trade.id}/review`}
             label="Analyze trade with AI"
             hint="Separates P/L from discipline. Historical comparables exclude later trades (no look-ahead)."
+            available={aiStatus?.available ?? true}
           />
           <IntelligenceRunner
             path={`/api/ai/trades/${trade.id}/challenge`}
             label="Challenge my thinking"
             hint="Questions assumptions. Never BUY / SELL / HOLD."
+            available={aiStatus?.available ?? true}
           />
         </div>
       )}

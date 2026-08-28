@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { api, ApiError } from "@/lib/api";
+import { api } from "@/lib/api";
+import { AI_UNAVAILABLE_MESSAGE, formatAiError } from "@/lib/ai";
 import { Alert, Button, Panel } from "@/components/ui";
 
 export type AIEnvelope = {
@@ -59,18 +60,25 @@ export function IntelligenceRunner({
   path,
   label,
   hint,
+  available = true,
 }: {
   path: string | null;
   label: string;
   hint?: string;
+  available?: boolean;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<AIEnvelope | null>(null);
+  const disabled = busy || !path || !available;
 
   async function run(force = false) {
     if (!path) {
       setError("Select an account first.");
+      return;
+    }
+    if (!available) {
+      setError(AI_UNAVAILABLE_MESSAGE);
       return;
     }
     setBusy(true);
@@ -80,18 +88,7 @@ export function IntelligenceRunner({
       const res = await api<AIEnvelope>(`${path}${force ? `${sep}force=true` : ""}`, { method: "POST" });
       setData(res);
     } catch (err) {
-      if (err instanceof ApiError) {
-        const detail = err.body as { detail?: { message?: string } | string };
-        if (typeof detail?.detail === "object" && detail.detail?.message) {
-          setError(detail.detail.message);
-        } else if (err.status === 503) {
-          setError("AI analysis temporarily unavailable. Journal, risk and analytics still work.");
-        } else {
-          setError(err.message);
-        }
-      } else {
-        setError("AI analysis temporarily unavailable.");
-      }
+      setError(formatAiError(err));
     } finally {
       setBusy(false);
     }
@@ -100,17 +97,18 @@ export function IntelligenceRunner({
   return (
     <div>
       <div className="actions">
-        <Button type="button" onClick={() => void run(false)} disabled={busy || !path}>
+        <Button type="button" onClick={() => void run(false)} disabled={disabled}>
           {busy ? "Analyzing…" : label}
         </Button>
-        {data && (
+        {data && available && (
           <Button type="button" kind="ghost" onClick={() => void run(true)} disabled={busy}>
             Regenerate
           </Button>
         )}
       </div>
       {hint && <p className="muted">{hint}</p>}
-      {error && <Alert kind="danger">{error}</Alert>}
+      {!available && !data && <Alert kind="warn">{AI_UNAVAILABLE_MESSAGE}</Alert>}
+      {error && <Alert kind="warn">{error}</Alert>}
       {data && (
         <Panel
           title={`${data.analysis_type.replace(/_/g, " ")} · ${data.provider}${data.cached ? " · cached" : ""}`}

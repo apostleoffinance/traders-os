@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.ai.context import build_account_analytics_context, period_preview
+from app.ai.messages import AI_UNAVAILABLE_MESSAGE
 from app.ai.providers.router import FailoverRouter
 from app.ai import services as ai_services
 from app.core.exceptions import DomainError, http_error
@@ -25,9 +26,7 @@ def ai_status():
     return {
         "configured_providers": names,
         "available": bool(names),
-        "message": None
-        if names
-        else "No AI provider configured. Add GEMINI_API_KEY, OPENROUTER_API_KEY, or BAZAARLINK_API_KEY.",
+        "message": None if names else AI_UNAVAILABLE_MESSAGE,
     }
 
 

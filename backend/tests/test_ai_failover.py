@@ -53,5 +53,9 @@ def test_all_down_raises_unavailable() -> None:
 
 
 def test_none_configured() -> None:
-    with pytest.raises(AIUnavailable):
+    from app.ai.messages import AI_UNAVAILABLE_MESSAGE
+
+    with pytest.raises(AIUnavailable, match="journal"):
         FailoverRouter([FakeProvider("gemini", False)]).complete_json(system="s", user="u", schema_name="x")
+    # Message must not leak env var names to API consumers.
+    assert "API_KEY" not in AI_UNAVAILABLE_MESSAGE

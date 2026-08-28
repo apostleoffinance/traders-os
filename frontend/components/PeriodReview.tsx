@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { api, getActiveAccountId } from "@/lib/api";
+import { useAiStatus } from "@/lib/ai";
 import { IntelligenceRunner } from "@/components/IntelligenceRunner";
 import { Alert, Field } from "@/components/ui";
 
@@ -45,6 +46,7 @@ export function PeriodReview() {
   const [end, setEnd] = useState("");
   const [preview, setPreview] = useState<Preview | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const aiStatus = useAiStatus();
 
   useEffect(() => {
     setAccountId(getActiveAccountId());
@@ -119,6 +121,7 @@ export function PeriodReview() {
         path={path}
         label="Analyze this period"
         hint="The engines slice the journal first. The model only explains the selected window versus the previous one."
+        available={aiStatus?.available ?? true}
       />
       <style jsx>{`
         .chips {

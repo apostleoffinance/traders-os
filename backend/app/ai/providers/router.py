@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from app.ai.config import provider_order
+from app.ai.messages import AI_TEMPORARILY_UNAVAILABLE_MESSAGE, AI_UNAVAILABLE_MESSAGE
 from app.ai.providers.base import AIProvider, ProviderError
 from app.ai.providers.gateways import bazaarlink_provider, openrouter_provider
 from app.ai.providers.gemini import GeminiProvider
@@ -44,7 +45,5 @@ class FailoverRouter:
             except ProviderError as exc:
                 errors.append(str(exc))
         if not tried:
-            raise AIUnavailable(
-                "No AI provider is configured. Set GEMINI_API_KEY, OPENROUTER_API_KEY, or BAZAARLINK_API_KEY."
-            )
-        raise AIUnavailable("AI analysis temporarily unavailable. " + " | ".join(errors[-3:]))
+            raise AIUnavailable(AI_UNAVAILABLE_MESSAGE)
+        raise AIUnavailable(AI_TEMPORARILY_UNAVAILABLE_MESSAGE)
