@@ -16,20 +16,34 @@ import {
   type FilterState,
 } from "@/lib/analytics";
 import { AnalyticsFilters } from "@/components/analytics/Filters";
+import { AnalyticsDrilldownProvider } from "@/components/analytics/AnalyticsDrilldownContext";
+import { DrilldownFilterBar } from "@/components/analytics/primitives/DrilldownFilterBar";
 import { AnalyticsOverview } from "@/components/analytics/Overview";
-import { EquityDrawdown } from "@/components/analytics/EquityDrawdown";
 import { EdgeExplorer } from "@/components/analytics/EdgeExplorer";
+import { EdgeLabSections } from "@/components/analytics/EdgeLabSections";
+import { PerformanceLab } from "@/components/analytics/PerformanceLab";
+import { ExecutionLab } from "@/components/analytics/ExecutionLab";
+import { CostAnalytics } from "@/components/analytics/CostAnalytics";
 import { BehaviourLab } from "@/components/analytics/BehaviourLab";
 import { MetricDrilldown } from "@/components/analytics/MetricDrilldown";
 import {
-  CalendarHeat,
   Distribution,
-  MonthlyRolling,
   RiskAndObservations,
   Scatters,
   SessionSetupPsych,
-  StreaksConsistency,
 } from "@/components/analytics/Sections";
+import {
+  ConsistencyLab,
+  DistributionLab,
+  EquityLab,
+  PeriodComparisonLab,
+  RiskAnalyticsLab,
+  StreakLab,
+  TemporalLab,
+} from "@/components/analytics/Phase2Lab";
+import { BehaviourIntelligenceLab, ChecklistItemPanel, EdgeMapPanel, IntelligenceOverview, PlaybookLab } from "@/components/intelligence/Phase3Intelligence";
+import { DecisionQualityChart, DisciplineScatterPanel, PsychologyBubbleMatrix } from "@/components/intelligence/IntelligenceViz";
+import { ComparisonLab } from "@/components/analytics/ComparisonLab";
 
 const TABS = [
   { id: "overview", label: "Overview" },
@@ -99,34 +113,61 @@ function AnalyticsLab() {
         return (
           <>
             <AnalyticsOverview data={data} onMetricClick={setDrillMetric} />
-            <EquityDrawdown data={data} />
+            <EquityLab data={data} />
+            <ConsistencyLab data={data} />
+            <PeriodComparisonLab data={data} />
             <SessionSetupPsych data={data} />
           </>
         );
       case "performance":
         return (
           <>
-            <AnalyticsOverview data={data} onMetricClick={setDrillMetric} />
-            <Distribution data={data} />
-            <MonthlyRolling data={data} />
-            <StreaksConsistency data={data} />
+            <PerformanceLab data={data} onMetricClick={setDrillMetric} />
+            <DistributionLab data={data} />
+            <ConsistencyLab data={data} />
+            <StreakLab data={data} />
+            <CostAnalytics data={data} />
           </>
         );
       case "edge":
-        return <EdgeExplorer accountId={accountId} data={data} filters={applied} />;
+        return (
+          <>
+            <ComparisonLab accountId={accountId} data={data} />
+            <EdgeLabSections data={data} />
+            <EdgeExplorer accountId={accountId} data={data} filters={applied} />
+          </>
+        );
       case "behaviour":
-        return <BehaviourLab data={data} />;
+        return (
+          <>
+            <BehaviourLab data={data} />
+            {data.lab?.intelligence && <PsychologyBubbleMatrix intel={data.lab.intelligence} currency={data.account.currency} />}
+            {data.lab?.intelligence && <DisciplineScatterPanel intel={data.lab.intelligence} currency={data.account.currency} />}
+            {data.lab?.intelligence && <BehaviourIntelligenceLab intel={data.lab.intelligence} />}
+            {data.lab?.intelligence && <ChecklistItemPanel intel={data.lab.intelligence} />}
+            {data.lab?.intelligence && <DecisionQualityChart intel={data.lab.intelligence} />}
+            <StreakLab data={data} />
+            {data.lab?.risk_analytics && <RiskAnalyticsLab data={data} />}
+          </>
+        );
       case "execution":
         return (
           <>
             <Scatters data={data} />
+            <ExecutionLab data={data} />
             <Distribution data={data} />
           </>
         );
       case "risk":
-        return <RiskAndObservations data={data} />;
+        return (
+          <>
+            <EquityLab data={data} />
+            <RiskAnalyticsLab data={data} />
+            <RiskAndObservations data={data} />
+          </>
+        );
       case "calendar":
-        return <CalendarHeat data={data} />;
+        return <TemporalLab data={data} />;
       default:
         return null;
     }
@@ -145,6 +186,13 @@ function AnalyticsLab() {
   }
 
   return (
+    <AnalyticsDrilldownProvider
+      accountId={accountId}
+      currency={data?.account.currency ?? "USD"}
+      timezone={data?.lab?.metadata?.timezone}
+      filters={applied}
+      onFiltersChange={setApplied}
+    >
     <div>
       <p className="page-kicker">Intelligence</p>
       <h1>Analytics Lab</h1>
@@ -176,6 +224,7 @@ function AnalyticsLab() {
           setApplied(reset);
         }}
       />
+      {data && <DrilldownFilterBar filters={applied} data={data} onChange={setApplied} />}
       {error && <Alert kind="danger">{error}</Alert>}
       {!data && <p className="muted">Loading…</p>}
       {data && <div className="stack">{tabContent}</div>}
@@ -244,5 +293,6 @@ function AnalyticsLab() {
         }
       `}</style>
     </div>
+    </AnalyticsDrilldownProvider>
   );
 }

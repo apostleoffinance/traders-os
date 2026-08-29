@@ -77,6 +77,12 @@ class Trade(Base):
     instrument_status: Mapped[str | None] = mapped_column(String(16), nullable=True)
     commission: Mapped[Decimal | None] = mapped_column(MONEY, nullable=True)
     swap: Mapped[Decimal | None] = mapped_column(MONEY, nullable=True)
+    mfe_price: Mapped[Decimal | None] = mapped_column(PRICE, nullable=True)
+    mae_price: Mapped[Decimal | None] = mapped_column(PRICE, nullable=True)
+    mfe_r: Mapped[Decimal | None] = mapped_column(RATIO, nullable=True)
+    mae_r: Mapped[Decimal | None] = mapped_column(RATIO, nullable=True)
+    mfe_mae_source: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    mfe_mae_precision: Mapped[str | None] = mapped_column(String(32), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

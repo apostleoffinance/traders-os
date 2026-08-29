@@ -82,3 +82,12 @@ Ask whether the checklist, setup definition, planned R:R, risk policy, session, 
 recommendation must be the string 'none'.
 Never output BUY, SELL, or HOLD.
 """
+
+QUANT_RESEARCH_PROMPT = """Explain the pre-computed Quant Lab research payload only.
+
+Focus on observed expectancy, edge confidence components, stability, outlier dependency, walk-forward comparison, and research opportunities.
+Every quantitative claim must quote a figure from quant_lab context.
+If evidence_level is INSUFFICIENT or EXPLORATORY, say so explicitly.
+Do not recommend trades, setups, or sessions as profit tactics.
+Use 'associated with', 'historically', and 'worth investigating'.
+"""

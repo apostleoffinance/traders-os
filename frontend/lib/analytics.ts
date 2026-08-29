@@ -24,6 +24,16 @@ export type GroupRow = {
   month?: string;
 };
 
+export type EquityMarker = {
+  trade_id: string;
+  at: string;
+  symbol: string;
+  direction: string;
+  result: string;
+  net_pnl: string;
+  r_multiple: string | null;
+};
+
 export type EquityPt = {
   at: string;
   equity: string;
@@ -167,7 +177,364 @@ export type AnalyticsDashboard = {
   }[];
   edge_matrix: EdgeMatrix;
   edge_combos: EdgeCombo[];
+  lab?: AnalyticsLab;
 };
+
+export type LabKpi = {
+  value: string | number | null;
+  unit: string;
+  n: number;
+  note?: string | null;
+};
+
+export type LabBucketRow = {
+  bucket: string;
+  n: number;
+  net_pnl: string | null;
+  gross_pnl?: string | null;
+  net_r?: string | null;
+  win_rate: string | null;
+  average_r?: string | null;
+  expectancy_r?: string | null;
+  expectancy_currency?: string | null;
+  profit_factor?: string | null;
+  average_holding_seconds?: number | null;
+  average_risk?: string | null;
+  evidence: Evidence;
+  sample_note?: string | null;
+  sample_label?: string;
+};
+
+export type LabLeaderboardRow = {
+  key: string;
+  label: string;
+  n: number;
+  net_pnl: string | null;
+  gross_pnl?: string | null;
+  net_r?: string | null;
+  win_rate: string | null;
+  average_r?: string | null;
+  expectancy_r?: string | null;
+  expectancy_currency?: string | null;
+  profit_factor?: string | null;
+  average_holding_seconds?: number | null;
+  average_risk?: string | null;
+  evidence: Evidence;
+  sample_note?: string | null;
+  sample_label?: string;
+};
+
+export type LabTradeRank = {
+  rank: number;
+  trade_id: string;
+  symbol: string;
+  direction: string;
+  setup: string;
+  entry_at: string;
+  exit_at: string | null;
+  net_pnl: string;
+  gross_pnl?: string;
+  r_multiple: string | null;
+  holding_time_seconds: number | null;
+  lot_size: string;
+  commission: string;
+  swap: string;
+};
+
+export type AnalyticsLab = {
+  metadata: {
+    sample_size: number;
+    period: string;
+    timezone: string;
+    filters: Record<string, string | null>;
+    evidence: Evidence;
+    definitions: Record<string, string>;
+  };
+  performance: {
+    kpis: Record<string, LabKpi>;
+    win_loss: {
+      n: number;
+      win_rate: string | null;
+      loss_rate: string | null;
+      breakeven_rate: string | null;
+      wins: number;
+      losses: number;
+      breakevens: number;
+      average_win: string | null;
+      average_loss: string | null;
+      median_win: string | null;
+      median_loss: string | null;
+      largest_winner: string | null;
+      largest_loser: string | null;
+      win_loss_ratio: string | null;
+      profit_factor: {
+        value: string | null;
+        gross_profit: string;
+        gross_loss: string;
+        note: string | null;
+        n: number;
+      };
+      composition: { label: string; n: number; pct: number }[];
+      evidence: Evidence;
+      sample_note: string | null;
+    };
+    direction_comparison: {
+      long: Record<string, unknown>;
+      short: Record<string, unknown>;
+      metrics: string[];
+    };
+    best_trades: {
+      winners: LabTradeRank[];
+      losers: LabTradeRank[];
+      best_winner: LabTradeRank | null;
+      worst_loser: LabTradeRank | null;
+    };
+    sample_note: string | null;
+    evidence: Evidence;
+  };
+  edge: {
+    instruments: LabLeaderboardRow[];
+    setups: LabLeaderboardRow[];
+    sessions: LabLeaderboardRow[];
+    time_of_day: {
+      timezone: string;
+      by_hour: (LabBucketRow & { hour: number })[];
+      heatmap: (LabBucketRow & { day: string; hour: number })[];
+      metric: string;
+    };
+  };
+  execution: {
+    position_size: {
+      buckets: LabBucketRow[];
+      method: string;
+      disclaimer: string;
+      sample_note: string | null;
+    };
+    duration: { buckets: LabBucketRow[]; sample_note: string | null };
+    mfe_mae: {
+      available: boolean;
+      reason?: string;
+      coverage_n?: number;
+      coverage_pct?: string | null;
+      precision?: string;
+      source?: string;
+      disclaimer?: string;
+      average_mfe_r?: string | null;
+      average_mae_r?: string | null;
+      median_mfe_r?: string | null;
+      median_mae_r?: string | null;
+      scatter?: {
+        trade_id: string;
+        symbol: string;
+        mfe_r: string | null;
+        mae_r: string | null;
+        realized_r: string | null;
+        result: string;
+      }[];
+      evidence: Evidence;
+      sample_note?: string | null;
+    };
+    exit_efficiency: {
+      available: boolean;
+      reason?: string;
+      coverage_n?: number;
+      average_capture?: string | null;
+      median_capture?: string | null;
+      median_capture_pct?: string | null;
+      average_giveback_r?: string | null;
+      insight?: string | null;
+      disclaimer?: string;
+      scatter?: {
+        trade_id: string;
+        symbol: string;
+        mfe_r: string | null;
+        realized_r: string | null;
+        capture_ratio: string | null;
+      }[];
+      evidence: Evidence;
+      sample_note?: string | null;
+    };
+    sample_note: string | null;
+    evidence: Evidence;
+  };
+  costs: {
+    commissions: {
+      total: string | null;
+      average: string | null;
+      median: string | null;
+      by_instrument: { symbol: string; total: string }[];
+      pct_of_gross_profit: string | null;
+      data_available: boolean;
+      missing_note: string | null;
+      n: number;
+      evidence: Evidence;
+    };
+    swaps: {
+      total: string | null;
+      average: string | null;
+      positive: string | null;
+      negative: string | null;
+      by_instrument: { symbol: string; total: string }[];
+      data_available: boolean;
+      missing_note: string | null;
+      n: number;
+      evidence: Evidence;
+    };
+    gross_vs_net: {
+      gross_pnl: string | null;
+      commission: string | null;
+      swap: string | null;
+      total_trading_cost: string | null;
+      net_pnl: string | null;
+      cost_drag_pct: string | null;
+      cost_drag_note: string | null;
+      sign_convention: string;
+      n: number;
+      sample_note: string | null;
+      evidence: Evidence;
+    };
+  };
+  distributions?: {
+    trade_pnl: DistributionBlock & { histogram: HistBin[] };
+    r_multiple: DistributionBlock & { bins: HistBin[] };
+    daily_pnl: DistributionBlock & { trading_days: number; profitable_days: number; losing_days: number; flat_days: number; histogram: HistBin[] };
+    daily_r_buckets: { buckets: { label: string; n: number }[]; trading_days_with_r: number; evidence: Evidence; sample_note: string | null };
+    expectancy: {
+      n: number;
+      win_rate: string | null;
+      loss_rate: string | null;
+      breakevens: number;
+      expectancy_currency: string | null;
+      expectancy_r: string | null;
+      average_r: string | null;
+      median_r: string | null;
+      total_r: string | null;
+      valid_r_observations: number;
+      missing_r: number;
+      evidence: Evidence;
+      sample_note: string | null;
+    };
+  };
+  consistency?: {
+    winning_days_pct: string | null;
+    winning_weeks_pct: string | null;
+    positive_months_pct: string | null;
+    trading_days: number;
+    profitable_days: number;
+    losing_days: number;
+    flat_days: number;
+    average_daily_pnl: string | null;
+    median_daily_pnl: string | null;
+    daily_pnl_volatility: string | null;
+    largest_winning_day: string | null;
+    largest_losing_day: string | null;
+    evidence: Evidence;
+    sample_note: string | null;
+  };
+  equity?: {
+    modes: string[];
+    markers: EquityMarker[];
+    net_pnl: { curve: EquityPt[]; n: number };
+    gross_pnl: { curve: EquityPt[]; n: number };
+    drawdown: {
+      max_drawdown: string | null;
+      max_drawdown_pct: string | null;
+      current_drawdown: string | null;
+      curve: { at: string; drawdown: string; drawdown_pct: string; equity: string; peak: string }[];
+      episodes: { episodes: { start: string; end: string | null; duration_days: number; depth: string; recovered: boolean }[]; n_episodes: number };
+      recovery_table: { drawdown: number; start: string; recovery: string; depth: string; duration_days: number }[];
+    };
+    evidence: Evidence;
+    sample_note: string | null;
+  };
+  streaks?: {
+    current: { wins: number; losses: number };
+    longest: { wins: number; losses: number };
+    averages: { average_win_streak: string | null; average_loss_streak: string | null };
+    loss_distribution: { length: number; occurrences: number }[];
+    after_streaks: GroupRow[];
+    breakeven_rule: string;
+    n: number;
+    evidence: Evidence;
+    sample_note: string | null;
+  };
+  risk_analytics?: {
+    distribution: { risk_amount: DistributionBlock; risk_percent: DistributionBlock & { buckets: { label: string; n: number }[] }; missing_risk: number };
+    consistency: { configured_risk: string | null; average_actual_risk: string | null; deviation_pct: string | null; valid_observations: number };
+    risk_vs_outcome: { bucket: string; n: number; win_rate: string | null; average_r: string | null; net_pnl: string | null }[];
+    escalation: { context: string; average_risk: string; pct_difference: string; wording: string }[];
+    evidence: Evidence;
+  };
+  temporal?: {
+    calendar: { days: { date: string; n: number; net_pnl: string; gross_pnl: string; r: string | null; wins: number; losses: number; record: string }[]; timezone: string; evidence: Evidence };
+    weekday: GroupRow[];
+    week_of_month: { key: string; n: number; net_pnl: string | null; win_rate: string | null }[];
+    monthly: { rows: { month: string; n: number; win_rate: string | null; net_pnl: string; profit_factor: string | null }[]; summary: Record<string, unknown> };
+    period_comparison: { available: boolean; comparison: { metric: string; current: string | number | null; previous: string | number | null; change: string | null }[]; disclaimer: string };
+  };
+  intelligence?: IntelligenceLabPayload;
+};
+
+export type IntelligenceInsightCard = {
+  id: string;
+  category: string;
+  severity: string;
+  confidence: string;
+  title: string;
+  finding: string;
+  evidence: Record<string, unknown>;
+  sample_size: number;
+  priority: number;
+};
+
+export type IntelligenceLabPayload = {
+  metadata: {
+    sample_size: number;
+    trades_analyzed: number;
+    confidence: { sample_size: number; confidence_level: string; message: string };
+    philosophy: string;
+  };
+  behaviour: {
+    revenge_trading: {
+      baseline_risk: string | null;
+      average_risk_after_loss: string | null;
+      average_risk_after_win: string | null;
+      risk_multiplier_after_loss_pct: string | null;
+      disclaimer: string;
+    };
+    loss_streak_behaviour: { states: { state: string; n: number; win_rate: string | null; average_r: string | null; avg_risk: string | null }[] };
+    overtrading: { normal_trades_per_day: string | null; max_trades_in_day: number; status: string };
+  };
+  psychology: Record<string, unknown>;
+  discipline: Record<string, unknown>;
+  playbooks: { playbooks: { name: string; trade_count: number; expectancy_r: string | null; win_rate: string | null; edge_quality: { score: string; components: Record<string, number> }; drift: Record<string, { status: string }>; confidence: { message: string } }[] };
+  edge_maps: { edge_map: { setup: string; symbol: string; session: string; n: number; expectancy_r: string | null; edge_quality: { score: string } }[]; weakness_map: { setup: string; symbol: string; session: string; n: number; expectancy_r: string | null }[] };
+  decision_quality: {
+    counts: { good_win: number; good_loss: number; lucky_win: number; bad_loss: number };
+    labels: Record<string, string>;
+    methodology: string;
+    sample_size: number;
+  };
+  improvement: Record<string, unknown>;
+  comparisons: Record<string, unknown>;
+  statistics: Record<string, unknown>;
+  insights: IntelligenceInsightCard[];
+  segments: Record<string, unknown>;
+};
+
+export type DistributionBlock = {
+  n: number;
+  mean: string | null;
+  median: string | null;
+  stdev: string | null;
+  min: string | null;
+  max: string | null;
+  percentiles?: Record<string, string | null>;
+  evidence: Evidence;
+  sample_note: string | null;
+};
+
+export type HistBin = { from: number; to: number; n: number };
 
 export type EdgeCell = {
   symbol: string;
@@ -225,6 +592,7 @@ export type FilterState = {
   timeframe: string;
   psychology: string;
   result: string;
+  hour: string;
 };
 
 export const EMPTY_FILTERS: FilterState = {
@@ -238,6 +606,7 @@ export const EMPTY_FILTERS: FilterState = {
   timeframe: "",
   psychology: "",
   result: "",
+  hour: "",
 };
 
 export function buildAnalyticsQuery(accountId: string, f: FilterState): string {
@@ -253,6 +622,7 @@ export function buildAnalyticsQuery(accountId: string, f: FilterState): string {
   if (f.timeframe) p.set("timeframe", f.timeframe);
   if (f.psychology) p.set("psychology", f.psychology);
   if (f.result) p.set("result", f.result);
+  if (f.hour) p.set("hour", f.hour);
   return p.toString();
 }
 

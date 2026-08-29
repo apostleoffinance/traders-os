@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import ReactECharts from "echarts-for-react";
+import { useRouter } from "next/navigation";
 import { Panel, Stat } from "@/components/ui";
 import { holdingLabel, money, num, sessionLabel, signed, tone } from "@/lib/format";
 import {
@@ -9,27 +9,55 @@ import {
   type GroupRow,
   type MetricKey,
 } from "@/lib/analytics";
+import { filterForDateRange, filterForSingleDay } from "@/lib/analytics-drilldown";
+import { linearRegression } from "@/lib/chart-regression";
+import { useOptionalAnalyticsDrilldown } from "@/components/analytics/AnalyticsDrilldownContext";
+import { ChartCard } from "@/components/analytics/primitives/ChartCard";
+import { InteractiveChart } from "@/components/analytics/primitives/InteractiveChart";
 import { Empty, EvidenceTag, HorizontalBars, MetricToggle, sessionName, useLiveChart } from "@/components/analytics/Charts";
 
 const WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+
+type GroupDimension = "session" | "setup" | "psychology" | "weekday";
 
 function GroupBlock({
   title,
   subtitle,
   rows,
   labelFn,
+  dimension,
+  setupIdForName,
 }: {
   title: string;
   subtitle: string;
   rows: GroupRow[];
   labelFn?: (k: string) => string;
+  dimension: GroupDimension;
+  setupIdForName?: (name: string) => string | undefined;
 }) {
   const [metric, setMetric] = useState<MetricKey>("expectancy_r");
+  const drill = useOptionalAnalyticsDrilldown();
+
+  function handleRowClick(row: GroupRow) {
+    if (!drill) return;
+    const label = labelFn ? labelFn(row.key) : row.key;
+    if (dimension === "session") {
+      drill.applyPatch({ session: row.key }, label);
+    } else if (dimension === "psychology") {
+      drill.applyPatch({ psychology: row.key }, label);
+    } else if (dimension === "setup") {
+      const id = setupIdForName?.(row.key);
+      if (id) drill.applyPatch({ setup_id: id }, label);
+    } else if (dimension === "weekday") {
+      return;
+    }
+    drill.openTrades(`${title}: ${label}`);
+  }
+
   return (
-    <Panel title={title} right={<MetricToggle value={metric} onChange={setMetric} />}>
-      <p className="muted">{subtitle}</p>
-      <HorizontalBars rows={rows} metric={metric} labelFn={labelFn} />
-    </Panel>
+    <ChartCard title={title} actions={<MetricToggle value={metric} onChange={setMetric} />} subtitle={subtitle} interactive>
+      <HorizontalBars rows={rows} metric={metric} labelFn={labelFn} onRowClick={drill ? handleRowClick : undefined} />
+    </ChartCard>
   );
 }
 
@@ -38,31 +66,37 @@ export function SessionSetupPsych({ data }: { data: AnalyticsDashboard }) {
     const map = new Map(data.weekday.map((r) => [r.key, r]));
     return WEEKDAYS.map((d) => map.get(d)).filter(Boolean) as GroupRow[];
   }, [data.weekday]);
+  const setupIdForName = (name: string) => data.filters.options?.setups.find((s) => s.name === name)?.id;
   return (
     <>
       <GroupBlock
         title="Session performance"
-        subtitle="Observed expectancy by session. Sample size is shown. Small n is not an edge."
+        subtitle="Click a bar to filter analytics and view trades."
         rows={data.sessions}
         labelFn={sessionName}
+        dimension="session"
       />
       <GroupBlock
         title="Setup performance"
         subtitle="Historical setup results. Not a recommendation to trade a pattern."
         rows={data.setups}
+        dimension="setup"
+        setupIdForName={setupIdForName}
       />
       <GroupBlock
         title="Psychology & behavior"
-        subtitle="Associated with tagged state before the trade. Not causal."
+        subtitle="Click a bar to filter by emotional state."
         rows={data.psychology}
+        dimension="psychology"
       />
-      <GroupBlock title="Day of week" subtitle="Average outcomes by weekday in your timezone." rows={weekday} />
+      <GroupBlock title="Day of week" subtitle="Average outcomes by weekday in your timezone." rows={weekday} dimension="weekday" />
     </>
   );
 }
 
 export function Distribution({ data }: { data: AnalyticsDashboard }) {
   const { C } = useLiveChart();
+  const drill = useOptionalAnalyticsDrilldown();
   const dist = data.r_distribution;
   const hist = {
     grid: { left: 44, right: 16, top: 16, bottom: 32 },
@@ -87,82 +121,138 @@ export function Distribution({ data }: { data: AnalyticsDashboard }) {
   const freqMetric = "expectancy_r" as MetricKey;
   return (
     <>
-      <Panel title="R distribution" right={<EvidenceTag label={dist.evidence.label} n={dist.n} />}>
+      <ChartCard
+        title="R distribution"
+        sampleSize={dist.n}
+        evidenceLabel={dist.evidence.label}
+        subtitle={`Mean ${dist.mean ?? "-"}R · median ${dist.median ?? "-"}R · min ${dist.min ?? "-"}R · max ${dist.max ?? "-"}R`}
+        interactive
+      >
         {dist.n < 2 ? (
           <Empty>Add more closed trades to see the R distribution.</Empty>
         ) : (
-          <>
-            <p className="muted">
-              Mean {dist.mean ?? "-"}R · median {dist.median ?? "-"}R · min {dist.min ?? "-"}R · max {dist.max ?? "-"}R
-            </p>
-            <ReactECharts option={hist} style={{ height: 240 }} />
-          </>
+          <InteractiveChart
+            option={hist}
+            height={240}
+            showHint={false}
+            onChartClick={(e) => {
+              if (!drill || e.dataIndex == null) return;
+              const bin = dist.bins[e.dataIndex];
+              const mid = (bin.from + bin.to) / 2;
+              const result = mid > 0 ? "win" : mid < 0 ? "loss" : "breakeven";
+              drill.applyPatch({ result }, `${bin.from}–${bin.to}R`);
+              drill.openTrades(`R bin ${bin.from}–${bin.to}`);
+            }}
+          />
         )}
-      </Panel>
-      <Panel title="Trades per day">
-        <p className="muted">Does expectancy change when you trade more than once? Historical association only.</p>
+      </ChartCard>
+      <ChartCard
+        title="Trades per day"
+        subtitle="Does expectancy change when you trade more than once? Historical association only."
+        interactive
+      >
         <HorizontalBars rows={data.frequency} metric={freqMetric} labelFn={(k) => (k === "4+" ? "4+ / day" : `${k} / day`)} />
-      </Panel>
+      </ChartCard>
     </>
   );
 }
 
 export function Scatters({ data }: { data: AnalyticsDashboard }) {
   const { C } = useLiveChart();
+  const router = useRouter();
   const risk = data.risk_vs_result;
   const hold = data.holding_vs_result;
+
+  const riskRegression = useMemo(
+    () => linearRegression(risk.map((d) => ({ x: Number(d.risk_percent), y: Number(d.realized_r) }))),
+    [risk],
+  );
+
   const riskOpt = {
     grid: { left: 44, right: 16, top: 16, bottom: 40 },
     tooltip: {
-      formatter: (p: { dataIndex: number }) => {
-        const d = risk[p.dataIndex];
-        return `${d.symbol} ${d.result}<br/>${sessionLabel(d.session)} · ${d.setup}<br/>Risk ${num(d.risk_percent, 3)}% (${money(d.risk_amount)})<br/>${num(d.realized_r)}R`;
-      },
+      trigger: "item",
+      formatter: (p: { data: { symbol: string; result: string; value: [number, number] } }) =>
+        `${p.data.symbol} ${p.data.result}<br/>Risk ${num(p.data.value[0], 3)}% · ${num(p.data.value[1])}R`,
     },
     xAxis: { name: "Risk %", type: "value", axisLabel: { fontSize: 10 }, splitLine: { lineStyle: { color: C.line } } },
     yAxis: { name: "R", type: "value", axisLabel: { fontSize: 10 }, splitLine: { lineStyle: { color: C.line } } },
     series: [
       {
+        name: "Trades",
         type: "scatter",
-        symbolSize: 8,
+        symbolSize: 9,
         data: risk.map((d) => ({
           value: [Number(d.risk_percent), Number(d.realized_r)],
+          tradeId: d.id,
+          symbol: d.symbol,
+          result: d.result,
           itemStyle: { color: Number(d.realized_r) >= 0 ? C.pos : C.neg },
         })),
       },
+      ...(riskRegression
+        ? [
+            {
+              name: "Trend",
+              type: "line",
+              data: riskRegression.line,
+              showSymbol: false,
+              lineStyle: { type: "dashed", color: C.muted, width: 1.5 },
+              tooltip: { show: false },
+            },
+          ]
+        : []),
     ],
   };
+
   const holdOpt = {
     grid: { left: 44, right: 16, top: 16, bottom: 40 },
     tooltip: {
-      formatter: (p: { dataIndex: number }) => {
-        const d = hold[p.dataIndex];
-        return `${d.setup} · ${sessionLabel(d.session)}<br/>${holdingLabel(d.holding_seconds)} · ${num(d.realized_r)}R`;
-      },
+      trigger: "item",
+      formatter: (p: { data: { setup: string; session: string; value: [number, number] } }) =>
+        `${p.data.setup} · ${sessionLabel(p.data.session)}<br/>${holdingLabel(p.data.value[0] * 60)} · ${num(p.data.value[1])}R`,
     },
     xAxis: { name: "Minutes", type: "value", axisLabel: { fontSize: 10 }, splitLine: { lineStyle: { color: C.line } } },
     yAxis: { name: "R", type: "value", axisLabel: { fontSize: 10 }, splitLine: { lineStyle: { color: C.line } } },
     series: [
       {
+        name: "Trades",
         type: "scatter",
-        symbolSize: 8,
+        symbolSize: 9,
         data: hold.map((d) => ({
           value: [d.holding_seconds / 60, Number(d.realized_r)],
+          tradeId: d.id,
+          setup: d.setup,
+          session: d.session,
           itemStyle: { color: Number(d.realized_r) >= 0 ? C.pos : C.neg },
         })),
       },
     ],
   };
+
+  function handleTradeClick(params: { seriesName?: string; data?: unknown }) {
+    const row = params.data as { tradeId?: string } | undefined;
+    if (params.seriesName === "Trades" && row?.tradeId) {
+      router.push(`/trades/${row.tradeId}`);
+    }
+  }
+
   return (
     <div className="two">
-      <Panel title="Risk vs result">
-        <p className="muted">Each point is a trade. No regression - inspect, don’t infer a rule.</p>
-        {risk.length ? <ReactECharts option={riskOpt} style={{ height: 260 }} /> : <Empty>No closed trades with risk data.</Empty>}
-      </Panel>
-      <Panel title="Holding time vs result">
-        <p className="muted">Investigate over-holding losers or cutting winners early.</p>
-        {hold.length ? <ReactECharts option={holdOpt} style={{ height: 260 }} /> : <Empty>No holding times recorded.</Empty>}
-      </Panel>
+      <ChartCard title="Risk vs result" subtitle="Each point is a trade. Dashed line is descriptive trend only." interactive>
+        {risk.length ? (
+          <InteractiveChart option={riskOpt} height={280} showHint={false} onChartClick={handleTradeClick} />
+        ) : (
+          <Empty>No closed trades with risk data.</Empty>
+        )}
+      </ChartCard>
+      <ChartCard title="Holding time vs result" subtitle="Investigate over-holding losers or cutting winners early." interactive>
+        {hold.length ? (
+          <InteractiveChart option={holdOpt} height={280} showHint={false} onChartClick={handleTradeClick} />
+        ) : (
+          <Empty>No holding times recorded.</Empty>
+        )}
+      </ChartCard>
       <style jsx>{`
         .two {
           display: grid;
@@ -181,6 +271,7 @@ export function Scatters({ data }: { data: AnalyticsDashboard }) {
 
 export function CalendarHeat({ data }: { data: AnalyticsDashboard }) {
   const { resolved } = useLiveChart();
+  const drill = useOptionalAnalyticsDrilldown();
   const days = data.calendar;
   if (!days.length) {
     return (
@@ -191,8 +282,7 @@ export function CalendarHeat({ data }: { data: AnalyticsDashboard }) {
   }
   const maxAbs = Math.max(...days.map((d) => Math.abs(Number(d.r || 0))), 0.01);
   return (
-    <Panel title="Calendar performance">
-      <p className="muted">Color is daily R. Hover a day for P/L and trade count.</p>
+    <ChartCard title="Calendar performance" hint="Color is daily R. Click a day to filter the full analytics view." interactive>
       <div className="cal">
         {days.map((d) => {
           const r = Number(d.r || 0);
@@ -201,10 +291,21 @@ export function CalendarHeat({ data }: { data: AnalyticsDashboard }) {
           const neg = resolved === "dark" ? "229,107,111" : "199,68,75";
           const bg = r >= 0 ? `rgba(${pos},${0.15 + t * 0.7})` : `rgba(${neg},${0.15 + t * 0.7})`;
           return (
-            <div key={d.date} className="cell" style={{ background: bg }} title={`${d.date} · n=${d.n} · ${d.r ?? "-"}R · ${d.net_pnl}`}>
+            <button
+              key={d.date}
+              type="button"
+              className="cell"
+              style={{ background: bg }}
+              title={`${d.date} · n=${d.n} · ${d.r ?? "-"}R · ${d.net_pnl}`}
+              onClick={() => {
+                if (!drill) return;
+                drill.applyPatch(filterForSingleDay(d.date), d.date);
+                drill.openTrades(`Trades on ${d.date}`);
+              }}
+            >
               <span className="d">{d.date.slice(8)}</span>
               <span className="r">{d.r != null ? num(d.r, 1) : "-"}</span>
-            </div>
+            </button>
           );
         })}
       </div>
@@ -221,6 +322,10 @@ export function CalendarHeat({ data }: { data: AnalyticsDashboard }) {
           display: flex;
           flex-direction: column;
           justify-content: space-between;
+          cursor: pointer;
+        }
+        .cell:hover {
+          outline: 2px solid var(--accent);
         }
         .d {
           font-size: 10px;
@@ -231,12 +336,13 @@ export function CalendarHeat({ data }: { data: AnalyticsDashboard }) {
           font-size: 11px;
         }
       `}</style>
-    </Panel>
+    </ChartCard>
   );
 }
 
 export function MonthlyRolling({ data }: { data: AnalyticsDashboard }) {
   const { C } = useLiveChart();
+  const drill = useOptionalAnalyticsDrilldown();
   const months = data.monthly;
   const roll = data.rolling_expectancy;
   const monthOpt = {
@@ -263,13 +369,29 @@ export function MonthlyRolling({ data }: { data: AnalyticsDashboard }) {
   };
   return (
     <div className="two">
-      <Panel title="Monthly expectancy">
-        {months.length ? <ReactECharts option={monthOpt} style={{ height: 240 }} /> : <Empty>Need trades across months.</Empty>}
-      </Panel>
-      <Panel title="Rolling 20-trade expectancy">
-        <p className="muted">Short windows are noisy. Do not overinterpret.</p>
-        {roll.length > 2 ? <ReactECharts option={rollOpt} style={{ height: 240 }} /> : <Empty>Need more trades for a rolling window.</Empty>}
-      </Panel>
+      <ChartCard title="Monthly expectancy" interactive>
+        {months.length ? (
+          <InteractiveChart
+            option={monthOpt}
+            height={240}
+            showHint={false}
+            onChartClick={(e) => {
+              if (!drill || e.dataIndex == null) return;
+              const row = months[e.dataIndex];
+              const month = row.month || row.key;
+              const [year, mo] = month.split("-");
+              const lastDay = new Date(Number(year), Number(mo), 0).getDate();
+              drill.applyPatch(filterForDateRange(`${month}-01`, `${month}-${String(lastDay).padStart(2, "0")}`), month);
+              drill.openTrades(`Trades in ${month}`);
+            }}
+          />
+        ) : (
+          <Empty>Need trades across months.</Empty>
+        )}
+      </ChartCard>
+      <ChartCard title="Rolling 20-trade expectancy" subtitle="Short windows are noisy. Do not overinterpret.">
+        {roll.length > 2 ? <InteractiveChart option={rollOpt} height={240} showHint={false} /> : <Empty>Need more trades for a rolling window.</Empty>}
+      </ChartCard>
       <style jsx>{`
         .two {
           display: grid;
@@ -299,7 +421,7 @@ export function StreaksConsistency({ data }: { data: AnalyticsDashboard }) {
   };
   return (
     <div className="two">
-      <Panel title="Streaks" right={<EvidenceTag label={s.evidence.label} n={s.evidence.n} />}>
+      <ChartCard title="Streaks" sampleSize={s.evidence.n} evidenceLabel={s.evidence.label} subtitle="Losing streak lengths (historical). Not a stop-trading rule." interactive>
         <div className="kpis">
           <Stat label="Current wins" value={String(s.current_wins)} />
           <Stat label="Current losses" value={String(s.current_losses)} />
@@ -307,15 +429,12 @@ export function StreaksConsistency({ data }: { data: AnalyticsDashboard }) {
           <Stat label="Longest losses" value={String(s.longest_losses)} />
         </div>
         {s.loss_distribution.length ? (
-          <>
-            <p className="muted">Losing streak lengths (historical). Not a stop-trading rule.</p>
-            <ReactECharts option={lossOpt} style={{ height: 180 }} />
-          </>
+          <InteractiveChart option={lossOpt} height={180} showHint={false} />
         ) : (
           <Empty>No closed streaks yet.</Empty>
         )}
-      </Panel>
-      <Panel title="Consistency" right={<EvidenceTag label={c.evidence.label} n={c.trading_days} />}>
+      </ChartCard>
+      <ChartCard title="Consistency" sampleSize={c.trading_days} evidenceLabel={c.evidence.label}>
         <div className="kpis">
           <Stat label="Profitable days" value={c.profitable_day_pct ? `${num(c.profitable_day_pct, 1)}%` : "-"} />
           <Stat label="Avg daily R" value={c.average_daily_r ? `${signed(c.average_daily_r)}R` : "-"} tone={tone(c.average_daily_r)} />
@@ -325,7 +444,7 @@ export function StreaksConsistency({ data }: { data: AnalyticsDashboard }) {
           <Stat label="Worst day" value={c.worst_day?.r ? `${c.worst_day.date} ${num(c.worst_day.r)}R` : "-"} />
           <Stat label="Profitable weeks" value={`${c.profitable_weeks} / ${c.weeks}`} />
         </div>
-      </Panel>
+      </ChartCard>
       <style jsx>{`
         .two {
           display: grid;

@@ -7,6 +7,7 @@ import {
   BrainCircuit,
   Calculator,
   ChartNoAxesCombined,
+  FlaskConical,
   History,
   LayoutDashboard,
   PanelLeftClose,
@@ -41,7 +42,7 @@ type NavItem = {
 const GROUP_LABELS: Record<NavGroup, string> = {
   command: "Command",
   trading: "Trading",
-  intelligence: "Intelligence",
+  intelligence: "Insights",
   risk: "Risk",
   account: "Account",
 };
@@ -53,6 +54,7 @@ const NAV: NavItem[] = [
   { href: "/calculator", label: "Calculator", icon: Calculator, group: "trading" },
   { href: "/analytics", label: "Analytics Lab", icon: ChartNoAxesCombined, group: "intelligence" },
   { href: "/intelligence", label: "Intelligence Feed", icon: BrainCircuit, group: "intelligence" },
+  { href: "/quant-lab", label: "Quant Lab", icon: FlaskConical, group: "intelligence" },
   { href: "/risk", label: "Risk Command", icon: ShieldAlert, group: "risk" },
   { href: "/accounts", label: "Accounts", icon: WalletCards, group: "account" },
   { href: "/settings", label: "Settings", icon: Settings, group: "account" },

@@ -26,6 +26,7 @@ from app.engines.analytics_views import (
     streak_histogram,
 )
 from app.engines.discipline_engine import aggregate_discipline
+from app.engines.analytics_lab import build_analytics_lab
 from app.engines.edge_explorer import edge_detail, edge_matrix, ranked_combos
 from app.engines.evidence import evidence_payload
 from app.engines.fx_math import ZERO
@@ -34,6 +35,7 @@ from app.engines.psychology_engine import psychology_groups
 from app.engines.risk_command import build_risk_command
 from app.engines.risk_engine import compute_risk_snapshot
 from app.models.trade import Trade
+from app.models.checklist import TradeChecklistResponse
 from app.models.user import User
 from app.services.access import get_owned_account
 from app.services.mapping import profile_view, trade_to_closed, trade_to_journal, trade_to_psych
@@ -42,7 +44,11 @@ from app.services.mapping import profile_view, trade_to_closed, trade_to_journal
 def _trades(db: Session, user_id: UUID, account_id: UUID) -> list[Trade]:
     return (
         db.query(Trade)
-        .options(joinedload(Trade.psychology), joinedload(Trade.setup))
+        .options(
+            joinedload(Trade.psychology),
+            joinedload(Trade.setup),
+            joinedload(Trade.checklist_responses).joinedload(TradeChecklistResponse.item),
+        )
         .filter(Trade.account_id == account_id, Trade.user_id == user_id)
         .all()
     )
@@ -333,6 +339,7 @@ def _apply_filters(
     timeframe: str | None,
     psychology: str | None,
     result: str | None,
+    hour: int | None = None,
 ) -> list[Trade]:
     tz = ZoneInfo(timezone)
     out = []
@@ -341,6 +348,8 @@ def _apply_filters(
         if date_from and local < date_from:
             continue
         if date_to and local > date_to:
+            continue
+        if hour is not None and local.hour != hour:
             continue
         if symbol and t.symbol.upper() != symbol.upper():
             continue
@@ -384,6 +393,7 @@ def dashboard(
     timeframe: str | None = None,
     psychology: str | None = None,
     result: str | None = None,
+    hour: int | None = None,
 ) -> dict:
     account = get_owned_account(db, user.id, account_id)
     all_trades = _trades(db, user.id, account.id)
@@ -400,7 +410,25 @@ def dashboard(
         timeframe=timeframe,
         psychology=psychology,
         result=result,
+        hour=hour,
     )
+    previous_filtered: list[Trade] = []
+    if start and end:
+        delta = end - start
+        previous_filtered = _apply_filters(
+            all_trades,
+            timezone=user.timezone,
+            date_from=start - delta,
+            date_to=start,
+            symbol=symbol,
+            session=session,
+            setup_id=setup_id,
+            direction=direction,
+            timeframe=timeframe,
+            psychology=psychology,
+            result=result,
+            hour=hour,
+        )
     starting = Decimal(account.starting_balance)
     journals = [trade_to_journal(t) for t in filtered]
     closed_views = [trade_to_closed(t) for t in filtered]
@@ -537,6 +565,26 @@ def dashboard(
         ),
         "edge_matrix": edge_matrix(journals, starting),
         "edge_combos": ranked_combos(journals, starting),
+        "lab": build_analytics_lab(
+            filtered,
+            starting=starting,
+            timezone=user.timezone,
+            filters={
+                "preset": resolved,
+                "date_from": start.isoformat() if start else None,
+                "date_to": end.isoformat() if end else None,
+                "symbol": symbol,
+                "session": session,
+                "setup_id": str(setup_id) if setup_id else None,
+                "direction": direction,
+                "timeframe": timeframe,
+                "psychology": psychology,
+                "result": result,
+            },
+            period=resolved,
+            previous_trades=previous_filtered,
+            configured_risk=profile.risk_per_trade,
+        ),
     }
 
 
@@ -580,3 +628,205 @@ def edge_explorer_detail(
     )
     detail["filters"] = {"preset": resolved}
     return detail
+
+
+def intelligence_lab(
+    db: Session,
+    user: User,
+    account_id: UUID,
+    *,
+    preset: str = "all",
+    date_from: str | None = None,
+    date_to: str | None = None,
+    symbol: str | None = None,
+    session: str | None = None,
+    setup_id: UUID | None = None,
+    direction: str | None = None,
+    timeframe: str | None = None,
+    psychology: str | None = None,
+    result: str | None = None,
+) -> dict:
+    """Phase 3 intelligence payload — same filters as analytics dashboard."""
+    account = get_owned_account(db, user.id, account_id)
+    all_trades = _trades(db, user.id, account.id)
+    start, end, resolved = resolve_date_window(preset, date_from, date_to, user.timezone)
+    filtered = _apply_filters(
+        all_trades,
+        timezone=user.timezone,
+        date_from=start,
+        date_to=end,
+        symbol=symbol,
+        session=session,
+        setup_id=setup_id,
+        direction=direction,
+        timeframe=timeframe,
+        psychology=psychology,
+        result=result,
+    )
+    from app.engines.analytics_lab.trade_row import trade_to_analytics
+    from app.engines.analytics_lab.intelligence import build_intelligence_lab
+
+    profile = profile_view(account.risk_profile)
+    rows = [trade_to_analytics(t) for t in filtered]
+    return build_intelligence_lab(
+        rows,
+        starting=Decimal(account.starting_balance),
+        configured_risk=profile.risk_per_trade,
+        max_trades_per_day=profile.max_trades_per_day,
+    )
+
+
+def comparison_lab(
+    db: Session,
+    user: User,
+    account_id: UUID,
+    *,
+    preset: str = "all",
+    date_from: str | None = None,
+    date_to: str | None = None,
+    # Group A
+    a_label: str = "Group A",
+    a_session: str | None = None,
+    a_symbol: str | None = None,
+    a_direction: str | None = None,
+    a_setup_id: UUID | None = None,
+    a_psychology: str | None = None,
+    a_timeframe: str | None = None,
+    a_min_discipline: int | None = None,
+    a_max_discipline: int | None = None,
+    a_emotional: bool | None = None,
+    # Group B
+    b_label: str = "Group B",
+    b_session: str | None = None,
+    b_symbol: str | None = None,
+    b_direction: str | None = None,
+    b_setup_id: UUID | None = None,
+    b_psychology: str | None = None,
+    b_timeframe: str | None = None,
+    b_min_discipline: int | None = None,
+    b_max_discipline: int | None = None,
+    b_emotional: bool | None = None,
+) -> dict:
+    from app.engines.analytics_lab.comparison_intel import ComparisonGroupSpec, compare_groups
+    from app.engines.analytics_lab.trade_row import trade_to_analytics
+
+    account = get_owned_account(db, user.id, account_id)
+    all_trades = _trades(db, user.id, account.id)
+    start, end, resolved = resolve_date_window(preset, date_from, date_to, user.timezone)
+    filtered = _apply_filters(
+        all_trades,
+        timezone=user.timezone,
+        date_from=start,
+        date_to=end,
+        symbol=None,
+        session=None,
+        setup_id=None,
+        direction=None,
+        timeframe=None,
+        psychology=None,
+        result=None,
+    )
+    rows = [trade_to_analytics(t) for t in filtered]
+    spec_a = ComparisonGroupSpec(
+        label=a_label,
+        session=a_session,
+        symbol=a_symbol,
+        direction=a_direction,
+        setup_id=str(a_setup_id) if a_setup_id else None,
+        psychology=a_psychology,
+        timeframe=a_timeframe,
+        min_discipline=a_min_discipline,
+        max_discipline=a_max_discipline,
+        emotional=a_emotional,
+    )
+    spec_b = ComparisonGroupSpec(
+        label=b_label,
+        session=b_session,
+        symbol=b_symbol,
+        direction=b_direction,
+        setup_id=str(b_setup_id) if b_setup_id else None,
+        psychology=b_psychology,
+        timeframe=b_timeframe,
+        min_discipline=b_min_discipline,
+        max_discipline=b_max_discipline,
+        emotional=b_emotional,
+    )
+    result = compare_groups(
+        rows,
+        spec_a,
+        spec_b,
+        starting=Decimal(account.starting_balance),
+    )
+    from app.core.enums import TradeStatus
+    from app.engines.analytics_lab.trade_row import closed_trades
+
+    result["period"] = resolved
+    result["universe_n"] = len(closed_trades(rows))
+    return result
+
+
+def list_filtered_trades(
+    db: Session,
+    user: User,
+    account_id: UUID,
+    *,
+    preset: str = "all",
+    date_from: str | None = None,
+    date_to: str | None = None,
+    symbol: str | None = None,
+    session: str | None = None,
+    setup_id: UUID | None = None,
+    direction: str | None = None,
+    timeframe: str | None = None,
+    psychology: str | None = None,
+    result: str | None = None,
+    hour: int | None = None,
+    limit: int = 200,
+) -> dict:
+    from app.core.enums import TradeStatus
+
+    account = get_owned_account(db, user.id, account_id)
+    all_trades = _trades(db, user.id, account.id)
+    start, end, resolved = resolve_date_window(preset, date_from, date_to, user.timezone)
+    filtered = _apply_filters(
+        all_trades,
+        timezone=user.timezone,
+        date_from=start,
+        date_to=end,
+        symbol=symbol,
+        session=session,
+        setup_id=setup_id,
+        direction=direction,
+        timeframe=timeframe,
+        psychology=psychology,
+        result=result,
+        hour=hour,
+    )
+    closed = [t for t in filtered if t.status == TradeStatus.CLOSED]
+    closed.sort(key=lambda t: t.trade_timestamp, reverse=True)
+    rows = []
+    for t in closed[:limit]:
+        rows.append(
+            {
+                "id": str(t.id),
+                "symbol": t.symbol,
+                "direction": t.direction,
+                "session": t.session,
+                "setup_name": t.setup.name if t.setup else None,
+                "timeframe": t.timeframe,
+                "trade_timestamp": t.trade_timestamp.isoformat() if t.trade_timestamp else None,
+                "realized_pnl": str(t.realized_pnl or 0),
+                "realized_r": str(t.realized_r) if t.realized_r is not None else None,
+                "result": t.result.value if hasattr(t.result, "value") else str(t.result),
+            }
+        )
+    return {
+        "meta": {
+            "preset": resolved,
+            "date_from": start.isoformat() if start else None,
+            "date_to": end.isoformat() if end else None,
+            "total": len(closed),
+            "returned": len(rows),
+        },
+        "trades": rows,
+    }

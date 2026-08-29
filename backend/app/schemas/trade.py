@@ -193,6 +193,12 @@ class TradeOut(ORMModel):
     instrument_status: str | None = None
     commission: Decimal | None = None
     swap: Decimal | None = None
+    mfe_price: Decimal | None = None
+    mae_price: Decimal | None = None
+    mfe_r: Decimal | None = None
+    mae_r: Decimal | None = None
+    mfe_mae_source: str | None = None
+    mfe_mae_precision: str | None = None
     created_at: datetime
     psychology: PsychologyOut | None = None
     screenshots: list[ScreenshotOut] = Field(default_factory=list)

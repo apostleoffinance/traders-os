@@ -8,7 +8,7 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from app.core.enums import Direction, InstrumentResolution, Mt5ConnectionStatus, TradeSource, TradeStatus
+from app.core.enums import Direction, InstrumentResolution, Mt5ConnectionStatus, TradeResult, TradeSource, TradeStatus
 from app.core.time import as_utc, utcnow
 from app.engines.fx_math import (
     UnknownSymbolError,
@@ -18,6 +18,7 @@ from app.engines.fx_math import (
     planned_metrics,
     realized_r,
 )
+from app.engines.mfe_mae import aggregate_deal_economics, excursions_in_r
 from app.engines.session_engine import classify_session, in_preferred_window
 from app.integrations.mt5.normalizer import resolve_mt5_symbol
 from app.integrations.mt5.schemas import Mt5DealIn, Mt5PositionIn, Mt5SyncIn, Mt5SyncOut
@@ -72,7 +73,7 @@ def apply_sync(db: Session, connection: Mt5Connection, payload: Mt5SyncIn) -> Mt
 
     for deal in payload.recent_deals:
         if deal.entry_type in {"OUT", "OUT_BY", "INOUT"}:
-            _close_from_deal(db, user, account, connection, deal, counters)
+            _close_from_deal(db, user, account, connection, deal, counters, open_ids=open_ids)
 
     _reconcile_missing_positions(db, account, open_ids, counters)
 
@@ -208,6 +209,10 @@ def _apply_mt5_fields(
     broker_pnl: Decimal | None = None,
     commission: Decimal | None = None,
     swap: Decimal | None = None,
+    mfe_price: Decimal | None = None,
+    mae_price: Decimal | None = None,
+    mfe_mae_source: str | None = None,
+    mfe_mae_precision: str | None = None,
 ) -> None:
     resolved = instrument_status == InstrumentResolution.RESOLVED
     computed = _compute_sync_metrics(
@@ -256,6 +261,49 @@ def _apply_mt5_fields(
         trade.realized_r = computed["r"]
         trade.realized_rr = computed["r"]
         trade.holding_time_seconds = holding_seconds(as_utc(opened_at), as_utc(exit_at))
+        if mfe_price is not None and mae_price is not None:
+            trade.mfe_price = mfe_price
+            trade.mae_price = mae_price
+            trade.mfe_mae_source = mfe_mae_source
+            trade.mfe_mae_precision = mfe_mae_precision
+            mfe_r, mae_r = excursions_in_r(
+                direction=direction,
+                entry=entry,
+                stop_loss=computed["sl"],
+                mfe_price=mfe_price,
+                mae_price=mae_price,
+            )
+            trade.mfe_r = mfe_r
+            trade.mae_r = mae_r
+
+
+def _mt5_closing_deals(db: Session, trade_id: UUID) -> list[Mt5ProcessedDeal]:
+    return (
+        db.query(Mt5ProcessedDeal)
+        .filter(Mt5ProcessedDeal.trade_id == trade_id, Mt5ProcessedDeal.volume.isnot(None))
+        .all()
+    )
+
+
+def _sync_mt5_economics_from_deals(db: Session, trade: Trade) -> bool:
+    deals = _mt5_closing_deals(db, trade.id)
+    if not deals:
+        return False
+    totals = aggregate_deal_economics(deals)
+    trade.commission = totals.commission
+    trade.swap = totals.swap
+    trade.realized_pnl = totals.net_pnl
+    return True
+
+
+def _mark_mt5_partial_open(trade: Trade) -> None:
+    trade.status = TradeStatus.OPEN.value
+    trade.result = TradeResult.OPEN.value
+    trade.exit_price = None
+    trade.exit_timestamp = None
+    trade.holding_time_seconds = None
+    trade.realized_r = None
+    trade.realized_rr = None
 
 
 def _upsert_open_position(
@@ -308,12 +356,13 @@ def _upsert_open_position(
         commission=position.commission,
         swap=position.swap,
     )
-    if trade.status == TradeStatus.CLOSED.value and position.volume > 0:
+    if _sync_mt5_economics_from_deals(db, trade):
+        _mark_mt5_partial_open(trade)
+    elif trade.status == TradeStatus.CLOSED.value and position.volume > 0:
         trade.status = TradeStatus.OPEN.value
-        trade.result = "open"
+        trade.result = TradeResult.OPEN.value
         trade.exit_price = None
         trade.exit_timestamp = None
-        trade.realized_pnl = None
         trade.realized_r = None
         trade.realized_rr = None
     db.flush()
@@ -339,6 +388,8 @@ def _close_from_deal(
     connection: Mt5Connection,
     deal: Mt5DealIn,
     counters: SyncCounters,
+    *,
+    open_ids: set[str],
 ) -> None:
     if _deal_already_processed(db, connection.id, deal.external_deal_id):
         logger.info("MT5 duplicate deal ignored deal_id=%s", deal.external_deal_id)
@@ -377,6 +428,7 @@ def _close_from_deal(
             opened_at=opened_at,
             account=account,
         )
+        db.flush()
         counters.created += 1
 
     if trade.status == TradeStatus.CLOSED.value and trade.external_deal_id == deal.external_deal_id:
@@ -385,12 +437,48 @@ def _close_from_deal(
                 connection_id=connection.id,
                 deal_id=deal.external_deal_id,
                 trade_id=trade.id,
+                volume=deal.volume,
+                price=deal.price,
+                profit=deal.profit,
+                commission=deal.commission,
+                swap=deal.swap,
             )
         )
         return
 
-    broker_pnl = deal.profit + deal.commission + deal.swap
     was_open = trade.status != TradeStatus.CLOSED.value
+    is_partial = deal.external_position_id in open_ids
+
+    db.add(
+        Mt5ProcessedDeal(
+            connection_id=connection.id,
+            deal_id=deal.external_deal_id,
+            trade_id=trade.id,
+            volume=deal.volume,
+            price=deal.price,
+            profit=deal.profit,
+            commission=deal.commission,
+            swap=deal.swap,
+        )
+    )
+    db.flush()
+    _sync_mt5_economics_from_deals(db, trade)
+    totals = aggregate_deal_economics(_mt5_closing_deals(db, trade.id))
+
+    if is_partial:
+        _mark_mt5_partial_open(trade)
+        counters.updated += 1
+        trade.external_deal_id = deal.external_deal_id
+        db.flush()
+        logger.info(
+            "MT5 partial close position_id=%s deal_id=%s closed_vol=%s",
+            deal.external_position_id,
+            deal.external_deal_id,
+            totals.closed_volume,
+        )
+        return
+
+    exit_px = totals.weighted_exit_price or deal.price
     _apply_mt5_fields(
         trade,
         symbol=trade.symbol,
@@ -400,14 +488,18 @@ def _close_from_deal(
         entry=trade.entry_price,
         stop_loss=trade.stop_loss,
         take_profit=trade.take_profit,
-        lot_size=deal.volume if deal.volume > 0 else trade.lot_size,
+        lot_size=trade.lot_size,
         opened_at=trade.trade_timestamp,
         account=account,
-        exit_price=deal.price,
+        exit_price=exit_px,
         exit_at=as_utc(deal.deal_time),
-        broker_pnl=broker_pnl,
-        commission=deal.commission,
-        swap=deal.swap,
+        broker_pnl=totals.net_pnl,
+        commission=totals.commission,
+        swap=totals.swap,
+        mfe_price=deal.mfe_price,
+        mae_price=deal.mae_price,
+        mfe_mae_source="mt5_m1" if deal.mfe_price is not None and deal.mae_price is not None else None,
+        mfe_mae_precision="bar_ohlc" if deal.mfe_price is not None and deal.mae_price is not None else None,
     )
     trade.external_deal_id = deal.external_deal_id
     if was_open:
@@ -415,13 +507,11 @@ def _close_from_deal(
     else:
         counters.updated += 1
 
-    db.add(
-        Mt5ProcessedDeal(
-            connection_id=connection.id,
-            deal_id=deal.external_deal_id,
-            trade_id=trade.id,
-        )
-    )
+    if trade.mfe_price is None:
+        from app.services.mfe_mae_backfill import backfill_mfe_mae_for_trade
+
+        backfill_mfe_mae_for_trade(db, trade)
+
     db.flush()
     logger.info("MT5 trade closed position_id=%s deal_id=%s", deal.external_position_id, deal.external_deal_id)
 

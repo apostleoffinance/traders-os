@@ -43,6 +43,7 @@ def analytics_dashboard(
     timeframe: str | None = None,
     psychology: str | None = None,
     result: str | None = None,
+    hour: int | None = Query(None, ge=0, le=23),
     db: Session = Depends(get_db),
     user_id=Depends(get_current_user_id),
 ):
@@ -61,6 +62,49 @@ def analytics_dashboard(
             timeframe=timeframe,
             psychology=psychology,
             result=result,
+            hour=hour,
+        )
+    except DomainError as exc:
+        raise http_error(exc) from exc
+    except ValueError as exc:
+        raise http_error(DomainError(str(exc), "invalid_period")) from exc
+
+
+@analytics_router.get("/trades")
+def analytics_trades(
+    account_id: UUID,
+    preset: str = Query("all"),
+    date_from: str | None = None,
+    date_to: str | None = None,
+    symbol: str | None = None,
+    session: str | None = None,
+    setup_id: UUID | None = None,
+    direction: str | None = None,
+    timeframe: str | None = None,
+    psychology: str | None = None,
+    result: str | None = None,
+    hour: int | None = Query(None, ge=0, le=23),
+    limit: int = Query(200, ge=1, le=500),
+    db: Session = Depends(get_db),
+    user_id=Depends(get_current_user_id),
+):
+    try:
+        return analytics_service.list_filtered_trades(
+            db,
+            _user(db, user_id),
+            account_id,
+            preset=preset,
+            date_from=date_from,
+            date_to=date_to,
+            symbol=symbol,
+            session=session,
+            setup_id=setup_id,
+            direction=direction,
+            timeframe=timeframe,
+            psychology=psychology,
+            result=result,
+            hour=hour,
+            limit=limit,
         )
     except DomainError as exc:
         raise http_error(exc) from exc
@@ -225,3 +269,105 @@ def risk_drawdown(account_id: UUID, db: Session = Depends(get_db), user_id=Depen
         }
     except DomainError as exc:
         raise http_error(exc) from exc
+
+
+@analytics_router.get("/intelligence")
+def analytics_intelligence(
+    account_id: UUID,
+    preset: str = Query("all"),
+    date_from: str | None = None,
+    date_to: str | None = None,
+    symbol: str | None = None,
+    session: str | None = None,
+    setup_id: UUID | None = None,
+    direction: str | None = None,
+    timeframe: str | None = None,
+    psychology: str | None = None,
+    result: str | None = None,
+    db: Session = Depends(get_db),
+    user_id=Depends(get_current_user_id),
+):
+    try:
+        return analytics_service.intelligence_lab(
+            db,
+            _user(db, user_id),
+            account_id,
+            preset=preset,
+            date_from=date_from,
+            date_to=date_to,
+            symbol=symbol,
+            session=session,
+            setup_id=setup_id,
+            direction=direction,
+            timeframe=timeframe,
+            psychology=psychology,
+            result=result,
+        )
+    except DomainError as exc:
+        raise http_error(exc) from exc
+    except ValueError as exc:
+        raise http_error(DomainError(str(exc), "invalid_period")) from exc
+
+
+@analytics_router.get("/comparison")
+def analytics_comparison(
+    account_id: UUID,
+    preset: str = Query("all"),
+    date_from: str | None = None,
+    date_to: str | None = None,
+    a_label: str = Query("Group A"),
+    a_session: str | None = None,
+    a_symbol: str | None = None,
+    a_direction: str | None = None,
+    a_setup_id: UUID | None = None,
+    a_psychology: str | None = None,
+    a_timeframe: str | None = None,
+    a_min_discipline: int | None = None,
+    a_max_discipline: int | None = None,
+    a_emotional: bool | None = None,
+    b_label: str = Query("Group B"),
+    b_session: str | None = None,
+    b_symbol: str | None = None,
+    b_direction: str | None = None,
+    b_setup_id: UUID | None = None,
+    b_psychology: str | None = None,
+    b_timeframe: str | None = None,
+    b_min_discipline: int | None = None,
+    b_max_discipline: int | None = None,
+    b_emotional: bool | None = None,
+    db: Session = Depends(get_db),
+    user_id=Depends(get_current_user_id),
+):
+    try:
+        return analytics_service.comparison_lab(
+            db,
+            _user(db, user_id),
+            account_id,
+            preset=preset,
+            date_from=date_from,
+            date_to=date_to,
+            a_label=a_label,
+            a_session=a_session,
+            a_symbol=a_symbol,
+            a_direction=a_direction,
+            a_setup_id=a_setup_id,
+            a_psychology=a_psychology,
+            a_timeframe=a_timeframe,
+            a_min_discipline=a_min_discipline,
+            a_max_discipline=a_max_discipline,
+            a_emotional=a_emotional,
+            b_label=b_label,
+            b_session=b_session,
+            b_symbol=b_symbol,
+            b_direction=b_direction,
+            b_setup_id=b_setup_id,
+            b_psychology=b_psychology,
+            b_timeframe=b_timeframe,
+            b_min_discipline=b_min_discipline,
+            b_max_discipline=b_max_discipline,
+            b_emotional=b_emotional,
+        )
+    except DomainError as exc:
+        raise http_error(exc) from exc
+    except ValueError as exc:
+        raise http_error(DomainError(str(exc), "invalid_period")) from exc

@@ -132,6 +132,49 @@ def get_ohlcv(
     raise ProviderUnavailable("Market data temporarily unavailable.")
 
 
+def get_ohlcv_range(
+    db: Session,
+    symbol: str,
+    timeframe: str,
+    *,
+    start: datetime,
+    end: datetime,
+    limit: int = 5000,
+) -> list:
+    """Fetch OHLC candles for a historical window (for MFE/MAE backfill)."""
+    from app.market_data.schemas import Candle
+
+    key = normalize_symbol(symbol)
+    start_utc = as_utc(start)
+    end_utc = as_utc(end)
+    if end_utc <= start_utc:
+        return []
+    limit = min(max(limit, 10), 5000)
+    chain = _try_providers(key)
+    last_error: Exception | None = None
+    for provider in chain:
+        try:
+            fetched = provider.get_ohlcv(key, timeframe, start=start_utc, end=end_utc, limit=limit)
+            if fetched:
+                in_range = [c for c in fetched if start_utc <= as_utc(c.timestamp) <= end_utc]
+                if in_range:
+                    cache.persist_candles(db, in_range)
+                    return in_range
+        except UnsupportedTimeframe:
+            raise
+        except Exception as exc:
+            last_error = exc
+            log.info(
+                "market range provider=%s symbol=%s failed: %s",
+                provider.name,
+                key,
+                type(exc).__name__,
+            )
+    if last_error:
+        raise ProviderUnavailable("Market data temporarily unavailable for this period.") from last_error
+    return []
+
+
 def get_quote(db: Session, symbol: str, *, allow_stale: bool = True) -> dict:
     """Fetch latest quote with short-lived in-memory reuse. Never fabricates prices."""
     key = normalize_symbol(symbol)

@@ -1,8 +1,11 @@
 "use client";
 
-import { Panel, Stat } from "@/components/ui";
+import { Stat } from "@/components/ui";
+import { MetricCard } from "@/components/analytics/primitives/MetricCard";
+import { ChartCard } from "@/components/analytics/primitives/ChartCard";
 import { money, num, signed, tone } from "@/lib/format";
 import type { AnalyticsDashboard } from "@/lib/analytics";
+import { useOptionalAnalyticsDrilldown } from "@/components/analytics/AnalyticsDrilldownContext";
 
 type DrillMetric = "win_rate" | "expectancy_r" | "profit_factor" | "average_r";
 
@@ -15,63 +18,77 @@ export function AnalyticsOverview({
 }) {
   const o = data.overview;
   const n = o.n_trades;
+  const prior = data.lab?.temporal?.period_comparison;
+
+  function periodDelta(metricLabel: string): string | null {
+    if (!prior?.available) return null;
+    const row = prior.comparison.find((r) => r.metric.toLowerCase().includes(metricLabel));
+    return row?.change ? String(row.change) : null;
+  }
+
+  const drill = useOptionalAnalyticsDrilldown();
+
   return (
-    <Panel title="Performance overview" right={<span className="muted">{o.evidence.label} · n={n}</span>}>
+    <ChartCard title="Performance overview" sampleSize={n} evidenceLabel={o.evidence.label} interactive>
       <div className="kpis">
-        <Stat label="Net P/L" value={money(o.net_pnl, data.account.currency)} tone={tone(o.net_pnl)} />
-        <Stat label="Total R" value={signed(o.total_r, "R")} tone={tone(o.total_r)} />
-        <ClickStat label="Expectancy" value={o.expectancy_r ? `${signed(o.expectancy_r)}R` : "-"} tone={tone(o.expectancy_r)} hint={`n = ${n} trades`} onClick={onMetricClick ? () => onMetricClick("expectancy_r") : undefined} />
-        <ClickStat label="Win rate" value={o.win_rate ? `${num(o.win_rate, 1)}%` : "-"} onClick={onMetricClick ? () => onMetricClick("win_rate") : undefined} />
-        <ClickStat label="Profit factor" value={o.profit_factor ? num(o.profit_factor) : "-"} onClick={onMetricClick ? () => onMetricClick("profit_factor") : undefined} />
-        <ClickStat label="Average R" value={o.average_r ? `${num(o.average_r)}R` : "-"} onClick={onMetricClick ? () => onMetricClick("average_r") : undefined} />
+        <MetricCard label="Net P/L" value={money(o.net_pnl, data.account.currency)} tone={tone(o.net_pnl)} hint={`n = ${n}`} />
+        <MetricCard label="Total R" value={signed(o.total_r, "R")} tone={tone(o.total_r)} />
+        <MetricCard
+          label="Expectancy"
+          value={o.expectancy_r ? `${signed(o.expectancy_r)}R` : "—"}
+          tone={tone(o.expectancy_r)}
+          delta={periodDelta("expectancy")}
+          onClick={onMetricClick ? () => onMetricClick("expectancy_r") : undefined}
+        />
+        <MetricCard
+          label="Win rate"
+          value={o.win_rate ? `${num(o.win_rate, 1)}%` : "—"}
+          delta={periodDelta("win")}
+          onClick={onMetricClick ? () => onMetricClick("win_rate") : undefined}
+        />
+        <MetricCard
+          label="Profit factor"
+          value={o.profit_factor ? num(o.profit_factor) : "—"}
+          delta={periodDelta("profit")}
+          onClick={onMetricClick ? () => onMetricClick("profit_factor") : undefined}
+        />
+        <MetricCard
+          label="Average R"
+          value={o.average_r ? `${num(o.average_r)}R` : "—"}
+          onClick={onMetricClick ? () => onMetricClick("average_r") : undefined}
+        />
         <Stat label="Max drawdown" value={money(o.max_drawdown, data.account.currency)} tone="neg" />
         <Stat label="Current drawdown" value={money(o.current_drawdown, data.account.currency)} />
         <Stat label="Trades" value={String(n)} />
-        <Stat label="Average risk" value={o.average_risk ? money(o.average_risk, data.account.currency) : "-"} />
-        <Stat label="Discipline" value={o.discipline_score != null ? String(o.discipline_score) : "-"} />
+        {drill && (
+          <button type="button" className="view-all" onClick={() => drill.openTrades("All filtered trades")}>
+            View all trades →
+          </button>
+        )}
       </div>
       {o.sample_note && <p className="muted">{o.sample_note}</p>}
       <style jsx>{`
         .kpis {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-          gap: 14px 16px;
+          grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+          gap: 12px;
         }
-      `}</style>
-    </Panel>
-  );
-}
-
-function ClickStat({
-  label,
-  value,
-  tone: t,
-  hint,
-  onClick,
-}: {
-  label: string;
-  value: string;
-  tone?: "pos" | "neg" | "warn" | "ok" | "";
-  hint?: string;
-  onClick?: () => void;
-}) {
-  if (!onClick) return <Stat label={label} value={value} tone={t} hint={hint} />;
-  return (
-    <button type="button" className="click-stat" onClick={onClick}>
-      <Stat label={label} value={value} tone={t} hint={hint} />
-      <style jsx>{`
-        .click-stat {
-          text-align: left;
-          border: 0;
+        .view-all {
+          grid-column: 1 / -1;
+          justify-self: start;
+          border: 1px dashed var(--border);
           background: transparent;
-          padding: 0;
+          padding: 8px 14px;
+          border-radius: 8px;
           cursor: pointer;
-          border-radius: 6px;
-        }
-        .click-stat:hover :global(.stat-value) {
+          font-size: 13px;
           color: var(--accent);
         }
+        .muted {
+          font-size: 13px;
+          margin-top: 10px;
+        }
       `}</style>
-    </button>
+    </ChartCard>
   );
 }

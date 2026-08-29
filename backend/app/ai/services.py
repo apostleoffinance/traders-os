@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -16,6 +17,7 @@ from app.ai.prompts import (
     COACH_PROMPT,
     PATTERN_PROMPT,
     PERIOD_PROMPT,
+    QUANT_RESEARCH_PROMPT,
     TRADE_REVIEW_PROMPT,
 )
 from app.models.ai import AIAnalysis, AIMemory
@@ -131,6 +133,35 @@ def behavioral(db: Session, user: User, account_id: UUID, force: bool = False) -
 
 def patterns(db: Session, user: User, account_id: UUID, force: bool = False) -> dict:
     return _account_run(db, user, account_id, "pattern_analysis", PATTERN_PROMPT, force)
+
+
+def quant_research(db: Session, user: User, account_id: UUID, force: bool = False) -> dict:
+    from app.engines.analytics_lab.trade_row import trade_to_analytics
+    from app.engines.quant_lab.quant_intelligence import quant_ai_summary
+    from app.services.access import get_owned_account
+    from app.services.analytics_service import _trades
+
+    account = get_owned_account(db, user.id, account_id)
+    trades = _trades(db, user.id, account.id)
+    rows = [trade_to_analytics(t) for t in trades]
+    profile = account.risk_profile
+    ctx = {
+        "account": {"id": str(account.id), "name": account.name},
+        "quant_lab": quant_ai_summary(
+            rows,
+            starting=Decimal(account.starting_balance),
+            configured_risk=Decimal(profile.risk_per_trade) if profile else None,
+        ),
+    }
+    return run_analysis(
+        db,
+        user_id=user.id,
+        account_id=account_id,
+        analysis_type="quant_research",
+        task_prompt=QUANT_RESEARCH_PROMPT,
+        context=ctx,
+        force=force,
+    )
 
 
 def coach(db: Session, user: User, account_id: UUID, force: bool = False) -> dict:

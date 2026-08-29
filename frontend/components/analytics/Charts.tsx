@@ -1,10 +1,10 @@
 "use client";
 
-import ReactECharts from "echarts-for-react";
 import { type GroupRow, type MetricKey, metricValue } from "@/lib/analytics";
 import { num, sessionLabel } from "@/lib/format";
 import { useTheme } from "@/components/ThemeProvider";
 import { chartTheme } from "@/lib/theme";
+import { InteractiveChart } from "@/components/analytics/primitives/InteractiveChart";
 
 export function useLiveChart() {
   const { resolved } = useTheme();
@@ -81,10 +81,12 @@ export function HorizontalBars({
   rows,
   metric,
   labelFn,
+  onRowClick,
 }: {
   rows: GroupRow[];
   metric: MetricKey;
   labelFn?: (key: string) => string;
+  onRowClick?: (row: GroupRow) => void;
 }) {
   const { C } = useLiveChart();
   if (!rows.length) return <Empty>No trades available for this filter.</Empty>;
@@ -100,7 +102,7 @@ export function HorizontalBars({
       formatter: (params: { dataIndex: number }[]) => {
         const i = params[0]?.dataIndex ?? 0;
         const r = labeled[i];
-        return `${r.name}<br/>${formatMetric(metric, r.value)}<br/>n=${r.n} · ${r.evidence.label}`;
+        return `${r.name}<br/>${formatMetric(metric, r.value)}<br/>n=${r.n} · ${r.evidence.label}${onRowClick ? "<br/><i>Click to filter</i>" : ""}`;
       },
     },
     xAxis: {
@@ -134,7 +136,22 @@ export function HorizontalBars({
       },
     ],
   };
-  return <ReactECharts option={option} style={{ height: Math.max(160, rows.length * 36 + 40) }} />;
+  return (
+    <InteractiveChart
+      option={option}
+      height={Math.max(160, rows.length * 36 + 40)}
+      showHint={!!onRowClick}
+      onChartClick={
+        onRowClick
+          ? (params) => {
+              const i = params.dataIndex ?? 0;
+              const row = labeled[i];
+              if (row) onRowClick(row);
+            }
+          : undefined
+      }
+    />
+  );
 }
 
 export function sessionName(key: string): string {

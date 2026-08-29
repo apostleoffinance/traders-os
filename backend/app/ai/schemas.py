@@ -127,6 +127,18 @@ class ChallengeTradeResponse(BaseModel):
     recommendation: Literal["none"] = "none"
 
 
+class QuantResearchResponse(BaseModel):
+    summary: str
+    edge_assessment: list[str] = Field(default_factory=list)
+    stability_and_robustness: list[str] = Field(default_factory=list)
+    research_opportunities: list[str] = Field(default_factory=list)
+    walk_forward_interpretation: list[str] = Field(default_factory=list)
+    behavioral_patterns: list[str] = Field(default_factory=list)
+    data_limitations: list[str] = Field(default_factory=list)
+    questions_to_investigate: list[str] = Field(default_factory=list)
+    confidence: EvidenceConfidence
+
+
 SCHEMA_BY_TYPE: dict[str, type[BaseModel]] = {
     "trade_review": TradeReviewResponse,
     "journal_summary": JournalSummaryResponse,
@@ -137,4 +149,5 @@ SCHEMA_BY_TYPE: dict[str, type[BaseModel]] = {
     "monthly_review": PeriodReviewResponse,
     "coach": CoachResponse,
     "challenge_trade": ChallengeTradeResponse,
+    "quant_research": QuantResearchResponse,
 }

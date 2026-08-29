@@ -205,6 +205,116 @@ def test_close_deal_closes_trade(client: TestClient) -> None:
     assert Decimal(trade["exit_price"]) == Decimal("1.16500")
 
 
+def test_close_deal_stores_mfe_mae(client: TestClient) -> None:
+    auth = _register(client, "mt5mfe@example.com")
+    account_id = _account(client, auth["access_token"])
+    connector_token, _ = _connect(client, auth["access_token"], account_id)
+    headers = {"Authorization": f"Bearer {connector_token}"}
+
+    client.post("/api/integrations/mt5/sync", headers=headers, json=_sync_body())
+
+    close_body = _sync_body(
+        positions=[],
+        recent_deals=[
+            {
+                "external_deal_id": "9010",
+                "external_position_id": "10001",
+                "symbol_raw": "EURUSD.a",
+                "direction": "SHORT",
+                "entry_type": "OUT",
+                "volume": "0.01",
+                "price": "1.16500",
+                "profit": "1.46",
+                "commission": "-0.04",
+                "swap": "0",
+                "deal_time": "2026-08-24T11:00:00+00:00",
+                "mfe_price": "1.16400",
+                "mae_price": "1.16800",
+                "mfe_mae_bars": 45,
+            }
+        ],
+    )
+    closed = client.post("/api/integrations/mt5/sync", headers=headers, json=close_body)
+    assert closed.status_code == 200, closed.text
+
+    trades = client.get(
+        f"/api/trades?account_id={account_id}",
+        headers={"Authorization": f"Bearer {auth['access_token']}"},
+    )
+    trade = trades.json()[0]
+    assert Decimal(trade["mfe_price"]) == Decimal("1.16400")
+    assert Decimal(trade["mae_price"]) == Decimal("1.16800")
+    assert trade["mfe_mae_source"] == "mt5_m1"
+    assert trade["mfe_r"] is not None
+    assert trade["mae_r"] is not None
+
+
+def test_partial_close_keeps_trade_open(client: TestClient) -> None:
+    auth = _register(client, "mt5partial@example.com")
+    account_id = _account(client, auth["access_token"])
+    connector_token, _ = _connect(client, auth["access_token"], account_id)
+    headers = {"Authorization": f"Bearer {connector_token}"}
+
+    client.post("/api/integrations/mt5/sync", headers=headers, json=_sync_body())
+
+    partial = _sync_body(
+        positions=[{**_position_payload(), "volume": "0.07"}],
+        recent_deals=[
+            {
+                "external_deal_id": "9020",
+                "external_position_id": "10001",
+                "symbol_raw": "EURUSD.a",
+                "direction": "SHORT",
+                "entry_type": "OUT",
+                "volume": "0.03",
+                "price": "1.16550",
+                "profit": "0.30",
+                "commission": "-0.01",
+                "swap": "0",
+                "deal_time": "2026-08-24T10:30:00+00:00",
+            }
+        ],
+    )
+    r = client.post("/api/integrations/mt5/sync", headers=headers, json=partial)
+    assert r.status_code == 200, r.text
+    trade = client.get(
+        f"/api/trades?account_id={account_id}",
+        headers={"Authorization": f"Bearer {auth['access_token']}"},
+    ).json()[0]
+    assert trade["status"] == "open"
+    assert Decimal(trade["realized_pnl"]) == Decimal("0.29")
+    assert trade["exit_price"] is None
+
+    final = _sync_body(
+        positions=[],
+        recent_deals=[
+            {
+                "external_deal_id": "9021",
+                "external_position_id": "10001",
+                "symbol_raw": "EURUSD.a",
+                "direction": "SHORT",
+                "entry_type": "OUT",
+                "volume": "0.07",
+                "price": "1.16500",
+                "profit": "1.16",
+                "commission": "-0.03",
+                "swap": "0",
+                "deal_time": "2026-08-24T11:00:00+00:00",
+            }
+        ],
+    )
+    closed = client.post("/api/integrations/mt5/sync", headers=headers, json=final)
+    assert closed.status_code == 200
+    assert closed.json()["trades_closed"] == 1
+    trade = client.get(
+        f"/api/trades?account_id={account_id}",
+        headers={"Authorization": f"Bearer {auth['access_token']}"},
+    ).json()[0]
+    assert trade["status"] == "closed"
+    assert Decimal(trade["realized_pnl"]) == Decimal("1.42")
+    assert Decimal(trade["exit_price"]) == Decimal("1.16515")
+
+
 def test_duplicate_deal_ignored(client: TestClient) -> None:
     auth = _register(client, "mt5d@example.com")
     account_id = _account(client, auth["access_token"])

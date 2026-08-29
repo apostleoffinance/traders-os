@@ -42,6 +42,7 @@ from app.schemas.trade import TradeClose, TradeCreate, TradePreviewIn, TradeUpda
 from app.services.access import get_owned_account, get_owned_trade
 from app.services.account_service import refresh_account_balances
 from app.services.checklist_service import resolve_template
+from app.services.mfe_mae_backfill import backfill_mfe_mae_for_trade
 from app.services.mapping import parse_windows, profile_view, trade_to_closed
 from app.storage.factory import get_storage
 
@@ -407,6 +408,9 @@ def create_trade(db: Session, user: User, payload: TradeCreate) -> Trade:
             )
         )
 
+    if trade.status == TradeStatus.CLOSED.value and trade.mfe_price is None:
+        backfill_mfe_mae_for_trade(db, trade)
+
     refresh_account_balances(db, account)
     db.commit()
     return get_trade(db, user.id, trade.id)
@@ -485,7 +489,7 @@ def _apply_psychology(db: Session, user: User, trade: Trade, psychology) -> None
         setattr(trade.psychology, k, v.value if hasattr(v, "value") else v)
 
 
-def _apply_computed(trade: Trade, computed: dict, exit_ts: datetime | None = None) -> None:
+def _apply_computed(trade: Trade, computed: dict, exit_ts: datetime | None = None, db: Session | None = None) -> None:
     trade.symbol = computed["symbol"]
     trade.direction = computed["direction"].value
     trade.entry_price = computed["entry"]
@@ -513,6 +517,8 @@ def _apply_computed(trade: Trade, computed: dict, exit_ts: datetime | None = Non
         as_utc(trade.trade_timestamp) if trade.trade_timestamp else None,
         as_utc(trade.exit_timestamp) if trade.exit_timestamp else None,
     )
+    if computed["status"] == TradeStatus.CLOSED and trade.mfe_price is None and db is not None:
+        backfill_mfe_mae_for_trade(db, trade)
 
 
 def update_trade(db: Session, user: User, trade_id: UUID, payload: TradeUpdate) -> Trade:
@@ -548,7 +554,7 @@ def update_trade(db: Session, user: User, trade_id: UUID, payload: TradeUpdate) 
         exit_ts = as_utc(payload.exit_timestamp) if payload.exit_timestamp else None
         trade.exit_timestamp = exit_ts
 
-    _apply_computed(trade, computed, exit_ts=trade.exit_timestamp)
+    _apply_computed(trade, computed, exit_ts=trade.exit_timestamp, db=db)
     _apply_psychology(db, user, trade, payload.psychology)
 
     if payload.checklist is not None:

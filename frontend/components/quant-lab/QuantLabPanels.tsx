@@ -1,0 +1,717 @@
+"use client";
+
+import { useState } from "react";
+import { Panel, Stat } from "@/components/ui";
+import { Empty, useLiveChart } from "@/components/analytics/Charts";
+import { ChartCard } from "@/components/analytics/primitives/ChartCard";
+import { InteractiveChart } from "@/components/analytics/primitives/InteractiveChart";
+import type { QuantLabPayload } from "@/lib/quant";
+import { EVIDENCE_LABELS } from "@/lib/quant";
+import { num, signed, tone } from "@/lib/format";
+
+function EvidenceBadge({ sample }: { sample: { evidence_level: string; sample_size: number; message: string } }) {
+  return (
+    <span className="evidence-badge" title={sample.message}>
+      {EVIDENCE_LABELS[sample.evidence_level as keyof typeof EVIDENCE_LABELS] ?? sample.evidence_level} · n=
+      {sample.sample_size}
+    </span>
+  );
+}
+
+export function DataQualityStrip({ dq, meta }: { dq: QuantLabPayload["overview"]["data_quality"]; meta: QuantLabPayload["meta"] }) {
+  return (
+    <div className="dq-strip">
+      <span className="dq-label">Data quality</span>
+      <span>
+        {dq.valid_quant_trades} valid / {dq.total_trades} closed
+        {dq.excluded_trades > 0 && ` · ${dq.excluded_trades} excluded`}
+      </span>
+      <span className="muted">
+        Filtered: {meta.filtered_trades} · Account: {meta.account_name ?? "—"}
+      </span>
+      <style jsx>{`
+        .dq-strip {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 12px 20px;
+          align-items: center;
+          padding: 10px 14px;
+          border: 1px solid var(--border);
+          border-radius: 8px;
+          font-size: 13px;
+          margin-bottom: 16px;
+        }
+        .dq-label {
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
+          font-size: 11px;
+          color: var(--muted);
+        }
+        .muted {
+          color: var(--muted);
+        }
+      `}</style>
+    </div>
+  );
+}
+
+export function QuantOverviewPanel({ data }: { data: QuantLabPayload }) {
+  const ov = data.overview;
+  const es = ov.edge_status;
+  const exp = ov.expectancy_summary;
+  const n = exp.n;
+
+  if (n === 0) {
+    return (
+      <Panel title="Quant Lab needs more data">
+        <Empty>
+          You currently have {data.meta.filtered_trades} closed trades in this filter, but none passed data validation.
+          Advanced statistical analysis becomes more useful with a larger sample.
+        </Empty>
+      </Panel>
+    );
+  }
+
+  return (
+    <Panel title="Edge overview" right={<EvidenceBadge sample={ov.sample_policy} />}>
+      <div className="kpis">
+        <Stat
+          label="Observed expectancy"
+          value={es.observed_expectancy_r ? `${signed(es.observed_expectancy_r)}R` : exp.expectancy_currency ?? "—"}
+          tone={tone(es.observed_expectancy_r ?? exp.expectancy_currency ?? "0")}
+          hint="OBSERVED"
+        />
+        <Stat
+          label="Recent expectancy"
+          value={es.recent_expectancy_r ? `${signed(es.recent_expectancy_r)}R` : "—"}
+          tone={tone(es.recent_expectancy_r ?? "0")}
+          hint="Last 30 trades"
+        />
+        <Stat label="Sample size" value={`${n} trades`} />
+        <Stat label="Evidence level" value={EVIDENCE_LABELS[ov.sample_policy.evidence_level]} />
+        <Stat label="Max drawdown" value={es.max_drawdown_r ? `${num(es.max_drawdown_r)}R` : es.max_drawdown_currency ?? "—"} tone="neg" />
+        <Stat
+          label="Outlier dependency"
+          value={es.outlier_dependency_pct ? `${num(es.outlier_dependency_pct, 1)}%` : "—"}
+          hint={es.outlier_dependency_level ?? undefined}
+        />
+        <Stat label="Monte Carlo" value={es.monte_carlo_status === "AWAITING_RUN" ? "Ready to run" : es.monte_carlo_status} />
+      </div>
+      <p className="muted">{ov.sample_policy.message}</p>
+      <style jsx>{`
+        .kpis {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+          gap: 14px 16px;
+        }
+        .muted {
+          margin-top: 10px;
+          font-size: 13px;
+          color: var(--muted);
+        }
+      `}</style>
+    </Panel>
+  );
+}
+
+export function ExpectancyEnginePanel({ data }: { data: QuantLabPayload }) {
+  const exp = data.edge.expectancy;
+  const pay = data.edge.payoff;
+  const ci = data.edge.win_rate_ci;
+  const boot = data.edge.bootstrap_expectancy_r;
+
+  if (exp.n === 0) return null;
+
+  return (
+    <>
+      <Panel title="Expectancy engine" right={<EvidenceBadge sample={exp.sample} />}>
+        <div className="kpis">
+          <Stat label="Win rate" value={exp.win_rate ? `${num(exp.win_rate, 1)}%` : "—"} />
+          <Stat label="Average win" value={exp.average_win ?? "—"} tone="pos" />
+          <Stat label="Average loss" value={exp.average_loss ?? "—"} tone="neg" />
+          <Stat label="Payoff ratio" value={pay.payoff_ratio_r ? num(pay.payoff_ratio_r) : pay.note ?? "N/A"} />
+          <Stat label="Expectancy R" value={exp.expectancy_r ? `${signed(exp.expectancy_r)}R` : "—"} tone={tone(exp.expectancy_r ?? "0")} />
+        </div>
+        {pay.note && <p className="muted">{pay.note}</p>}
+      </Panel>
+
+      <Panel title="Win rate confidence · Wilson score interval">
+        {ci.available ? (
+          <>
+            <div className="kpis">
+              <Stat label="Observed" value={ci.observed ? `${num(ci.observed, 1)}%` : "—"} />
+              <Stat
+                label={`${Math.round((ci.confidence_level ?? 0.95) * 100)}% interval`}
+                value={ci.lower_bound && ci.upper_bound ? `${num(ci.lower_bound, 1)}% — ${num(ci.upper_bound, 1)}%` : "—"}
+              />
+            </div>
+            <p className="muted">{ci.note}</p>
+          </>
+        ) : (
+          <Empty>Insufficient data for confidence interval.</Empty>
+        )}
+      </Panel>
+
+      <ChartCard title="Bootstrap expectancy R · BOOTSTRAPPED ESTIMATE" interactive>
+        {boot.available ? (
+          <>
+            <div className="kpis">
+              <Stat label="Observed" value={boot.point_estimate ? `${signed(boot.point_estimate)}R` : "—"} hint="point" />
+              <Stat label="Bootstrap median" value={boot.median ? `${signed(boot.median)}R` : "—"} />
+              <Stat
+                label="95% range"
+                value={
+                  boot.confidence_interval.lower && boot.confidence_interval.upper
+                    ? `${signed(boot.confidence_interval.lower)}R → ${signed(boot.confidence_interval.upper)}R`
+                    : "—"
+                }
+              />
+            </div>
+            {boot.histogram && boot.histogram.length > 0 && (
+              <BootstrapHistogramChart
+                histogram={boot.histogram}
+                observed={boot.point_estimate}
+                ci={boot.confidence_interval}
+              />
+            )}
+          </>
+        ) : (
+          <Empty>{boot.note ?? "Need at least 2 valid R observations."}</Empty>
+        )}
+        {boot.note && boot.available && <p className="muted">{boot.note}</p>}
+      </ChartCard>
+
+      <Panel title={`Edge stability · ${data.edge.edge_stability.label}`}>
+        <div className="kpis">
+          <Stat
+            label="Historical expectancy R"
+            value={
+              data.edge.edge_stability.historical.expectancy_r
+                ? `${signed(String(data.edge.edge_stability.historical.expectancy_r))}R`
+                : "—"
+            }
+          />
+          <Stat
+            label={`Recent (${data.edge.edge_stability.recent_window})`}
+            value={
+              data.edge.edge_stability.recent.expectancy_r
+                ? `${signed(String(data.edge.edge_stability.recent.expectancy_r))}R`
+                : "—"
+            }
+          />
+          <Stat
+            label="Change"
+            value={
+              data.edge.edge_stability.differences.expectancy_r?.percentage
+                ? `${num(String(data.edge.edge_stability.differences.expectancy_r.percentage), 1)}%`
+                : "—"
+            }
+          />
+        </div>
+        <p className="muted">{data.edge.edge_stability.disclaimer}</p>
+      </Panel>
+
+      <style jsx>{`
+        .kpis {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+          gap: 14px 16px;
+        }
+        .muted {
+          margin-top: 10px;
+          font-size: 13px;
+          color: var(--muted);
+        }
+      `}</style>
+    </>
+  );
+}
+
+export function DrawdownPanel({ data }: { data: QuantLabPayload }) {
+  const dd = data.drawdown;
+  const chart = useLiveChart();
+  const curve = dd.currency.underwater_curve;
+
+  const option =
+    curve.length > 1
+      ? {
+          ...chart,
+          grid: { left: 48, right: 16, top: 24, bottom: 32 },
+          tooltip: { trigger: "axis" as const },
+          xAxis: { type: "category" as const, data: curve.map((p) => p.at.slice(0, 10)), axisLabel: { fontSize: 10 } },
+          yAxis: { type: "value" as const, name: "Drawdown" },
+          series: [
+            {
+              type: "line" as const,
+              data: curve.map((p) => Number(p.drawdown)),
+              areaStyle: { color: "rgba(239, 68, 68, 0.15)" },
+              lineStyle: { color: "#ef4444", width: 1.5 },
+              showSymbol: false,
+            },
+          ],
+        }
+      : null;
+
+  return (
+    <>
+      <Panel title="Maximum drawdown">
+        <div className="kpis">
+          <Stat label="Max DD (currency)" value={dd.currency.max_drawdown ?? "—"} tone="neg" />
+          <Stat label="Max DD (R)" value={dd.r_multiple.max_drawdown_r ? `${num(dd.r_multiple.max_drawdown_r)}R` : "—"} tone="neg" />
+          <Stat label="Current DD" value={dd.currency.current_drawdown ?? "—"} tone="neg" />
+          <Stat label="Ulcer index" value={dd.ulcer_index.ulcer_index ? num(dd.ulcer_index.ulcer_index) : "—"} />
+          <Stat
+            label="Recovery factor"
+            value={dd.recovery_factor_r.recovery_factor ? num(dd.recovery_factor_r.recovery_factor) : "—"}
+          />
+        </div>
+        {dd.ulcer_index.note && <p className="muted">{dd.ulcer_index.note}</p>}
+      </Panel>
+
+      {option && (
+        <ChartCard title="Underwater equity" subtitle="Drawdown depth over time" interactive>
+          <InteractiveChart option={option} height={280} showHint={false} />
+        </ChartCard>
+      )}
+
+      <style jsx>{`
+        .kpis {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+          gap: 14px 16px;
+        }
+        .muted {
+          margin-top: 8px;
+          font-size: 13px;
+          color: var(--muted);
+        }
+      `}</style>
+    </>
+  );
+}
+
+export function RollingPanel({ data }: { data: QuantLabPayload }) {
+  const rolling = data.rolling;
+  const chart = useLiveChart();
+  const [window, setWindow] = useState(rolling.default_windows[0] ?? 20);
+
+  const series = rolling.series[String(window)] ?? [];
+  const points = series.filter((p) => p.expectancy_r != null);
+
+  const option =
+    points.length > 0
+      ? {
+          ...chart,
+          grid: { left: 48, right: 16, top: 24, bottom: 32 },
+          tooltip: {
+            trigger: "axis" as const,
+            formatter: (params: { dataIndex: number }[]) => {
+              const i = params[0]?.dataIndex ?? 0;
+              const p = points[i];
+              if (!p) return "";
+              return `Trade #${p.trade_number}<br/>Expectancy: ${signed(p.expectancy_r!)}R<br/>Win rate: ${p.win_rate ? num(p.win_rate, 1) + "%" : "—"}`;
+            },
+          },
+          xAxis: { type: "category" as const, data: points.map((p) => String(p.trade_number)) },
+          yAxis: { type: "value" as const, name: "Expectancy R" },
+          series: [{ type: "line" as const, data: points.map((p) => Number(p.expectancy_r)), showSymbol: false, lineStyle: { width: 2 } }],
+        }
+      : null;
+
+  return (
+    <ChartCard
+      title="Rolling performance"
+      interactive
+      actions={
+        <div className="window-picks">
+          {rolling.default_windows.map((w) => (
+            <button key={w} type="button" className={w === window ? "active" : ""} onClick={() => setWindow(w)}>
+              {w}
+            </button>
+          ))}
+        </div>
+      }
+    >
+      {option ? <InteractiveChart option={option} height={300} showHint={false} /> : <Empty>Insufficient trades for rolling window {window}.</Empty>}
+      <style jsx>{`
+        .window-picks {
+          display: flex;
+          gap: 6px;
+        }
+        .window-picks button {
+          border: 1px solid var(--border);
+          background: transparent;
+          border-radius: 6px;
+          padding: 4px 10px;
+          font-size: 12px;
+          cursor: pointer;
+        }
+        .window-picks button.active {
+          border-color: var(--accent);
+          color: var(--accent);
+        }
+      `}</style>
+    </ChartCard>
+  );
+}
+
+export function StreakPanel({ data }: { data: QuantLabPayload }) {
+  const s = data.streaks;
+  const { C } = useLiveChart();
+  const dist = s.loss_streak_distribution;
+  const lossOpt = {
+    grid: { left: 36, right: 12, top: 12, bottom: 28 },
+    tooltip: { trigger: "axis" },
+    xAxis: { type: "category", data: dist.map((d) => d.label), axisLabel: { fontSize: 10 } },
+    yAxis: { type: "value", name: "Occurrences", splitLine: { lineStyle: { color: C.line } } },
+    series: [{ type: "bar", data: dist.map((d) => d.occurrences), itemStyle: { color: C.neg } }],
+  };
+
+  return (
+    <ChartCard title="Loss streak distribution" subtitle="Historical loss streak lengths — not a stop-trading rule." interactive>
+      {dist.some((d) => d.occurrences > 0) ? (
+        <InteractiveChart option={lossOpt} height={200} showHint={false} />
+      ) : (
+        <Empty>No loss streaks in this sample.</Empty>
+      )}
+      <div className="kpis">
+        <Stat label="Longest win streak" value={String(s.longest.wins)} />
+        <Stat label="Longest loss streak" value={String(s.longest.losses)} />
+        <Stat label="Current wins" value={String(s.current.wins)} />
+        <Stat label="Current losses" value={String(s.current.losses)} />
+      </div>
+      <style jsx>{`
+        .kpis {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+          gap: 12px;
+          margin-top: 16px;
+        }
+      `}</style>
+    </ChartCard>
+  );
+}
+
+export function DistributionPanel({ data }: { data: QuantLabPayload }) {
+  const dist = data.distribution;
+  const chart = useLiveChart();
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const primary = dist.primary;
+  const unit = primary.unit === "R" ? "R" : "";
+
+  const option =
+    primary.histogram.length > 0
+      ? {
+          ...chart,
+          grid: { left: 48, right: 16, top: 24, bottom: 40 },
+          tooltip: { trigger: "axis" as const },
+          xAxis: {
+            type: "category" as const,
+            data: primary.histogram.map((b) => `${b.from}${unit}`),
+            axisLabel: { fontSize: 10, rotate: 30 },
+          },
+          yAxis: { type: "value" as const, name: "Trades" },
+          series: [{ type: "bar" as const, data: primary.histogram.map((b) => b.n), itemStyle: { color: "var(--accent)" } }],
+        }
+      : null;
+
+  if (primary.n === 0) {
+    return (
+      <ChartCard title="Return distribution">
+        <Empty>No valid trades for distribution analysis.</Empty>
+      </ChartCard>
+    );
+  }
+
+  return (
+    <>
+      <ChartCard
+        title="Return distribution"
+        sampleSize={primary.sample.sample_size}
+        evidenceLabel={EVIDENCE_LABELS[primary.sample.evidence_level as keyof typeof EVIDENCE_LABELS] ?? primary.sample.evidence_level}
+        interactive
+      >
+        <div className="kpis">
+          <Stat label="Mean" value={primary.core.mean ? `${primary.core.mean}${unit}` : "—"} />
+          <Stat label="Median" value={primary.core.median ? `${primary.core.median}${unit}` : "—"} />
+          <Stat label="Std dev" value={primary.core.stdev ? num(primary.core.stdev) : "—"} />
+          <Stat label="P25" value={primary.core.percentiles.p25 ? `${primary.core.percentiles.p25}${unit}` : "—"} />
+          <Stat label="P75" value={primary.core.percentiles.p75 ? `${primary.core.percentiles.p75}${unit}` : "—"} />
+        </div>
+        {option && <InteractiveChart option={option} height={260} showHint={false} />}
+        <p className="muted">{dist.note}</p>
+      </ChartCard>
+
+      <Panel title="Advanced distribution metrics">
+        <button type="button" className="toggle" onClick={() => setShowAdvanced((v) => !v)}>
+          {showAdvanced ? "Hide" : "Show"} advanced statistics
+        </button>
+        {showAdvanced && (
+          <div className="advanced">
+            <Stat label="Skewness" value={primary.advanced.skewness ? num(primary.advanced.skewness) : "—"} />
+            <Stat label="Excess kurtosis" value={primary.advanced.excess_kurtosis ? num(primary.advanced.excess_kurtosis) : "—"} />
+            {primary.advanced.skewness_interpretation?.label && (
+              <p className="interp">
+                <strong>{primary.advanced.skewness_interpretation.label}</strong> — {primary.advanced.skewness_interpretation.text}
+              </p>
+            )}
+            {primary.advanced.kurtosis_interpretation?.label && (
+              <p className="interp">
+                <strong>{primary.advanced.kurtosis_interpretation.label}</strong> — {primary.advanced.kurtosis_interpretation.text}
+              </p>
+            )}
+          </div>
+        )}
+      </Panel>
+
+      <style jsx>{`
+        .kpis {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+          gap: 12px;
+        }
+        .muted {
+          margin-top: 10px;
+          font-size: 13px;
+          color: var(--muted);
+        }
+        .toggle {
+          border: 1px solid var(--border);
+          background: transparent;
+          border-radius: 6px;
+          padding: 6px 12px;
+          font-size: 13px;
+          cursor: pointer;
+        }
+        .advanced {
+          margin-top: 14px;
+          display: grid;
+          gap: 10px;
+        }
+        .interp {
+          font-size: 13px;
+          color: var(--muted);
+          margin: 0;
+        }
+      `}</style>
+    </>
+  );
+}
+
+export function OutlierDependencyPanel({ data }: { data: QuantLabPayload }) {
+  const o = data.outliers;
+  const level = o.dependency_level ?? "—";
+
+  return (
+    <Panel title="Outlier dependency" right={<EvidenceBadge sample={o.sample} />}>
+      <div className="kpis">
+        <Stat label="Total net profit" value={o.total_net_profit} />
+        <Stat label="Top 5 contribution" value={o.contributions.top_5?.pct_of_net_profit ? `${num(o.contributions.top_5.pct_of_net_profit, 1)}%` : "—"} />
+        <Stat label="Dependency level" value={level} hint="Top 5 share of net profit" />
+      </div>
+      <div className="grid2" style={{ marginTop: 16 }}>
+        <Stat label="Without top 1 · expectancy R" value={o.performance_without_outliers.without_top_1?.expectancy_r ? `${signed(o.performance_without_outliers.without_top_1.expectancy_r)}R` : "—"} />
+        <Stat label="Without top 3 · expectancy R" value={o.performance_without_outliers.without_top_3?.expectancy_r ? `${signed(o.performance_without_outliers.without_top_3.expectancy_r)}R` : "—"} />
+        <Stat label="Without top 5 · expectancy R" value={o.performance_without_outliers.without_top_5?.expectancy_r ? `${signed(o.performance_without_outliers.without_top_5.expectancy_r)}R` : "—"} />
+      </div>
+      <p className="muted">{o.disclaimer}</p>
+      <style jsx>{`
+        .kpis,
+        .grid2 {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+          gap: 12px;
+        }
+        .muted {
+          margin-top: 12px;
+          font-size: 13px;
+          color: var(--muted);
+        }
+      `}</style>
+    </Panel>
+  );
+}
+
+export function TopTradeRemovalPanel({ data }: { data: QuantLabPayload }) {
+  const rob = data.robustness.top_trade_removal;
+
+  return (
+    <Panel title="Robustness test · top-trade removal">
+      <table className="scenario-table">
+        <thead>
+          <tr>
+            <th>Scenario</th>
+            <th>n</th>
+            <th>Expectancy R</th>
+            <th>Profit factor</th>
+            <th>Net R</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rob.scenarios.map((s) => (
+            <tr key={s.label}>
+              <td>{s.label}</td>
+              <td>{s.n}</td>
+              <td>{s.expectancy_r ? `${signed(s.expectancy_r)}R` : "—"}</td>
+              <td>{s.profit_factor ? num(s.profit_factor) : "—"}</td>
+              <td>{s.net_r ? `${signed(s.net_r)}R` : "—"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="muted">{rob.disclaimer}</p>
+      <style jsx>{`
+        .scenario-table {
+          width: 100%;
+          border-collapse: collapse;
+          font-size: 13px;
+        }
+        th,
+        td {
+          text-align: left;
+          padding: 8px 10px;
+          border-bottom: 1px solid var(--border);
+        }
+        th {
+          color: var(--muted);
+          font-weight: 600;
+          font-size: 11px;
+          text-transform: uppercase;
+        }
+        .muted {
+          margin-top: 12px;
+          font-size: 13px;
+          color: var(--muted);
+        }
+      `}</style>
+    </Panel>
+  );
+}
+
+export function BootstrapRobustnessPanel({ data }: { data: QuantLabPayload }) {
+  const b = data.robustness.bootstrap;
+
+  function row(label: string, m: typeof b.expectancy_r, suffix = "") {
+    if (!m.available) {
+      return (
+        <div className="row">
+          <span className="label">{label}</span>
+          <span className="muted">Insufficient data</span>
+        </div>
+      );
+    }
+    return (
+      <div className="row">
+        <span className="label">{label}</span>
+        <span>
+          Observed {m.observed ? `${signed(m.observed)}${suffix}` : "—"} · Median {m.bootstrap_median ? `${signed(m.bootstrap_median)}${suffix}` : "—"} · 95%{" "}
+          {m.confidence_interval.lower && m.confidence_interval.upper
+            ? `${signed(m.confidence_interval.lower)}${suffix} → ${signed(m.confidence_interval.upper)}${suffix}`
+            : "—"}
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <ChartCard title="Bootstrap robustness · BOOTSTRAPPED ESTIMATE" interactive>
+      {row("Expectancy R", b.expectancy_r, "R")}
+      {b.expectancy_r.histogram && b.expectancy_r.histogram.length > 0 && (
+        <BootstrapHistogramChart
+          histogram={b.expectancy_r.histogram}
+          observed={b.expectancy_r.observed}
+          ci={b.expectancy_r.confidence_interval}
+        />
+      )}
+      {row("Average return", b.average_return)}
+      {row("Win rate", b.win_rate, "%")}
+      <p className="muted">{b.note}</p>
+      <style jsx>{`
+        .row {
+          display: grid;
+          grid-template-columns: 140px 1fr;
+          gap: 12px;
+          padding: 10px 0;
+          border-bottom: 1px solid var(--border);
+          font-size: 13px;
+        }
+        .label {
+          font-weight: 600;
+        }
+        .muted {
+          margin-top: 12px;
+          font-size: 13px;
+          color: var(--muted);
+        }
+      `}</style>
+    </ChartCard>
+  );
+}
+
+export function RobustnessLab({ data }: { data: QuantLabPayload }) {
+  return (
+    <div className="stack">
+      <DistributionPanel data={data} />
+      <OutlierDependencyPanel data={data} />
+      <TopTradeRemovalPanel data={data} />
+      <BootstrapRobustnessPanel data={data} />
+      <style jsx>{`
+        .stack {
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+        }
+      `}</style>
+    </div>
+  );
+}
+
+function BootstrapHistogramChart({
+  histogram,
+  observed,
+  ci,
+}: {
+  histogram: { from: number; to: number; n: number }[];
+  observed: string | null;
+  ci: { lower: string | null; upper: string | null; level: number };
+}) {
+  const { C } = useLiveChart();
+  const option = {
+    grid: { left: 48, right: 16, top: 20, bottom: 40 },
+    tooltip: { trigger: "axis" },
+    xAxis: {
+      type: "category",
+      data: histogram.map((b) => `${num(b.from, 2)}–${num(b.to, 2)}`),
+      axisLabel: { fontSize: 9, rotate: 35 },
+    },
+    yAxis: { type: "value", name: "Frequency", splitLine: { lineStyle: { color: C.line } } },
+    series: [
+      {
+        type: "bar",
+        data: histogram.map((b) => b.n),
+        itemStyle: { color: C.blue },
+      },
+    ],
+  };
+
+  return (
+    <div className="boot-hist">
+      <p className="muted">
+        Bootstrap distribution · observed {observed ? `${signed(observed)}R` : "—"}
+        {ci.lower && ci.upper ? ` · ${Math.round(ci.level * 100)}% CI ${signed(ci.lower)}R → ${signed(ci.upper)}R` : ""}
+      </p>
+      <InteractiveChart option={option} height={240} showHint={false} />
+      <style jsx>{`
+        .boot-hist {
+          margin-top: 12px;
+        }
+        .muted {
+          font-size: 12px;
+          color: var(--muted);
+          margin: 0 0 6px;
+        }
+      `}</style>
+    </div>
+  );
+}

@@ -208,3 +208,13 @@ def coach(
     user_id=Depends(get_current_user_id),
 ):
     return _run(ai_services.coach, db, user_id, account_id=account_id, force=force)
+
+
+@router.post("/accounts/{account_id}/quant-research")
+def quant_research(
+    account_id: UUID,
+    force: bool = Query(False),
+    db: Session = Depends(get_db),
+    user_id=Depends(get_current_user_id),
+):
+    return _run(ai_services.quant_research, db, user_id, account_id=account_id, force=force)

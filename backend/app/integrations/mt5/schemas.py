@@ -46,6 +46,9 @@ class Mt5DealIn(BaseModel):
     commission: Decimal = Decimal("0")
     swap: Decimal = Decimal("0")
     deal_time: datetime
+    mfe_price: Decimal | None = None
+    mae_price: Decimal | None = None
+    mfe_mae_bars: int | None = None
 
 
 class Mt5SyncIn(BaseModel):

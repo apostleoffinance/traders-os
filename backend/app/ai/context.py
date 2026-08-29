@@ -17,6 +17,7 @@ from app.core.time import as_utc, utcnow
 from app.engines.fx_math import ZERO
 from app.engines.performance_engine import compute_performance
 from app.models.account import Account
+from app.models.checklist import TradeChecklistResponse
 from app.models.trade import Trade
 from app.models.user import User
 from app.services.access import get_owned_account
@@ -38,7 +39,7 @@ def load_account_trades(db: Session, user_id: UUID, account_id: UUID) -> list[Tr
         .options(
             joinedload(Trade.psychology),
             joinedload(Trade.setup),
-            joinedload(Trade.checklist_responses),
+            joinedload(Trade.checklist_responses).joinedload(TradeChecklistResponse.item),
         )
         .filter(Trade.account_id == account_id, Trade.user_id == user_id)
         .order_by(Trade.trade_timestamp.asc())
@@ -297,6 +298,24 @@ def build_account_analytics_context(
     prev_week = [t for t in trades if in_range(t.trade_timestamp, two_weeks, week_ago)]
     this_month = [t for t in trades if in_range(t.trade_timestamp, month_start)]
     prev_month = [t for t in trades if in_range(t.trade_timestamp, prev_month_start, month_start)]
+
+    from app.engines.analytics_lab.intelligence import intelligence_ai_summary
+    from app.engines.analytics_lab.trade_row import trade_to_analytics
+    from app.engines.quant_lab.quant_intelligence import quant_ai_summary
+
+    profile = account.risk_profile
+    intel_rows = [trade_to_analytics(t) for t in trades]
+    intelligence = intelligence_ai_summary(
+        intel_rows,
+        starting=starting,
+        configured_risk=Decimal(profile.risk_per_trade) if profile else None,
+    )
+    quant_lab = quant_ai_summary(
+        intel_rows,
+        starting=starting,
+        configured_risk=Decimal(profile.risk_per_trade) if profile else None,
+    )
+
     return to_jsonable(
         {
             "user": {"timezone": user.timezone},
@@ -315,6 +334,8 @@ def build_account_analytics_context(
             "by_weekday": by_weekday(db, user, account.id),
             "by_psychology": by_psychology(db, user, account.id),
             "behavior": behavioral_stats(trades),
+            "intelligence_lab": intelligence,
+            "quant_lab": quant_lab,
             "candidate_patterns": candidate_patterns(trades, starting),
         }
     )

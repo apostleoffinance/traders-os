@@ -3,7 +3,7 @@
 //| OBSERVE · COLLECT · SEND — no trade execution functions.         |
 //+------------------------------------------------------------------+
 #property copyright "Trader OS"
-#property version   "0.100"
+#property version   "0.102"
 #property strict
 
 input string ApiBaseUrl          = "http://127.0.0.1:8000";
@@ -97,6 +97,96 @@ string DealDirection(long type)
    if(type == DEAL_TYPE_BUY)
       return "LONG";
    return "SHORT";
+  }
+
+//+------------------------------------------------------------------+
+string DealDirection(long type)
+  {
+   if(type == DEAL_TYPE_BUY)
+      return "LONG";
+   return "SHORT";
+  }
+
+//+------------------------------------------------------------------+
+bool PositionEntryInfo(ulong position_id, datetime &opened, double &entry_price, string &symbol, string &direction)
+  {
+   opened = 0;
+   entry_price = 0;
+   symbol = "";
+   direction = "";
+   if(!HistorySelectByPosition(position_id))
+      return false;
+   int total = HistoryDealsTotal();
+   for(int i = 0; i < total; i++)
+     {
+      ulong ticket = HistoryDealGetTicket(i);
+      if(ticket == 0)
+         continue;
+      long entry = HistoryDealGetInteger(ticket, DEAL_ENTRY);
+      if(entry != DEAL_ENTRY_IN && entry != DEAL_ENTRY_INOUT)
+         continue;
+      opened = (datetime)HistoryDealGetInteger(ticket, DEAL_TIME);
+      entry_price = HistoryDealGetDouble(ticket, DEAL_PRICE);
+      symbol = HistoryDealGetString(ticket, DEAL_SYMBOL);
+      long dtype = HistoryDealGetInteger(ticket, DEAL_TYPE);
+      direction = DealDirection(dtype);
+      return true;
+     }
+   return false;
+  }
+
+//+------------------------------------------------------------------+
+bool ComputeMfeMae(const string symbol, const string direction, const double entry,
+                   const datetime open_time, const datetime close_time,
+                   double &mfe_price, double &mae_price, int &bars_used)
+  {
+   mfe_price = 0;
+   mae_price = 0;
+   bars_used = 0;
+   if(open_time <= 0 || close_time <= open_time || entry <= 0)
+      return false;
+   if(!SymbolSelect(symbol, true))
+      return false;
+   MqlRates rates[];
+   int copied = CopyRates(symbol, PERIOD_M1, open_time, close_time, rates);
+   if(copied <= 0)
+      return false;
+   bars_used = copied;
+   double max_high = rates[0].high;
+   double min_low = rates[0].low;
+   for(int i = 1; i < copied; i++)
+     {
+      if(rates[i].high > max_high)
+         max_high = rates[i].high;
+      if(rates[i].low < min_low)
+         min_low = rates[i].low;
+     }
+   if(direction == "LONG")
+     {
+      mfe_price = max_high;
+      mae_price = min_low;
+     }
+   else
+     {
+      mfe_price = min_low;
+      mae_price = max_high;
+     }
+   return true;
+  }
+
+//+------------------------------------------------------------------+
+bool PositionStillOpen(ulong position_id)
+  {
+   int total = PositionsTotal();
+   for(int i = total - 1; i >= 0; i--)
+     {
+      ulong ticket = PositionGetTicket(i);
+      if(ticket == 0 || !PositionSelectByTicket(ticket))
+         continue;
+      if((ulong)PositionGetInteger(POSITION_IDENTIFIER) == position_id)
+         return true;
+     }
+   return false;
   }
 
 //+------------------------------------------------------------------+
@@ -196,10 +286,25 @@ string BuildDealsJson()
       double commission = HistoryDealGetDouble(deal_ticket, DEAL_COMMISSION);
       double swap = HistoryDealGetDouble(deal_ticket, DEAL_SWAP);
       datetime t = (datetime)HistoryDealGetInteger(deal_ticket, DEAL_TIME);
+      string mfe_mae_json = "";
+      datetime opened = 0;
+      double entry_px = 0;
+      string sym_mfe = sym;
+      string dir_mfe = "";
+      if(PositionEntryInfo(pos_id, opened, entry_px, sym_mfe, dir_mfe) && !PositionStillOpen(pos_id))
+        {
+         double mfe = 0, mae = 0;
+         int bars = 0;
+         if(ComputeMfeMae(sym_mfe, dir_mfe, entry_px, opened, t, mfe, mae, bars))
+           {
+            mfe_mae_json = StringFormat(",\"mfe_price\":%.8f,\"mae_price\":%.8f,\"mfe_mae_bars\":%d",
+                                        mfe, mae, bars);
+           }
+        }
       string item = StringFormat(
          "{\"external_deal_id\":\"%I64u\",\"external_position_id\":\"%I64u\",\"symbol_raw\":\"%s\","
          "\"direction\":\"%s\",\"entry_type\":\"%s\",\"volume\":%.8f,\"price\":%.8f,"
-         "\"profit\":%.2f,\"commission\":%.2f,\"swap\":%.2f,\"deal_time\":\"%s\"}",
+         "\"profit\":%.2f,\"commission\":%.2f,\"swap\":%.2f,\"deal_time\":\"%s\"%s}",
          deal_ticket,
          pos_id,
          JsonEscape(sym),
@@ -210,7 +315,8 @@ string BuildDealsJson()
          profit,
          commission,
          swap,
-         IsoUtc(t)
+         IsoUtc(t),
+         mfe_mae_json
       );
       if(StringLen(items) > 0)
          items += ",";

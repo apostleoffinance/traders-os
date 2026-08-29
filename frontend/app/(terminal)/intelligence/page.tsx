@@ -4,29 +4,68 @@ import { useCallback, useEffect, useState } from "react";
 import { api, getActiveAccountId } from "@/lib/api";
 import { AI_UNAVAILABLE_MESSAGE, useAiStatus } from "@/lib/ai";
 import { useGlobalFilters } from "@/lib/filters";
-import { globalPeriodToPreset } from "@/lib/analytics";
+import {
+  buildAnalyticsQuery,
+  filtersWithGlobalPeriod,
+  globalPeriodToPreset,
+  type AnalyticsDashboard,
+  type FilterState,
+  type IntelligenceLabPayload,
+} from "@/lib/analytics";
 import type { IntelligenceFeedResponse } from "@/lib/intelligence";
 import { IntelligenceRunner } from "@/components/IntelligenceRunner";
 import { IntelligenceFeedPanel } from "@/components/intelligence/IntelligenceFeed";
+import {
+  BehaviourIntelligenceLab,
+  ChecklistItemPanel,
+  EdgeMapPanel,
+  IntelligenceOverview,
+  PlaybookLab,
+} from "@/components/intelligence/Phase3Intelligence";
+import {
+  DecisionQualityChart,
+  DisciplineScatterPanel,
+  PsychologyBubbleMatrix,
+} from "@/components/intelligence/IntelligenceViz";
+import { AnalyticsDrilldownProvider } from "@/components/analytics/AnalyticsDrilldownContext";
+import { DrilldownFilterBar } from "@/components/analytics/primitives/DrilldownFilterBar";
 import { PeriodReview } from "@/components/PeriodReview";
 import { Alert, Panel } from "@/components/ui";
 
 export default function IntelligencePage() {
   const [accountId, setAccountId] = useState<string | null>(null);
   const [feed, setFeed] = useState<IntelligenceFeedResponse | null>(null);
-  const { filters } = useGlobalFilters();
+  const [intel, setIntel] = useState<IntelligenceLabPayload | null>(null);
+  const [dash, setDash] = useState<AnalyticsDashboard | null>(null);
+  const { filters: globalFilters } = useGlobalFilters();
+  const [applied, setApplied] = useState<FilterState>(filtersWithGlobalPeriod(globalFilters.period));
   const status = useAiStatus();
+
+  useEffect(() => {
+    const next = filtersWithGlobalPeriod(globalFilters.period, applied);
+    setApplied((prev) => (prev.preset === next.preset ? prev : { ...prev, preset: next.preset }));
+  }, [globalFilters.period, applied]);
 
   const load = useCallback(async () => {
     const id = getActiveAccountId();
     setAccountId(id);
     if (!id) {
       setFeed(null);
+      setIntel(null);
+      setDash(null);
       return;
     }
-    const preset = globalPeriodToPreset(filters.period);
-    setFeed(await api<IntelligenceFeedResponse>(`/api/intelligence/feed?account_id=${id}&preset=${preset}`));
-  }, [filters.period]);
+    const preset = globalPeriodToPreset(filtersWithGlobalPeriod(globalFilters.period, applied).preset);
+    const q = buildAnalyticsQuery(id, applied);
+    const [feedRes, intelRes, dashRes] = await Promise.all([
+      api<IntelligenceFeedResponse>(`/api/intelligence/feed?account_id=${id}&preset=${preset}`),
+      api<IntelligenceLabPayload>(`/api/analytics/intelligence?${q}`),
+      api<AnalyticsDashboard>(`/api/analytics/dashboard?${q}`),
+    ]);
+    setFeed(feedRes);
+    setIntel(intelRes);
+    setDash(dashRes);
+  }, [applied, globalFilters.period]);
 
   useEffect(() => {
     void load();
@@ -36,19 +75,26 @@ export default function IntelligencePage() {
   }, [load]);
 
   const base = accountId ? `/api/ai/accounts/${accountId}` : null;
+  const currency = dash?.account.currency ?? "USD";
 
-  return (
-    <div>
-      <p className="page-kicker">Intelligence</p>
-      <h1>Insights feed</h1>
-      <p className="muted intro">
-        Living intelligence from your journal — edge, behaviour, risk, and discipline. Every card is deterministic
-        with evidence. AI deep-dives below interpret; they never invent the numbers.
-      </p>
-
+  const body = (
+    <>
       {status && !status.available && <Alert kind="warn">{status.message ?? AI_UNAVAILABLE_MESSAGE}</Alert>}
       {!accountId && <Alert kind="info">Select an account to load the feed.</Alert>}
       {!feed && accountId && <p className="muted">Loading insights…</p>}
+
+      {intel && (
+        <div className="phase3">
+          <IntelligenceOverview intel={intel} />
+          <PsychologyBubbleMatrix intel={intel} currency={currency} />
+          <DisciplineScatterPanel intel={intel} currency={currency} />
+          <BehaviourIntelligenceLab intel={intel} />
+          <DecisionQualityChart intel={intel} />
+          <PlaybookLab intel={intel} />
+          <ChecklistItemPanel intel={intel} />
+          <EdgeMapPanel intel={intel} />
+        </div>
+      )}
 
       {feed && (
         <div className="feed-block">
@@ -87,12 +133,44 @@ export default function IntelligencePage() {
           />
         </Panel>
       </div>
+    </>
+  );
+
+  return (
+    <div>
+      <p className="page-kicker">Intelligence</p>
+      <h1>Trading Intelligence</h1>
+      <p className="muted intro">
+        Living intelligence from your journal — edge, behaviour, risk, and discipline. Every card is deterministic
+        with evidence. Click charts to drill into matching trades.
+      </p>
+
+      {accountId ? (
+        <AnalyticsDrilldownProvider
+          accountId={accountId}
+          currency={currency}
+          timezone={dash?.lab?.metadata?.timezone}
+          filters={applied}
+          onFiltersChange={setApplied}
+        >
+          {dash && <DrilldownFilterBar filters={applied} data={dash} onChange={setApplied} />}
+          {body}
+        </AnalyticsDrilldownProvider>
+      ) : (
+        body
+      )}
+
       <style jsx>{`
         .intro {
           max-width: 640px;
           margin-bottom: 16px;
         }
         .feed-block {
+          margin-bottom: 20px;
+        }
+        .phase3 {
+          display: grid;
+          gap: 14px;
           margin-bottom: 20px;
         }
         .grid {

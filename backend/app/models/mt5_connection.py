@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from decimal import Decimal
 
-from sqlalchemy import DateTime, ForeignKey, String, func
+from sqlalchemy import DateTime, ForeignKey, Numeric, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.enums import Mt5ConnectionStatus
 from app.db.base import Base
-from app.models.types import UUID_PK
+from app.models.types import MONEY, PRICE, QTY, UUID_PK
 
 
 class Mt5Connection(Base):
@@ -51,4 +52,9 @@ class Mt5ProcessedDeal(Base):
     trade_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID_PK, ForeignKey("trades.id", ondelete="SET NULL"), nullable=True
     )
+    volume: Mapped[Decimal | None] = mapped_column(QTY, nullable=True)
+    price: Mapped[Decimal | None] = mapped_column(PRICE, nullable=True)
+    profit: Mapped[Decimal | None] = mapped_column(MONEY, nullable=True)
+    commission: Mapped[Decimal | None] = mapped_column(MONEY, nullable=True)
+    swap: Mapped[Decimal | None] = mapped_column(MONEY, nullable=True)
     processed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
