@@ -10,7 +10,7 @@ export function colorForPnl(C: ChartPalette, value: number | string | null | und
   return n > 0 ? C.pos : C.neg;
 }
 
-/** Green = long · Red = short */
+/** Green = long · Sky blue = short (direction only — not profit/loss) */
 export function colorForDirection(C: ChartPalette, direction: string | null | undefined): string {
   const d = (direction ?? "").toLowerCase();
   if (d === "long") return C.long;

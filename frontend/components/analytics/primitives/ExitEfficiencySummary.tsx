@@ -56,7 +56,7 @@ export function ExitEfficiencySummary({ medianCapturePct }: { medianCapturePct: 
           color: var(--text-muted);
         }
         .band {
-          font-size: 22px;
+          font-size: 18px;
           line-height: 1.2;
         }
         .pct {

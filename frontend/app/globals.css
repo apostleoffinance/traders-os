@@ -31,6 +31,8 @@
   --info-bg: #e8f0f8;
   --blue: #3b6ea8;
   --blue-bg: #e8f0f8;
+  --direction-long: #087f5b;
+  --direction-short: #2b6cb0;
   --rail-bg: #111714;
   --rail-text: #f1f5f3;
   --rail-muted: #9aa7a0;
@@ -79,6 +81,8 @@
   --info-bg: #152033;
   --blue: #6ea8fe;
   --blue-bg: #152033;
+  --direction-long: #18b981;
+  --direction-short: #4a90c4;
   --rail-bg: #0d1210;
   --rail-text: #f1f5f3;
   --rail-muted: #9aa7a0;

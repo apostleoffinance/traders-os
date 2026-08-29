@@ -137,7 +137,7 @@ export function OverviewBestTrades({ data }: { data: AnalyticsDashboard }) {
         }
         .section-title {
           margin: 0 0 4px;
-          font-size: 18px;
+          font-size: 15px;
         }
         .section-lead {
           margin: 0 0 14px;

@@ -45,7 +45,8 @@ export function QuantLabIntro() {
         }
         .title {
           margin: 0 0 6px;
-          font-size: 20px;
+          font-size: 16px;
+          font-weight: 600;
         }
         .lead {
           margin: 0 0 6px;

@@ -65,7 +65,8 @@ export function AnalyticsTabIntro({ page }: { page: AnalyticsPageId }) {
         }
         .title {
           margin: 0 0 4px;
-          font-size: 20px;
+          font-size: 16px;
+          font-weight: 600;
         }
         .lead {
           margin: 0 0 6px;

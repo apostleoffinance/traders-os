@@ -174,7 +174,7 @@ export function ResearchIntelligenceLab({
           margin-bottom: 16px;
         }
         .score .value {
-          font-size: 42px;
+          font-size: 30px;
           font-weight: 700;
           line-height: 1;
         }

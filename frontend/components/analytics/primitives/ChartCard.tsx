@@ -71,9 +71,9 @@ export function ChartCard({
           gap: 8px;
         }
         .question {
-          font-size: 14px;
-          font-weight: 500;
-          color: var(--text-primary);
+          font-size: 13px;
+          font-weight: 400;
+          color: var(--text-muted);
           margin: 0 0 6px;
           line-height: 1.4;
         }

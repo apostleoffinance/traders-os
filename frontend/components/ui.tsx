@@ -89,7 +89,7 @@ export function Stat({
           font-weight: 600;
         }
         .value {
-          font-size: 22px;
+          font-size: 19px;
           font-weight: 600;
           line-height: 1.2;
           word-break: break-word;
@@ -104,7 +104,7 @@ export function Stat({
           overflow: hidden;
         }
         .value.compact {
-          font-size: 17px;
+          font-size: 16px;
           font-weight: 600;
         }
         .hint {

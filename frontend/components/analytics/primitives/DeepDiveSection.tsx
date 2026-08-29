@@ -56,7 +56,7 @@ export function DeepDiveSection({
           font-weight: 400;
         }
         .chev {
-          font-size: 18px;
+          font-size: 16px;
           color: var(--text-muted);
           flex-shrink: 0;
         }

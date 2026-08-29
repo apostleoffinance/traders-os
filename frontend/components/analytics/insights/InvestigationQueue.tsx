@@ -120,7 +120,7 @@ export function InvestigationQueue({
         }
         .title {
           margin: 0 0 4px;
-          font-size: 18px;
+          font-size: 15px;
         }
         .lead {
           margin: 0 0 14px;

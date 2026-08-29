@@ -536,7 +536,7 @@ function PayoffComparison({
           color: var(--muted);
         }
         .ratio strong {
-          font-size: 28px;
+          font-size: 20px;
           font-family: var(--font-mono), monospace;
         }
         .muted {
