@@ -139,6 +139,29 @@ class QuantResearchResponse(BaseModel):
     confidence: EvidenceConfidence
 
 
+class ReportObservation(BaseModel):
+    category: Literal["performance", "risk", "execution", "behavior", "playbook", "edge"]
+    observation: str
+    confidence: EvidenceConfidence
+    evidence: list[str] = Field(default_factory=list)
+
+
+class ReportRecommendation(BaseModel):
+    text: str
+    evidence: list[str] = Field(default_factory=list)
+
+
+class ReportIntelligenceResponse(BaseModel):
+    period_label: str
+    executive_summary: str
+    key_observations: list[ReportObservation] = Field(default_factory=list)
+    keep: list[ReportRecommendation] = Field(default_factory=list)
+    review: list[ReportRecommendation] = Field(default_factory=list)
+    reduce: list[ReportRecommendation] = Field(default_factory=list)
+    data_limitations: list[str] = Field(default_factory=list)
+    confidence: EvidenceConfidence
+
+
 SCHEMA_BY_TYPE: dict[str, type[BaseModel]] = {
     "trade_review": TradeReviewResponse,
     "journal_summary": JournalSummaryResponse,
@@ -150,4 +173,5 @@ SCHEMA_BY_TYPE: dict[str, type[BaseModel]] = {
     "coach": CoachResponse,
     "challenge_trade": ChallengeTradeResponse,
     "quant_research": QuantResearchResponse,
+    "report_intelligence": ReportIntelligenceResponse,
 }

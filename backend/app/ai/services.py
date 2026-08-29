@@ -18,8 +18,10 @@ from app.ai.prompts import (
     PATTERN_PROMPT,
     PERIOD_PROMPT,
     QUANT_RESEARCH_PROMPT,
+    REPORT_INTELLIGENCE_PROMPT,
     TRADE_REVIEW_PROMPT,
 )
+from app.ai.report_context import build_report_ai_context
 from app.models.ai import AIAnalysis, AIMemory
 from app.models.user import User
 from app.services.access import get_owned_account, get_owned_trade
@@ -166,6 +168,28 @@ def quant_research(db: Session, user: User, account_id: UUID, force: bool = Fals
 
 def coach(db: Session, user: User, account_id: UUID, force: bool = False) -> dict:
     return _account_run(db, user, account_id, "coach", COACH_PROMPT, force)
+
+
+def report_intelligence(
+    db: Session,
+    user: User,
+    account_id: UUID,
+    report: dict,
+    *,
+    force: bool = False,
+) -> dict:
+    """AI interpretation layer — explains deterministic report findings only."""
+    get_owned_account(db, user.id, account_id)
+    ctx = build_report_ai_context(report)
+    return run_analysis(
+        db,
+        user_id=user.id,
+        account_id=account_id,
+        analysis_type="report_intelligence",
+        task_prompt=REPORT_INTELLIGENCE_PROMPT,
+        context=ctx,
+        force=force,
+    )
 
 
 def refresh_validated_memories(db: Session, user_id: UUID, account_id: UUID, ctx: dict) -> None:

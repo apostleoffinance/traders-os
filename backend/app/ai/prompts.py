@@ -91,3 +91,16 @@ If evidence_level is INSUFFICIENT or EXPLORATORY, say so explicitly.
 Do not recommend trades, setups, or sessions as profit tactics.
 Use 'associated with', 'historically', and 'worth investigating'.
 """
+
+REPORT_INTELLIGENCE_PROMPT = """Interpret the Performance Intelligence Report findings supplied in context.
+
+All numbers in scorecard, performance_findings, risk_findings, edge_findings, and comparison_findings are authoritative — never recalculate or override them.
+period_label must echo context.period_label.
+executive_summary: 2–4 sentences synthesizing what happened, process quality vs outcome, and sample confidence.
+key_observations: 3–8 evidence-backed observations. Each must cite figures from context in the evidence list.
+keep / review / reduce: process-focused recommendations only (risk, behavior, research, journaling). Never buy/sell/enter/exit language.
+Align with deterministic_recommendations where they exist — you may rephrase but do not contradict evidence.
+If confidence.level is INSUFFICIENT_SAMPLE or n is below guardrails.min_sample_research, avoid strong conclusions.
+data_limitations: call out missing fields, small samples, or incomplete journal data from data_quality.
+Distinguish good process from lucky outcomes using decision_quality when relevant.
+"""

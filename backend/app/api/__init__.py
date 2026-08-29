@@ -14,6 +14,7 @@ from app.api.catalog import (
 from app.api.calculator import router as calculator_router
 from app.api.intelligence import router as intelligence_router
 from app.api.quant_lab import quant_lab_router
+from app.api.reports import reports_router
 from app.api.push import router as push_router
 from app.api.trades import router as trades_router
 from app.integrations.mt5.router import router as mt5_router
@@ -36,3 +37,4 @@ api_router.include_router(intelligence_router)
 api_router.include_router(calculator_router)
 api_router.include_router(mt5_router)
 api_router.include_router(quant_lab_router)
+api_router.include_router(reports_router)
