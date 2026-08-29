@@ -221,12 +221,13 @@ function QuantLab() {
         .grid-stack {
           display: flex;
           flex-direction: column;
-          gap: 16px;
+          gap: 20px;
         }
         .two-col {
           display: grid;
           grid-template-columns: 1fr 1fr;
-          gap: 16px;
+          gap: 20px;
+          align-items: start;
         }
         .disclaimer {
           margin-top: 24px;

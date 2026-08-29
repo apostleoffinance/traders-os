@@ -44,7 +44,13 @@ export function ChartCard({
       </Panel>
       <style jsx>{`
         .chart-card {
-          margin-bottom: 20px;
+          margin-bottom: 24px;
+        }
+        .chart-card :global(.panel) {
+          margin-bottom: 0;
+        }
+        .chart-card :global(.kpi-grid) {
+          margin-bottom: 4px;
         }
         .right {
           display: flex;

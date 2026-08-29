@@ -11,8 +11,8 @@ import {
   FlaskConical,
   History,
   LayoutDashboard,
-  PanelLeftClose,
-  PanelLeftOpen,
+  ChevronsLeft,
+  ChevronsRight,
   PlusCircle,
   Settings,
   ShieldAlert,
@@ -196,9 +196,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
               title={toggleLabel}
             >
               {collapsedMode ? (
-                <PanelLeftOpen size={18} strokeWidth={1.75} aria-hidden />
+                <ChevronsRight size={18} strokeWidth={2} aria-hidden />
               ) : (
-                <PanelLeftClose size={18} strokeWidth={1.75} aria-hidden />
+                <ChevronsLeft size={18} strokeWidth={2} aria-hidden />
               )}
             </button>
           )}
@@ -386,41 +386,42 @@ export function Shell({ children }: { children: React.ReactNode }) {
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          width: 36px;
-          height: 36px;
+          width: 34px;
+          height: 34px;
           margin: 0 4px;
           padding: 0;
-          border: 1px solid var(--rail-toggle-border, var(--rail-border, var(--border)));
-          border-radius: 8px;
+          border: none;
+          border-radius: var(--radius-sm);
           appearance: none;
           -webkit-appearance: none;
-          background: var(--rail-toggle-bg, transparent);
-          color: var(--rail-toggle-fg, var(--rail-muted));
+          background: transparent;
+          color: var(--rail-muted);
           cursor: pointer;
           flex-shrink: 0;
           -webkit-tap-highlight-color: transparent;
           transition:
             background-color 160ms ease,
-            color 160ms ease,
-            border-color 160ms ease,
-            box-shadow 160ms ease;
+            color 160ms ease;
         }
         .sidebar-toggle :global(svg) {
           display: block;
           color: inherit;
           stroke: currentColor;
           fill: none;
+          opacity: 0.88;
         }
         .brand-block-collapsed .sidebar-toggle {
           margin: 0;
         }
         .sidebar-toggle:hover {
-          background: var(--rail-toggle-hover-bg, var(--rail-hover));
-          color: var(--rail-toggle-hover-fg, var(--rail-text));
-          border-color: color-mix(in srgb, var(--accent) 35%, var(--rail-toggle-border, var(--rail-border)));
+          background: var(--rail-hover);
+          color: var(--rail-text);
+        }
+        .sidebar-toggle:hover :global(svg) {
+          opacity: 1;
         }
         .sidebar-toggle:active {
-          background: color-mix(in srgb, var(--accent) 8%, var(--rail-hover));
+          background: color-mix(in srgb, var(--accent) 12%, var(--rail-hover));
         }
         .sidebar-toggle:focus-visible {
           outline: 2px solid var(--accent);

@@ -1,13 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { Panel, Stat } from "@/components/ui";
+import { Panel, Stat, KpiGrid } from "@/components/ui";
 import { Empty, useLiveChart } from "@/components/analytics/Charts";
 import { ChartCard } from "@/components/analytics/primitives/ChartCard";
 import { InteractiveChart } from "@/components/analytics/primitives/InteractiveChart";
 import type { QuantLabPayload } from "@/lib/quant";
-import { EVIDENCE_LABELS } from "@/lib/quant";
+import { EVIDENCE_LABELS, EVIDENCE_SHORT_LABELS } from "@/lib/quant";
 import { num, signed, tone } from "@/lib/format";
+
+const CHART_GRID = { left: 52, right: 20, top: 32, bottom: 44 } as const;
+
+function monteCarloLabel(status: string): { value: string; hint?: string } {
+  if (status === "AWAITING_RUN") return { value: "Ready", hint: "Run simulation in Simulation tab" };
+  return { value: status.replace(/_/g, " ") };
+}
 
 function EvidenceBadge({ sample }: { sample: { evidence_level: string; sample_size: number; message: string } }) {
   const n = sample.sample_size;
@@ -74,9 +81,12 @@ export function QuantOverviewPanel({ data }: { data: QuantLabPayload }) {
     );
   }
 
+  const mc = monteCarloLabel(es.monte_carlo_status);
+  const evidenceLevel = ov.sample_policy.evidence_level as keyof typeof EVIDENCE_SHORT_LABELS;
+
   return (
     <Panel title="Edge overview" right={<EvidenceBadge sample={ov.sample_policy} />}>
-      <div className="kpis">
+      <KpiGrid>
         <Stat
           label="Observed expectancy"
           value={es.observed_expectancy_r ? `${signed(es.observed_expectancy_r)}R` : exp.expectancy_currency ?? "—"}
@@ -89,25 +99,25 @@ export function QuantOverviewPanel({ data }: { data: QuantLabPayload }) {
           tone={tone(es.recent_expectancy_r ?? "0")}
           hint="Last 30 trades"
         />
-        <Stat label="Sample size" value={`${n} trades`} />
-        <Stat label="Evidence level" value={EVIDENCE_LABELS[ov.sample_policy.evidence_level]} />
+        <Stat label="Sample size" value={String(n)} size="compact" hint={`${n} trade${n === 1 ? "" : "s"}`} />
+        <Stat
+          label="Evidence level"
+          size="label"
+          value={EVIDENCE_SHORT_LABELS[evidenceLevel] ?? evidenceLevel}
+          hint={EVIDENCE_LABELS[evidenceLevel]}
+        />
         <Stat label="Max drawdown" value={es.max_drawdown_r ? `${num(es.max_drawdown_r)}R` : es.max_drawdown_currency ?? "—"} tone="neg" />
         <Stat
           label="Outlier dependency"
           value={es.outlier_dependency_pct ? `${num(es.outlier_dependency_pct, 1)}%` : "—"}
           hint={es.outlier_dependency_level ?? undefined}
         />
-        <Stat label="Monte Carlo" value={es.monte_carlo_status === "AWAITING_RUN" ? "Ready to run" : es.monte_carlo_status} />
-      </div>
+        <Stat label="Monte Carlo" size="label" value={mc.value} hint={mc.hint} />
+      </KpiGrid>
       <p className="muted">{ov.sample_policy.message}</p>
       <style jsx>{`
-        .kpis {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-          gap: 14px 16px;
-        }
         .muted {
-          margin-top: 10px;
+          margin-top: 12px;
           font-size: 13px;
           color: var(--muted);
         }
@@ -127,26 +137,30 @@ export function ExpectancyEnginePanel({ data }: { data: QuantLabPayload }) {
   return (
     <>
       <Panel title="Expectancy engine" right={<EvidenceBadge sample={exp.sample} />}>
-        <div className="kpis">
+        <KpiGrid>
           <Stat label="Win rate" value={exp.win_rate ? `${num(exp.win_rate, 1)}%` : "—"} />
           <Stat label="Average win" value={exp.average_win ?? "—"} tone="pos" />
           <Stat label="Average loss" value={exp.average_loss ?? "—"} tone="neg" />
-          <Stat label="Payoff ratio" value={pay.payoff_ratio_r ? num(pay.payoff_ratio_r) : pay.note ?? "N/A"} />
+          <Stat
+            label="Payoff ratio"
+            value={pay.payoff_ratio_r ? num(pay.payoff_ratio_r) : "—"}
+            hint={pay.payoff_ratio_r ? undefined : pay.note ?? "Not available for this sample"}
+          />
           <Stat label="Expectancy R" value={exp.expectancy_r ? `${signed(exp.expectancy_r)}R` : "—"} tone={tone(exp.expectancy_r ?? "0")} />
-        </div>
-        {pay.note && <p className="muted">{pay.note}</p>}
+        </KpiGrid>
       </Panel>
 
       <Panel title="Win rate confidence · Wilson score interval">
         {ci.available ? (
           <>
-            <div className="kpis">
+            <KpiGrid>
               <Stat label="Observed" value={ci.observed ? `${num(ci.observed, 1)}%` : "—"} />
               <Stat
                 label={`${Math.round((ci.confidence_level ?? 0.95) * 100)}% interval`}
+                size="compact"
                 value={ci.lower_bound && ci.upper_bound ? `${num(ci.lower_bound, 1)}% — ${num(ci.upper_bound, 1)}%` : "—"}
               />
-            </div>
+            </KpiGrid>
             <p className="muted">{ci.note}</p>
           </>
         ) : (
@@ -157,18 +171,19 @@ export function ExpectancyEnginePanel({ data }: { data: QuantLabPayload }) {
       <ChartCard title="Bootstrap expectancy R · BOOTSTRAPPED ESTIMATE" interactive>
         {boot.available ? (
           <>
-            <div className="kpis">
+            <KpiGrid>
               <Stat label="Observed" value={boot.point_estimate ? `${signed(boot.point_estimate)}R` : "—"} hint="point" />
               <Stat label="Bootstrap median" value={boot.median ? `${signed(boot.median)}R` : "—"} />
               <Stat
                 label="95% range"
+                size="compact"
                 value={
                   boot.confidence_interval.lower && boot.confidence_interval.upper
                     ? `${signed(boot.confidence_interval.lower)}R → ${signed(boot.confidence_interval.upper)}R`
                     : "—"
                 }
               />
-            </div>
+            </KpiGrid>
             {boot.histogram && boot.histogram.length > 0 && (
               <BootstrapHistogramChart
                 histogram={boot.histogram}
@@ -184,7 +199,7 @@ export function ExpectancyEnginePanel({ data }: { data: QuantLabPayload }) {
       </ChartCard>
 
       <Panel title={`Edge stability · ${data.edge.edge_stability.label}`}>
-        <div className="kpis">
+        <KpiGrid>
           <Stat
             label="Historical expectancy R"
             value={
@@ -209,18 +224,13 @@ export function ExpectancyEnginePanel({ data }: { data: QuantLabPayload }) {
                 : "—"
             }
           />
-        </div>
+        </KpiGrid>
         <p className="muted">{data.edge.edge_stability.disclaimer}</p>
       </Panel>
 
       <style jsx>{`
-        .kpis {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-          gap: 14px 16px;
-        }
         .muted {
-          margin-top: 10px;
+          margin-top: 12px;
           font-size: 13px;
           color: var(--muted);
         }
@@ -238,7 +248,7 @@ export function DrawdownPanel({ data }: { data: QuantLabPayload }) {
     curve.length > 1
       ? {
           ...chart,
-          grid: { left: 48, right: 16, top: 24, bottom: 32 },
+          grid: CHART_GRID,
           tooltip: { trigger: "axis" as const },
           xAxis: { type: "category" as const, data: curve.map((p) => p.at.slice(0, 10)), axisLabel: { fontSize: 10 } },
           yAxis: { type: "value" as const, name: "Drawdown" },
@@ -257,7 +267,7 @@ export function DrawdownPanel({ data }: { data: QuantLabPayload }) {
   return (
     <>
       <Panel title="Maximum drawdown">
-        <div className="kpis">
+        <KpiGrid>
           <Stat label="Max DD (currency)" value={dd.currency.max_drawdown ?? "—"} tone="neg" />
           <Stat label="Max DD (R)" value={dd.r_multiple.max_drawdown_r ? `${num(dd.r_multiple.max_drawdown_r)}R` : "—"} tone="neg" />
           <Stat label="Current DD" value={dd.currency.current_drawdown ?? "—"} tone="neg" />
@@ -266,24 +276,19 @@ export function DrawdownPanel({ data }: { data: QuantLabPayload }) {
             label="Recovery factor"
             value={dd.recovery_factor_r.recovery_factor ? num(dd.recovery_factor_r.recovery_factor) : "—"}
           />
-        </div>
+        </KpiGrid>
         {dd.ulcer_index.note && <p className="muted">{dd.ulcer_index.note}</p>}
       </Panel>
 
       {option && (
         <ChartCard title="Underwater equity" subtitle="Drawdown depth over time" interactive>
-          <InteractiveChart option={option} height={280} showHint={false} />
+          <InteractiveChart option={option} height={280} showHint={false} className="chart-spaced" />
         </ChartCard>
       )}
 
       <style jsx>{`
-        .kpis {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-          gap: 14px 16px;
-        }
         .muted {
-          margin-top: 8px;
+          margin-top: 12px;
           font-size: 13px;
           color: var(--muted);
         }
@@ -304,7 +309,7 @@ export function RollingPanel({ data }: { data: QuantLabPayload }) {
     points.length > 0
       ? {
           ...chart,
-          grid: { left: 48, right: 16, top: 24, bottom: 32 },
+          grid: CHART_GRID,
           tooltip: {
             trigger: "axis" as const,
             formatter: (params: { dataIndex: number }[]) => {
@@ -334,7 +339,7 @@ export function RollingPanel({ data }: { data: QuantLabPayload }) {
         </div>
       }
     >
-      {option ? <InteractiveChart option={option} height={300} showHint={false} /> : <Empty>Insufficient trades for rolling window {window}.</Empty>}
+      {option ? <InteractiveChart option={option} height={300} showHint={false} className="chart-spaced" /> : <Empty>Insufficient trades for rolling window {window}.</Empty>}
       <style jsx>{`
         .window-picks {
           display: flex;
@@ -362,7 +367,7 @@ export function StreakPanel({ data }: { data: QuantLabPayload }) {
   const { C } = useLiveChart();
   const dist = s.loss_streak_distribution;
   const lossOpt = {
-    grid: { left: 36, right: 12, top: 12, bottom: 28 },
+    grid: { left: 40, right: 16, top: 28, bottom: 36 },
     tooltip: { trigger: "axis" },
     xAxis: { type: "category", data: dist.map((d) => d.label), axisLabel: { fontSize: 10 } },
     yAxis: { type: "value", name: "Occurrences", splitLine: { lineStyle: { color: C.line } } },
@@ -372,22 +377,19 @@ export function StreakPanel({ data }: { data: QuantLabPayload }) {
   return (
     <ChartCard title="Loss streak distribution" subtitle="Historical loss streak lengths — not a stop-trading rule." interactive>
       {dist.some((d) => d.occurrences > 0) ? (
-        <InteractiveChart option={lossOpt} height={200} showHint={false} />
+        <InteractiveChart option={lossOpt} height={220} showHint={false} className="chart-spaced" />
       ) : (
         <Empty>No loss streaks in this sample.</Empty>
       )}
-      <div className="kpis">
+      <KpiGrid>
         <Stat label="Longest win streak" value={String(s.longest.wins)} />
         <Stat label="Longest loss streak" value={String(s.longest.losses)} />
         <Stat label="Current wins" value={String(s.current.wins)} />
         <Stat label="Current losses" value={String(s.current.losses)} />
-      </div>
+      </KpiGrid>
       <style jsx>{`
-        .kpis {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-          gap: 12px;
-          margin-top: 16px;
+        :global(.chart-spaced) {
+          margin-top: 4px;
         }
       `}</style>
     </ChartCard>
@@ -405,7 +407,7 @@ export function DistributionPanel({ data }: { data: QuantLabPayload }) {
     primary.histogram.length > 0
       ? {
           ...chart,
-          grid: { left: 48, right: 16, top: 24, bottom: 40 },
+          grid: CHART_GRID,
           tooltip: { trigger: "axis" as const },
           xAxis: {
             type: "category" as const,
@@ -433,14 +435,14 @@ export function DistributionPanel({ data }: { data: QuantLabPayload }) {
         evidenceLabel={EVIDENCE_LABELS[primary.sample.evidence_level as keyof typeof EVIDENCE_LABELS] ?? primary.sample.evidence_level}
         interactive
       >
-        <div className="kpis">
+        <KpiGrid>
           <Stat label="Mean" value={primary.core.mean ? `${primary.core.mean}${unit}` : "—"} />
           <Stat label="Median" value={primary.core.median ? `${primary.core.median}${unit}` : "—"} />
           <Stat label="Std dev" value={primary.core.stdev ? num(primary.core.stdev) : "—"} />
           <Stat label="P25" value={primary.core.percentiles.p25 ? `${primary.core.percentiles.p25}${unit}` : "—"} />
           <Stat label="P75" value={primary.core.percentiles.p75 ? `${primary.core.percentiles.p75}${unit}` : "—"} />
-        </div>
-        {option && <InteractiveChart option={option} height={260} showHint={false} />}
+        </KpiGrid>
+        {option && <InteractiveChart option={option} height={260} showHint={false} className="chart-spaced" />}
         <p className="muted">{dist.note}</p>
       </ChartCard>
 
@@ -467,13 +469,8 @@ export function DistributionPanel({ data }: { data: QuantLabPayload }) {
       </Panel>
 
       <style jsx>{`
-        .kpis {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-          gap: 12px;
-        }
         .muted {
-          margin-top: 10px;
+          margin-top: 12px;
           font-size: 13px;
           color: var(--muted);
         }
@@ -506,23 +503,23 @@ export function OutlierDependencyPanel({ data }: { data: QuantLabPayload }) {
 
   return (
     <Panel title="Outlier dependency" right={<EvidenceBadge sample={o.sample} />}>
-      <div className="kpis">
+      <KpiGrid>
         <Stat label="Total net profit" value={o.total_net_profit} />
         <Stat label="Top 5 contribution" value={o.contributions.top_5?.pct_of_net_profit ? `${num(o.contributions.top_5.pct_of_net_profit, 1)}%` : "—"} />
-        <Stat label="Dependency level" value={level} hint="Top 5 share of net profit" />
-      </div>
-      <div className="grid2" style={{ marginTop: 16 }}>
+        <Stat label="Dependency level" size="label" value={level} hint="Top 5 share of net profit" />
+      </KpiGrid>
+      <div className="grid2">
         <Stat label="Without top 1 · expectancy R" value={o.performance_without_outliers.without_top_1?.expectancy_r ? `${signed(o.performance_without_outliers.without_top_1.expectancy_r)}R` : "—"} />
         <Stat label="Without top 3 · expectancy R" value={o.performance_without_outliers.without_top_3?.expectancy_r ? `${signed(o.performance_without_outliers.without_top_3.expectancy_r)}R` : "—"} />
         <Stat label="Without top 5 · expectancy R" value={o.performance_without_outliers.without_top_5?.expectancy_r ? `${signed(o.performance_without_outliers.without_top_5.expectancy_r)}R` : "—"} />
       </div>
       <p className="muted">{o.disclaimer}</p>
       <style jsx>{`
-        .kpis,
         .grid2 {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-          gap: 12px;
+          grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+          gap: 16px 20px;
+          margin-top: 16px;
         }
         .muted {
           margin-top: 12px;
@@ -661,7 +658,7 @@ export function RobustnessLab({ data }: { data: QuantLabPayload }) {
         .stack {
           display: flex;
           flex-direction: column;
-          gap: 16px;
+          gap: 20px;
         }
       `}</style>
     </div>
@@ -679,7 +676,7 @@ function BootstrapHistogramChart({
 }) {
   const { C } = useLiveChart();
   const option = {
-    grid: { left: 48, right: 16, top: 20, bottom: 40 },
+    grid: { left: 52, right: 20, top: 28, bottom: 44 },
     tooltip: { trigger: "axis" },
     xAxis: {
       type: "category",
@@ -702,10 +699,10 @@ function BootstrapHistogramChart({
         Bootstrap distribution · observed {observed ? `${signed(observed)}R` : "—"}
         {ci.lower && ci.upper ? ` · ${Math.round(ci.level * 100)}% CI ${signed(ci.lower)}R → ${signed(ci.upper)}R` : ""}
       </p>
-      <InteractiveChart option={option} height={240} showHint={false} />
+      <InteractiveChart option={option} height={240} showHint={false} className="chart-spaced" />
       <style jsx>{`
         .boot-hist {
-          margin-top: 12px;
+          margin-top: 16px;
         }
         .muted {
           font-size: 12px;

@@ -420,6 +420,14 @@ export function buildQuantQuery(accountId: string, f: FilterState): string {
   return buildAnalyticsQuery(accountId, f);
 }
 
+export const EVIDENCE_SHORT_LABELS: Record<SamplePolicy["evidence_level"], string> = {
+  INSUFFICIENT: "Insufficient",
+  EXPLORATORY: "Exploratory",
+  MODERATE: "Moderate",
+  STRONGER: "Stronger",
+  HIGHER_EVIDENCE: "Higher",
+};
+
 export const EVIDENCE_LABELS: Record<SamplePolicy["evidence_level"], string> = {
   INSUFFICIENT: "Insufficient evidence",
   EXPLORATORY: "Exploratory",

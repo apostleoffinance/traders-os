@@ -48,28 +48,40 @@ export function Panel({
   );
 }
 
+export type StatSize = "metric" | "label" | "compact";
+
+function resolveStatSize(value: React.ReactNode, size?: StatSize): StatSize {
+  if (size) return size;
+  if (typeof value === "string" && value.length > 22) return "label";
+  return "metric";
+}
+
 export function Stat({
   label,
   value,
   tone,
   hint,
+  size,
 }: {
   label: string;
   value: React.ReactNode;
   tone?: "pos" | "neg" | "warn" | "ok" | "";
   hint?: string;
+  /** metric = large numbers (default); label = status text; compact = mid-size counts */
+  size?: StatSize;
 }) {
+  const resolved = resolveStatSize(value, size);
   return (
     <div className="stat">
       <div className="label">{label}</div>
-      <div className={cls("num value", tone)}>{value}</div>
+      <div className={cls("num value", tone, resolved)}>{value}</div>
       {hint && <div className="hint">{hint}</div>}
       <style jsx>{`
         .stat {
           min-width: 0;
         }
         .label {
-          font-size: 13px;
+          font-size: 11px;
           letter-spacing: 0.08em;
           text-transform: uppercase;
           color: var(--text-secondary);
@@ -79,15 +91,35 @@ export function Stat({
         .value {
           font-size: 22px;
           font-weight: 600;
+          line-height: 1.2;
+          word-break: break-word;
+        }
+        .value.label {
+          font-size: 15px;
+          font-weight: 600;
+          line-height: 1.35;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+        .value.compact {
+          font-size: 17px;
+          font-weight: 600;
         }
         .hint {
-          margin-top: 2px;
-          font-size: 13px;
+          margin-top: 4px;
+          font-size: 12px;
+          line-height: 1.4;
           color: var(--text-secondary);
         }
       `}</style>
     </div>
   );
+}
+
+export function KpiGrid({ children }: { children: React.ReactNode }) {
+  return <div className="kpi-grid">{children}</div>;
 }
 
 export function Badge({ status }: { status: string }) {

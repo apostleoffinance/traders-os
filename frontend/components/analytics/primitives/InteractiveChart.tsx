@@ -30,10 +30,10 @@ export function InteractiveChart({
   };
 
   return (
-    <div className={className ?? "chart-wrap"}>
+    <div className={className ? `chart-wrap ${className}` : "chart-wrap"}>
       <ReactECharts
         option={interactiveOption}
-        style={{ height }}
+        style={{ height, width: "100%" }}
         notMerge
         lazyUpdate
         onEvents={
@@ -46,12 +46,9 @@ export function InteractiveChart({
       />
       {onChartClick && showHint && <p className="click-hint muted">{CHART_INTERACTIVE_HINT}</p>}
       <style jsx>{`
-        .chart-wrap {
-          width: 100%;
-        }
         .click-hint {
           font-size: 11px;
-          margin: 6px 0 0;
+          margin: 8px 0 0;
         }
       `}</style>
     </div>
