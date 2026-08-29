@@ -11,6 +11,8 @@ import {
 } from "@/lib/analytics";
 import { filterForDateRange, filterForSingleDay } from "@/lib/analytics-drilldown";
 import { linearRegression } from "@/lib/chart-regression";
+import { getAnalyticsDefinition } from "@/lib/analytics/registry";
+import { ScatterQuadrantGuide } from "@/components/analytics/primitives/ScatterQuadrantGuide";
 import { useOptionalAnalyticsDrilldown } from "@/components/analytics/AnalyticsDrilldownContext";
 import { ChartCard } from "@/components/analytics/primitives/ChartCard";
 import { InteractiveChart } from "@/components/analytics/primitives/InteractiveChart";
@@ -237,18 +239,46 @@ export function Scatters({ data }: { data: AnalyticsDashboard }) {
     }
   }
 
+  const riskDef = getAnalyticsDefinition("risk_vs_result");
+
   return (
     <div className="two">
-      <ChartCard title="Risk vs result" subtitle="Each point is a trade. Dashed line is descriptive trend only." interactive>
+      <ChartCard
+        title={riskDef?.title ?? "Risk vs result"}
+        question={riskDef?.primaryQuestion}
+        tier={riskDef?.tier}
+        subtitle="Each point is a trade. Dashed line is descriptive trend only."
+        interactive
+      >
         {risk.length ? (
-          <InteractiveChart option={riskOpt} height={280} showHint={false} onChartClick={handleTradeClick} />
+          <>
+            <ScatterQuadrantGuide
+              xLabel="Risk %"
+              yLabel="Realized R"
+              quadrants={[
+                { position: "Upper-left", meaning: "Lower risk with positive R." },
+                { position: "Lower-right", meaning: "Higher risk with negative R." },
+              ]}
+            />
+            <InteractiveChart option={riskOpt} height={280} showHint={false} onChartClick={handleTradeClick} />
+          </>
         ) : (
           <Empty>No closed trades with risk data.</Empty>
         )}
       </ChartCard>
-      <ChartCard title="Holding time vs result" subtitle="Investigate over-holding losers or cutting winners early." interactive>
+      <ChartCard title="Holding time vs result" question="Do I over-hold losers or cut winners early?" tier="deep_dive" subtitle="Minutes held vs realized R per trade." interactive>
         {hold.length ? (
-          <InteractiveChart option={holdOpt} height={280} showHint={false} onChartClick={handleTradeClick} />
+          <>
+            <ScatterQuadrantGuide
+              xLabel="Hold time (minutes)"
+              yLabel="Realized R"
+              quadrants={[
+                { position: "Upper-left", meaning: "Short hold with positive R." },
+                { position: "Lower-right", meaning: "Long hold with negative R — check exit discipline." },
+              ]}
+            />
+            <InteractiveChart option={holdOpt} height={280} showHint={false} onChartClick={handleTradeClick} />
+          </>
         ) : (
           <Empty>No holding times recorded.</Empty>
         )}
@@ -365,7 +395,15 @@ export function MonthlyRolling({ data }: { data: AnalyticsDashboard }) {
     tooltip: { trigger: "axis" },
     xAxis: { type: "category", data: roll.map((p) => p.at.slice(0, 10)), axisLabel: { fontSize: 10 } },
     yAxis: { type: "value", name: "Exp R", splitLine: { lineStyle: { color: C.line } } },
-    series: [{ type: "line", showSymbol: false, data: roll.map((p) => Number(p.expectancy_r)), lineStyle: { color: C.blue, width: 1.5 } }],
+    visualMap: {
+      show: false,
+      dimension: 1,
+      pieces: [
+        { gte: 0, color: C.pos },
+        { lt: 0, color: C.neg },
+      ],
+    },
+    series: [{ type: "line", showSymbol: false, data: roll.map((p) => Number(p.expectancy_r)), lineStyle: { width: 1.5 } }],
   };
   return (
     <div className="two">

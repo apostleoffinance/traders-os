@@ -1,94 +1,49 @@
 "use client";
 
-import { Stat } from "@/components/ui";
-import { MetricCard } from "@/components/analytics/primitives/MetricCard";
-import { ChartCard } from "@/components/analytics/primitives/ChartCard";
-import { money, num, signed, tone } from "@/lib/format";
+import { useMemo } from "react";
+import { OverviewScorecard } from "@/components/analytics/overview/OverviewScorecard";
+import { OverviewEquityHero } from "@/components/analytics/overview/OverviewEquityHero";
+import { HowYouWinSection } from "@/components/analytics/overview/HowYouWinSection";
+import { OverviewBestTrades } from "@/components/analytics/overview/OverviewBestTrades";
+import { YourEdgeSection } from "@/components/analytics/overview/YourEdgeSection";
+import { TradeHabitsSection } from "@/components/analytics/overview/TradeHabitsSection";
+import { CostSummarySection } from "@/components/analytics/overview/CostSummarySection";
+import { ExploreLinksSection } from "@/components/analytics/overview/ExploreLinksSection";
+import { InvestigationQueue } from "@/components/analytics/insights/InvestigationQueue";
+import { buildInvestigationQueue } from "@/lib/analytics/investigation";
 import type { AnalyticsDashboard } from "@/lib/analytics";
-import { useOptionalAnalyticsDrilldown } from "@/components/analytics/AnalyticsDrilldownContext";
 
 type DrillMetric = "win_rate" | "expectancy_r" | "profit_factor" | "average_r";
+type TabId = "overview" | "performance" | "edge" | "behaviour" | "execution" | "risk" | "calendar";
 
 export function AnalyticsOverview({
   data,
   onMetricClick,
+  onTabChange,
 }: {
   data: AnalyticsDashboard;
   onMetricClick?: (metric: DrillMetric) => void;
+  onTabChange?: (tab: TabId) => void;
 }) {
-  const o = data.overview;
-  const n = o.n_trades;
-  const prior = data.lab?.temporal?.period_comparison;
-
-  function periodDelta(metricLabel: string): string | null {
-    if (!prior?.available) return null;
-    const row = prior.comparison.find((r) => r.metric.toLowerCase().includes(metricLabel));
-    return row?.change ? String(row.change) : null;
-  }
-
-  const drill = useOptionalAnalyticsDrilldown();
+  const investigations = useMemo(() => buildInvestigationQueue(data), [data]);
 
   return (
-    <ChartCard title="Performance overview" sampleSize={n} evidenceLabel={o.evidence.label} interactive>
-      <div className="kpis">
-        <MetricCard label="Net P/L" value={money(o.net_pnl, data.account.currency)} tone={tone(o.net_pnl)} hint={`n = ${n}`} />
-        <MetricCard label="Total R" value={signed(o.total_r, "R")} tone={tone(o.total_r)} />
-        <MetricCard
-          label="Expectancy"
-          value={o.expectancy_r ? `${signed(o.expectancy_r)}R` : "—"}
-          tone={tone(o.expectancy_r)}
-          delta={periodDelta("expectancy")}
-          onClick={onMetricClick ? () => onMetricClick("expectancy_r") : undefined}
-        />
-        <MetricCard
-          label="Win rate"
-          value={o.win_rate ? `${num(o.win_rate, 1)}%` : "—"}
-          delta={periodDelta("win")}
-          onClick={onMetricClick ? () => onMetricClick("win_rate") : undefined}
-        />
-        <MetricCard
-          label="Profit factor"
-          value={o.profit_factor ? num(o.profit_factor) : "—"}
-          delta={periodDelta("profit")}
-          onClick={onMetricClick ? () => onMetricClick("profit_factor") : undefined}
-        />
-        <MetricCard
-          label="Average R"
-          value={o.average_r ? `${num(o.average_r)}R` : "—"}
-          onClick={onMetricClick ? () => onMetricClick("average_r") : undefined}
-        />
-        <Stat label="Max drawdown" value={money(o.max_drawdown, data.account.currency)} tone="neg" />
-        <Stat label="Current drawdown" value={money(o.current_drawdown, data.account.currency)} />
-        <Stat label="Trades" value={String(n)} />
-        {drill && (
-          <button type="button" className="view-all" onClick={() => drill.openTrades("All filtered trades")}>
-            View all trades →
-          </button>
-        )}
-      </div>
-      {o.sample_note && <p className="muted">{o.sample_note}</p>}
+    <div className="overview">
+      <OverviewScorecard data={data} onMetricClick={onMetricClick} />
+      <OverviewEquityHero data={data} />
+      <InvestigationQueue items={investigations} onTabChange={onTabChange} />
+      <HowYouWinSection data={data} />
+      <OverviewBestTrades data={data} />
+      <YourEdgeSection data={data} />
+      <TradeHabitsSection data={data} onExploreExecution={() => onTabChange?.("execution")} />
+      <CostSummarySection data={data} onViewCosts={() => onTabChange?.("performance")} />
+      <ExploreLinksSection onTabChange={onTabChange} />
       <style jsx>{`
-        .kpis {
+        .overview {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-          gap: 12px;
-        }
-        .view-all {
-          grid-column: 1 / -1;
-          justify-self: start;
-          border: 1px dashed var(--border);
-          background: transparent;
-          padding: 8px 14px;
-          border-radius: 8px;
-          cursor: pointer;
-          font-size: 13px;
-          color: var(--accent);
-        }
-        .muted {
-          font-size: 13px;
-          margin-top: 10px;
+          gap: 4px;
         }
       `}</style>
-    </ChartCard>
+    </div>
   );
 }

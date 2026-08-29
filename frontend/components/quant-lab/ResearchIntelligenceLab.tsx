@@ -7,6 +7,9 @@ import { ChartCard } from "@/components/analytics/primitives/ChartCard";
 import { IntelligenceRunner } from "@/components/IntelligenceRunner";
 import { useLiveChart } from "@/components/analytics/Charts";
 import type { QuantLabPayload } from "@/lib/quant";
+import { getQuantStudy } from "@/lib/analytics/quant-studies";
+import { QuantStudyFooter } from "@/components/quant-lab/primitives/QuantStudyFooter";
+import { colorForPnl } from "@/lib/chart-colors";
 import { signed, num } from "@/lib/format";
 
 const SEVERITY_CLASS: Record<string, string> = {
@@ -66,8 +69,7 @@ export function ResearchIntelligenceLab({
           Number(walkForward.in_sample.expectancy_r ?? 0),
           Number(walkForward.in_sample.win_rate ?? 0),
           Number(walkForward.in_sample.max_drawdown_r ?? 0),
-        ],
-        itemStyle: { color: C.blue },
+        ].map((v) => ({ value: v, itemStyle: { color: colorForPnl(C, v) } })),
       },
       {
         name: "Out-of-sample",
@@ -76,8 +78,7 @@ export function ResearchIntelligenceLab({
           Number(walkForward.out_of_sample.expectancy_r ?? 0),
           Number(walkForward.out_of_sample.win_rate ?? 0),
           Number(walkForward.out_of_sample.max_drawdown_r ?? 0),
-        ],
-        itemStyle: { color: C.amber },
+        ].map((v) => ({ value: v, itemStyle: { color: colorForPnl(C, v) } })),
       },
     ],
   };
@@ -88,7 +89,12 @@ export function ResearchIntelligenceLab({
 
   return (
     <div className="stack">
-      <ChartCard title="Edge confidence · STATISTICAL CONFIDENCE" interactive>
+      <ChartCard
+        title={getQuantStudy("edge_confidence")?.title ?? "Edge confidence"}
+        question={getQuantStudy("edge_confidence")?.primaryQuestion}
+        tier="quant"
+        interactive
+      >
         <div className="score-row">
           <div className="score">
             <span className="value">{edgeConfidence.score}</span>
@@ -97,6 +103,7 @@ export function ResearchIntelligenceLab({
           <p className="muted">{edgeConfidence.disclaimer}</p>
         </div>
         <InteractiveChart option={edgeConfidenceChart} height={Math.max(180, componentEntries.length * 36 + 48)} showHint={false} />
+        <QuantStudyFooter studyId="edge_confidence" />
       </ChartCard>
 
       <Panel title="Research opportunities">
@@ -123,7 +130,9 @@ export function ResearchIntelligenceLab({
       </Panel>
 
       <ChartCard
-        title={`${walkForward.label} · OBSERVED PERFORMANCE`}
+        title={getQuantStudy("walk_forward")?.title ?? walkForward.label}
+        question={getQuantStudy("walk_forward")?.primaryQuestion}
+        tier="quant"
         subtitle={`Method: ${walkForward.method === "trade_sequence_split" ? `first ${Math.round((walkForward.split_ratio ?? 0.7) * 100)}% vs remainder` : "custom date ranges"}`}
         interactive
       >
@@ -141,6 +150,7 @@ export function ResearchIntelligenceLab({
           </div>
         </div>
         <p className="muted">{walkForward.disclaimer}</p>
+        <QuantStudyFooter studyId="walk_forward" sample={walkForward.sample} />
       </ChartCard>
 
       <IntelligenceRunner

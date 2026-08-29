@@ -6,6 +6,7 @@ import { InteractiveChart } from "@/components/analytics/primitives/InteractiveC
 import { EquityInteractiveChart } from "@/components/analytics/primitives/EquityInteractive";
 import { Empty, useLiveChart } from "@/components/analytics/Charts";
 import type { EquityPt } from "@/lib/analytics";
+import { colorForBinRange } from "@/lib/chart-colors";
 import { money, num } from "@/lib/format";
 
 type EqPoint = { at: string; equity: string; cumulative_r?: string };
@@ -38,7 +39,15 @@ export function ReportPerformanceSection({
       tooltip: { trigger: "axis" },
       xAxis: { type: "category", data: bins.map((b) => `${num(b.from, 1)}–${num(b.to, 1)}`), axisLabel: { rotate: 35, fontSize: 9 } },
       yAxis: { type: "value", name: "Trades", splitLine: { lineStyle: { color: C.line } } },
-      series: [{ type: "bar", data: bins.map((b) => b.n), itemStyle: { color: C.blue } }],
+      series: [
+        {
+          type: "bar",
+          data: bins.map((b) => ({
+            value: b.n,
+            itemStyle: { color: colorForBinRange(C, b.from, b.to) },
+          })),
+        },
+      ],
     };
   }, [dist, C]);
 

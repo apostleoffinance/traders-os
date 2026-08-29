@@ -9,6 +9,7 @@ import { EquityInteractiveChart, UnderwaterChart } from "@/components/analytics/
 import { useOptionalAnalyticsDrilldown } from "@/components/analytics/AnalyticsDrilldownContext";
 import { filterForDateRange, filterForSingleDay } from "@/lib/analytics-drilldown";
 import type { AnalyticsDashboard, HistBin } from "@/lib/analytics";
+import { colorForBinRange } from "@/lib/chart-colors";
 import { money, num, signed, tone } from "@/lib/format";
 
 function histOption(bins: HistBin[], label: string, C: ReturnType<typeof useLiveChart>["C"]) {
@@ -21,7 +22,15 @@ function histOption(bins: HistBin[], label: string, C: ReturnType<typeof useLive
       axisLabel: { fontSize: 9, rotate: 30 },
     },
     yAxis: { type: "value", name: "n", splitLine: { lineStyle: { color: C.line } } },
-    series: [{ type: "bar", data: bins.map((b) => b.n), itemStyle: { color: C.blue } }],
+    series: [
+      {
+        type: "bar",
+        data: bins.map((b) => ({
+          value: b.n,
+          itemStyle: { color: colorForBinRange(C, b.from, b.to) },
+        })),
+      },
+    ],
   };
 }
 

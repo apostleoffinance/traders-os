@@ -27,6 +27,7 @@ import { BehaviorResearchLab } from "@/components/quant-lab/BehaviorResearchLab"
 import { ResearchIntelligenceLab } from "@/components/quant-lab/ResearchIntelligenceLab";
 import { AnalyticsDrilldownProvider } from "@/components/analytics/AnalyticsDrilldownContext";
 import { DrilldownFilterBar } from "@/components/analytics/primitives/DrilldownFilterBar";
+import { QuantLabIntro } from "@/components/quant-lab/primitives/QuantLabIntro";
 import { Alert } from "@/components/ui";
 
 const TABS = [
@@ -110,9 +111,10 @@ function QuantLab() {
       <div className="head-row">
         <div>
           <h1>Quant Lab</h1>
-          <p className="muted intro">Research your trading edge — observed performance, statistical confidence, and simulated scenarios.</p>
         </div>
       </div>
+
+      {accountId && <QuantLabIntro />}
 
       {accountId && (
         <AnalyticsFilters

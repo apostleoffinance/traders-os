@@ -28,7 +28,7 @@ export function ReportRiskSection({ risk, currency }: { risk: Record<string, unk
         grid: { left: 44, right: 16, top: 16, bottom: 48 },
         xAxis: { type: "category", data: buckets.map((b) => b.label), axisLabel: { rotate: 25, fontSize: 10 } },
         yAxis: { type: "value", name: "Trades", splitLine: { lineStyle: { color: C.line } } },
-        series: [{ type: "bar", data: buckets.map((b) => b.n), itemStyle: { color: C.blue } }],
+        series: [{ type: "bar", data: buckets.map((b) => b.n), itemStyle: { color: C.muted } }],
       }
     : null;
 

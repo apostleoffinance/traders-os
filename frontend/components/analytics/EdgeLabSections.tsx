@@ -7,6 +7,9 @@ import { ChartCard } from "@/components/analytics/primitives/ChartCard";
 import { InteractiveChart } from "@/components/analytics/primitives/InteractiveChart";
 import { useOptionalAnalyticsDrilldown } from "@/components/analytics/AnalyticsDrilldownContext";
 import type { AnalyticsDashboard, LabLeaderboardRow } from "@/lib/analytics";
+import { colorForPnl } from "@/lib/chart-colors";
+import { generateTimeOfDayInsight } from "@/lib/analytics/insights/generators";
+import { getAnalyticsDefinition } from "@/lib/analytics/registry";
 import { num, sessionLabel, signed } from "@/lib/format";
 
 type SortKey = "net_r" | "expectancy_r" | "n" | "net_pnl" | "win_rate" | "profit_factor";
@@ -128,12 +131,21 @@ function Leaderboard({
   );
 }
 
-export function EdgeLabSections({ data }: { data: AnalyticsDashboard }) {
+export function EdgeLabSections({
+  data,
+  mode = "full",
+}: {
+  data: AnalyticsDashboard;
+  mode?: "essential" | "bubble" | "full";
+}) {
   const lab = data.lab;
   const drill = useOptionalAnalyticsDrilldown();
+  const [timeView, setTimeView] = useState<"bars" | "heatmap">("bars");
   if (!lab) return null;
   const { edge } = lab;
   const { C } = useLiveChart();
+  const timeDef = getAnalyticsDefinition("time_of_day");
+  const heatDef = getAnalyticsDefinition("time_heatmap");
 
   const instrumentBubble = {
     grid: { left: 48, right: 16, top: 16, bottom: 48 },
@@ -152,13 +164,24 @@ export function EdgeLabSections({ data }: { data: AnalyticsDashboard }) {
             name: r.key,
             value: [Number(r.win_rate), Number(r.expectancy_r)],
             symbolSize: Math.max(16, Math.min(64, r.n * 3)),
+            itemStyle: { color: colorForPnl(C, r.expectancy_r) },
           })),
-        itemStyle: { color: C.blue },
       },
     ],
   };
 
   const hourData = edge.time_of_day.by_hour.filter((h) => h.n > 0);
+  const timeInsight = useMemo(
+    () =>
+      generateTimeOfDayInsight(
+        hourData.map((h) => ({
+          hour: h.hour,
+          n: h.n,
+          expectancy: h.expectancy_r ? Number(h.expectancy_r) : null,
+        })),
+      ),
+    [hourData],
+  );
   const hourChart = {
     grid: { left: 44, right: 16, top: 16, bottom: 32 },
     tooltip: {
@@ -214,47 +237,74 @@ export function EdgeLabSections({ data }: { data: AnalyticsDashboard }) {
 
   return (
     <>
-      <ChartCard title="Instrument edge map" subtitle="Win rate × expectancy · bubble size = sample" interactive>
-        {edge.instruments.length === 0 ? (
-          <Empty>No instrument data.</Empty>
-        ) : (
-          <InteractiveChart
-            option={instrumentBubble}
-            height={280}
-            showHint={false}
-            onChartClick={(e) => {
-              if (!drill || !e.name) return;
-              drill.applyPatch({ symbol: e.name }, e.name);
-              drill.openTrades(`${e.name} trades`);
-            }}
-          />
-        )}
-      </ChartCard>
+      {(mode === "full" || mode === "bubble") && (
+        <ChartCard
+          title="Instrument edge map"
+          question="Which instruments cluster by win rate and expectancy?"
+          tier="deep_dive"
+          subtitle="Win rate × expectancy · bubble size = sample"
+          interactive
+        >
+          {edge.instruments.length === 0 ? (
+            <Empty>No instrument data.</Empty>
+          ) : (
+            <InteractiveChart
+              option={instrumentBubble}
+              height={280}
+              showHint={false}
+              onChartClick={(e) => {
+                if (!drill || !e.name) return;
+                drill.applyPatch({ symbol: e.name }, e.name);
+                drill.openTrades(`${e.name} trades`);
+              }}
+            />
+          )}
+        </ChartCard>
+      )}
+      {(mode === "essential" || mode === "full") && (
+        <>
       <Leaderboard title="Instrument performance" rows={edge.instruments} />
       <Leaderboard title="Setup performance" rows={edge.setups} labelFn={(k) => (k === "unclassified" ? "Unclassified" : k)} />
       <Leaderboard title="Session performance" rows={edge.sessions} labelFn={sessionLabel} />
 
-      <ChartCard title="Time of day" sampleSize={lab.metadata.sample_size} evidenceLabel={lab.metadata.evidence.label} subtitle={`Hour-of-day in ${edge.time_of_day.timezone}`} interactive>
-        {hourData.length === 0 ? (
-          <Empty>No trades to chart.</Empty>
-        ) : (
-          <InteractiveChart
-            option={hourChart}
-            height={260}
-            showHint={false}
-            onChartClick={(e) => {
-              if (!drill || e.dataIndex == null) return;
-              const h = hourData[e.dataIndex];
-              if (!h) return;
-              drill.applyPatch({ hour: String(h.hour) }, `${h.hour}:00`);
-              drill.openTrades(`Trades at ${h.hour}:00`);
-            }}
-          />
-        )}
-      </ChartCard>
-
-      <ChartCard title="Day × hour heatmap (expectancy R)" interactive>
-        {heatCells.length === 0 ? (
+      <ChartCard
+        title={timeDef?.title ?? "Time of day"}
+        question={timeDef?.primaryQuestion}
+        tier={timeDef?.tier}
+        sampleSize={lab.metadata.sample_size}
+        evidenceLabel={lab.metadata.evidence.label}
+        subtitle={`Hour-of-day in ${edge.time_of_day.timezone}`}
+        insight={timeInsight}
+        interactive
+        actions={
+          <div className="view-toggle">
+            <button type="button" className={timeView === "bars" ? "on" : ""} onClick={() => setTimeView("bars")}>
+              Hourly bars
+            </button>
+            <button type="button" className={timeView === "heatmap" ? "on" : ""} onClick={() => setTimeView("heatmap")}>
+              Heatmap
+            </button>
+          </div>
+        }
+      >
+        {timeView === "bars" ? (
+          hourData.length === 0 ? (
+            <Empty>No trades to chart.</Empty>
+          ) : (
+            <InteractiveChart
+              option={hourChart}
+              height={260}
+              showHint={false}
+              onChartClick={(e) => {
+                if (!drill || e.dataIndex == null) return;
+                const h = hourData[e.dataIndex];
+                if (!h) return;
+                drill.applyPatch({ hour: String(h.hour) }, `${h.hour}:00`);
+                drill.openTrades(`Trades at ${h.hour}:00`);
+              }}
+            />
+          )
+        ) : heatCells.length === 0 ? (
           <Empty>Insufficient data for heatmap.</Empty>
         ) : (
           <InteractiveChart
@@ -270,7 +320,27 @@ export function EdgeLabSections({ data }: { data: AnalyticsDashboard }) {
           />
         )}
       </ChartCard>
+        </>
+      )}
+
       <style jsx>{`
+        .view-toggle {
+          display: flex;
+          gap: 4px;
+        }
+        .view-toggle button {
+          font-size: 11px;
+          padding: 4px 10px;
+          border: 1px solid var(--border);
+          border-radius: 999px;
+          background: transparent;
+          cursor: pointer;
+        }
+        .view-toggle button.on {
+          background: var(--accent);
+          color: var(--accent-contrast, #fff);
+          border-color: var(--accent);
+        }
         .muted {
           font-size: 13px;
           margin: 0 0 10px;

@@ -570,13 +570,13 @@ function DirectionComparison({
         name: "Long",
         type: "bar",
         data: [Number(long.win_rate ?? 0), Number(long.profit_factor ?? 0), Number(long.expectancy_r ?? 0)],
-        itemStyle: { color: C.pos },
+        itemStyle: { color: C.long },
       },
       {
         name: "Short",
         type: "bar",
         data: [Number(short.win_rate ?? 0), Number(short.profit_factor ?? 0), Number(short.expectancy_r ?? 0)],
-        itemStyle: { color: C.blue },
+        itemStyle: { color: C.short },
       },
     ],
   };
@@ -589,10 +589,23 @@ function DirectionComparison({
       {
         type: "scatter",
         data: [
-          long.n ? { name: "Long", value: [Number(long.win_rate ?? 0), Number(long.profit_factor ?? 0)], symbolSize: Math.max(36, Number(long.n) * 4) } : null,
-          short.n ? { name: "Short", value: [Number(short.win_rate ?? 0), Number(short.profit_factor ?? 0)], symbolSize: Math.max(36, Number(short.n) * 4) } : null,
+          long.n
+            ? {
+                name: "Long",
+                value: [Number(long.win_rate ?? 0), Number(long.profit_factor ?? 0)],
+                symbolSize: Math.max(36, Number(long.n) * 4),
+                itemStyle: { color: C.long },
+              }
+            : null,
+          short.n
+            ? {
+                name: "Short",
+                value: [Number(short.win_rate ?? 0), Number(short.profit_factor ?? 0)],
+                symbolSize: Math.max(36, Number(short.n) * 4),
+                itemStyle: { color: C.short },
+              }
+            : null,
         ].filter(Boolean),
-        itemStyle: { color: C.blue },
       },
     ],
   };

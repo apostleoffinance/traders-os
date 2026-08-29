@@ -97,7 +97,14 @@ export function BehaviorResearchLab({
           type: "bar",
           data: behavior.risk_escalation.patterns.map((p) => ({
             value: Number(p.average_risk_pct ?? 0),
-            itemStyle: { color: Number(p.pct_difference_from_baseline ?? 0) > 0 ? C.neg : C.blue },
+            itemStyle: {
+              color:
+                Number(p.pct_difference_from_baseline ?? 0) > 0
+                  ? C.neg
+                  : Number(p.pct_difference_from_baseline ?? 0) < 0
+                    ? C.pos
+                    : C.muted,
+            },
           })),
         },
       ],

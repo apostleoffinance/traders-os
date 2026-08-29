@@ -4,6 +4,7 @@ import { type GroupRow, type MetricKey, metricValue } from "@/lib/analytics";
 import { num, sessionLabel } from "@/lib/format";
 import { useTheme } from "@/components/ThemeProvider";
 import { chartTheme } from "@/lib/theme";
+import { colorForPnl } from "@/lib/chart-colors";
 import { InteractiveChart } from "@/components/analytics/primitives/InteractiveChart";
 
 export function useLiveChart() {
@@ -127,7 +128,7 @@ export function HorizontalBars({
         type: "bar",
         data: labeled.map((r) => ({
           value: r.value ?? 0,
-          itemStyle: { color: (r.value ?? 0) >= 0 ? C.pos : C.neg },
+          itemStyle: { color: colorForPnl(C, r.value) },
         })),
         barWidth: 14,
         label: {

@@ -19,31 +19,13 @@ import { AnalyticsFilters } from "@/components/analytics/Filters";
 import { AnalyticsDrilldownProvider } from "@/components/analytics/AnalyticsDrilldownContext";
 import { DrilldownFilterBar } from "@/components/analytics/primitives/DrilldownFilterBar";
 import { AnalyticsOverview } from "@/components/analytics/Overview";
-import { EdgeExplorer } from "@/components/analytics/EdgeExplorer";
-import { EdgeLabSections } from "@/components/analytics/EdgeLabSections";
-import { PerformanceLab } from "@/components/analytics/PerformanceLab";
-import { ExecutionLab } from "@/components/analytics/ExecutionLab";
-import { CostAnalytics } from "@/components/analytics/CostAnalytics";
-import { BehaviourLab } from "@/components/analytics/BehaviourLab";
+import { PerformanceTab } from "@/components/analytics/tabs/PerformanceTab";
+import { EdgeTab } from "@/components/analytics/tabs/EdgeTab";
+import { BehaviourTab } from "@/components/analytics/tabs/BehaviourTab";
+import { ExecutionTab } from "@/components/analytics/tabs/ExecutionTab";
+import { RiskTab } from "@/components/analytics/tabs/RiskTab";
+import { CalendarTab } from "@/components/analytics/tabs/CalendarTab";
 import { MetricDrilldown } from "@/components/analytics/MetricDrilldown";
-import {
-  Distribution,
-  RiskAndObservations,
-  Scatters,
-  SessionSetupPsych,
-} from "@/components/analytics/Sections";
-import {
-  ConsistencyLab,
-  DistributionLab,
-  EquityLab,
-  PeriodComparisonLab,
-  RiskAnalyticsLab,
-  StreakLab,
-  TemporalLab,
-} from "@/components/analytics/Phase2Lab";
-import { BehaviourIntelligenceLab, ChecklistItemPanel, EdgeMapPanel, IntelligenceOverview, PlaybookLab } from "@/components/intelligence/Phase3Intelligence";
-import { DecisionQualityChart, DisciplineScatterPanel, PsychologyBubbleMatrix } from "@/components/intelligence/IntelligenceViz";
-import { ComparisonLab } from "@/components/analytics/ComparisonLab";
 
 const TABS = [
   { id: "overview", label: "Overview" },
@@ -110,64 +92,19 @@ function AnalyticsLab() {
     if (!data || !accountId) return null;
     switch (tab) {
       case "overview":
-        return (
-          <>
-            <AnalyticsOverview data={data} onMetricClick={setDrillMetric} />
-            <EquityLab data={data} />
-            <ConsistencyLab data={data} />
-            <PeriodComparisonLab data={data} />
-            <SessionSetupPsych data={data} />
-          </>
-        );
+        return <AnalyticsOverview data={data} onMetricClick={setDrillMetric} onTabChange={setTab} />;
       case "performance":
-        return (
-          <>
-            <PerformanceLab data={data} onMetricClick={setDrillMetric} />
-            <DistributionLab data={data} />
-            <ConsistencyLab data={data} />
-            <StreakLab data={data} />
-            <CostAnalytics data={data} />
-          </>
-        );
+        return <PerformanceTab data={data} onMetricClick={setDrillMetric} />;
       case "edge":
-        return (
-          <>
-            <ComparisonLab accountId={accountId} data={data} />
-            <EdgeLabSections data={data} />
-            <EdgeExplorer accountId={accountId} data={data} filters={applied} />
-          </>
-        );
+        return <EdgeTab accountId={accountId} data={data} filters={applied} />;
       case "behaviour":
-        return (
-          <>
-            <BehaviourLab data={data} />
-            {data.lab?.intelligence && <PsychologyBubbleMatrix intel={data.lab.intelligence} currency={data.account.currency} />}
-            {data.lab?.intelligence && <DisciplineScatterPanel intel={data.lab.intelligence} currency={data.account.currency} />}
-            {data.lab?.intelligence && <BehaviourIntelligenceLab intel={data.lab.intelligence} />}
-            {data.lab?.intelligence && <ChecklistItemPanel intel={data.lab.intelligence} />}
-            {data.lab?.intelligence && <DecisionQualityChart intel={data.lab.intelligence} />}
-            <StreakLab data={data} />
-            {data.lab?.risk_analytics && <RiskAnalyticsLab data={data} />}
-          </>
-        );
+        return <BehaviourTab data={data} />;
       case "execution":
-        return (
-          <>
-            <Scatters data={data} />
-            <ExecutionLab data={data} />
-            <Distribution data={data} />
-          </>
-        );
+        return <ExecutionTab data={data} />;
       case "risk":
-        return (
-          <>
-            <EquityLab data={data} />
-            <RiskAnalyticsLab data={data} />
-            <RiskAndObservations data={data} />
-          </>
-        );
+        return <RiskTab data={data} />;
       case "calendar":
-        return <TemporalLab data={data} />;
+        return <CalendarTab data={data} />;
       default:
         return null;
     }
@@ -197,7 +134,7 @@ function AnalyticsLab() {
       <p className="page-kicker">Intelligence</p>
       <h1>Analytics Lab</h1>
       <p className="muted">
-        Interactive performance, edge discovery, and behaviour. Period syncs with the top bar — refine filters below.
+        Understand your trading performance, discover your edge, and identify what to improve. Period syncs with the top bar.
       </p>
 
       <nav className="tabs" aria-label="Analytics sections">

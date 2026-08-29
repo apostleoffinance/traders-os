@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Field } from "@/components/ui";
 import { sessionLabel } from "@/lib/format";
 import type { AnalyticsDashboard, FilterState } from "@/lib/analytics";
@@ -26,6 +27,7 @@ export function AnalyticsFilters({
   onApply: () => void;
   onReset: () => void;
 }) {
+  const [moreOpen, setMoreOpen] = useState(false);
   const opts = data?.filters.options;
   function set<K extends keyof FilterState>(key: K, value: FilterState[K]) {
     setDraft({ ...draft, [key]: value });
@@ -49,7 +51,7 @@ export function AnalyticsFilters({
           </Field>
         </div>
       )}
-      <div className="row">
+      <div className="row primary">
         <Field label="Instrument">
           <select value={draft.symbol} onChange={(e) => set("symbol", e.target.value)}>
             <option value="">All</option>
@@ -58,6 +60,12 @@ export function AnalyticsFilters({
             ))}
           </select>
         </Field>
+        <button type="button" className="more-btn" onClick={() => setMoreOpen((v) => !v)}>
+          {moreOpen ? "Fewer filters" : "More filters"}
+        </button>
+      </div>
+      {moreOpen && (
+      <div className="row">
         <Field label="Session">
           <select value={draft.session} onChange={(e) => set("session", e.target.value)}>
             <option value="">All</option>
@@ -110,6 +118,7 @@ export function AnalyticsFilters({
           </select>
         </Field>
       </div>
+      )}
       <div className="actions">
         <button type="button" className="btn" onClick={onApply}>
           Apply
@@ -148,6 +157,21 @@ export function AnalyticsFilters({
           display: grid;
           grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
           gap: 8px;
+        }
+        .primary {
+          grid-template-columns: minmax(140px, 200px) auto;
+          align-items: end;
+        }
+        .more-btn {
+          border: 1px dashed var(--border);
+          background: transparent;
+          padding: 8px 12px;
+          font-size: 12px;
+          font-weight: 600;
+          color: var(--accent);
+          cursor: pointer;
+          border-radius: 8px;
+          height: 38px;
         }
       `}</style>
     </section>

@@ -6,6 +6,7 @@ import { ChartCard } from "@/components/analytics/primitives/ChartCard";
 import { InteractiveChart } from "@/components/analytics/primitives/InteractiveChart";
 import { useOptionalAnalyticsDrilldown } from "@/components/analytics/AnalyticsDrilldownContext";
 import type { AnalyticsDashboard } from "@/lib/analytics";
+import { colorForPnl } from "@/lib/chart-colors";
 import { money, num } from "@/lib/format";
 
 const WATERFALL_SEGMENTS = ["Gross P&L", "Commission", "Swap", "Net P&L"] as const;
@@ -35,10 +36,10 @@ export function CostAnalytics({ data }: { data: AnalyticsDashboard }) {
       {
         type: "bar",
         data: [
-          { value: Number(gvn.gross_pnl ?? 0), itemStyle: { color: C.blue }, name: "Gross P&L" },
+          { value: Number(gvn.gross_pnl ?? 0), itemStyle: { color: colorForPnl(C, gvn.gross_pnl) }, name: "Gross P&L" },
           { value: Number(gvn.commission ?? 0), itemStyle: { color: C.neg }, name: "Commission" },
-          { value: Number(gvn.swap ?? 0), itemStyle: { color: C.amber }, name: "Swap" },
-          { value: Number(gvn.net_pnl ?? 0), itemStyle: { color: C.pos }, name: "Net P&L" },
+          { value: Number(gvn.swap ?? 0), itemStyle: { color: colorForPnl(C, gvn.swap) }, name: "Swap" },
+          { value: Number(gvn.net_pnl ?? 0), itemStyle: { color: colorForPnl(C, gvn.net_pnl) }, name: "Net P&L" },
         ],
       },
     ],

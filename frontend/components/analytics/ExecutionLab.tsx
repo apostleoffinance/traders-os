@@ -9,9 +9,26 @@ import { InteractiveChart } from "@/components/analytics/primitives/InteractiveC
 import { useOptionalAnalyticsDrilldown } from "@/components/analytics/AnalyticsDrilldownContext";
 import type { AnalyticsDashboard, LabBucketRow } from "@/lib/analytics";
 import { captureHistogramBins, linearRegression } from "@/lib/chart-regression";
+import { colorForPnl } from "@/lib/chart-colors";
+import {
+  generateBucketInsight,
+  generateExitEfficiencyInsight,
+  generateMfeMaeInsight,
+} from "@/lib/analytics/insights/generators";
+import { getAnalyticsDefinition } from "@/lib/analytics/registry";
+import { ExitEfficiencySummary } from "@/components/analytics/primitives/ExitEfficiencySummary";
+import { ScatterQuadrantGuide } from "@/components/analytics/primitives/ScatterQuadrantGuide";
 import { num, signed } from "@/lib/format";
 
-export function ExecutionLab({ data }: { data: AnalyticsDashboard }) {
+export function ExecutionLab({
+  data,
+  variant = "all",
+}: {
+  data: AnalyticsDashboard;
+  variant?: "essential" | "advanced" | "all";
+}) {
+  const showEssential = variant === "essential" || variant === "all";
+  const showAdvanced = variant === "advanced" || variant === "all";
   const lab = data.lab;
   const router = useRouter();
   const drill = useOptionalAnalyticsDrilldown();
@@ -38,8 +55,41 @@ export function ExecutionLab({ data }: { data: AnalyticsDashboard }) {
     [lab?.execution.exit_efficiency.scatter],
   );
 
+  const sizeInsight = useMemo(
+    () =>
+      lab
+        ? generateBucketInsight(
+            lab.execution.position_size.buckets.map((b) => ({
+              label: b.bucket,
+              n: b.n,
+              expectancy: b.expectancy_r ? Number(b.expectancy_r) : null,
+            })),
+            "Expectancy by position size bucket.",
+          )
+        : null,
+    [lab],
+  );
+  const durInsight = useMemo(
+    () =>
+      lab
+        ? generateBucketInsight(
+            lab.execution.duration.buckets.map((b) => ({
+              label: b.bucket,
+              n: b.n,
+              expectancy: b.expectancy_r ? Number(b.expectancy_r) : null,
+            })),
+            "Expectancy by holding time bucket.",
+          )
+        : null,
+    [lab],
+  );
+
   if (!lab) return null;
   const ex = lab.execution;
+  const sizeDef = getAnalyticsDefinition("position_size_buckets");
+  const durDef = getAnalyticsDefinition("duration_buckets");
+  const mfeDef = getAnalyticsDefinition("mfe_mae_scatter");
+  const exitDef = getAnalyticsDefinition("exit_efficiency");
 
   const sizeScatter = {
     grid: { left: 48, right: 16, top: 16, bottom: 40 },
@@ -113,6 +163,18 @@ export function ExecutionLab({ data }: { data: AnalyticsDashboard }) {
   };
 
   const mfe = ex.mfe_mae;
+  const exit = ex.exit_efficiency;
+  const mfeInsight = generateMfeMaeInsight({
+    coverageN: mfe.coverage_n ?? 0,
+    totalN: ex.evidence.n,
+    avgMfe: mfe.average_mfe_r ? Number(mfe.average_mfe_r) : null,
+    avgMae: mfe.average_mae_r ? Number(mfe.average_mae_r) : null,
+  });
+  const exitInsight = generateExitEfficiencyInsight({
+    coverageN: exit.coverage_n ?? 0,
+    medianCapturePct: exit.median_capture_pct ? Number(exit.median_capture_pct) : null,
+    insightText: exit.insight,
+  });
   const mfeScatter =
     mfe.available && mfe.scatter?.length
       ? {
@@ -140,8 +202,6 @@ export function ExecutionLab({ data }: { data: AnalyticsDashboard }) {
         }
       : null;
 
-  const exit = ex.exit_efficiency;
-
   const exitHistogram =
     captureBins.length > 0
       ? {
@@ -154,7 +214,7 @@ export function ExecutionLab({ data }: { data: AnalyticsDashboard }) {
               type: "bar",
               data: captureBins.map((b) => ({
                 value: b.n,
-                itemStyle: { color: C.blue },
+                itemStyle: { color: C.muted },
               })),
             },
           ],
@@ -180,7 +240,7 @@ export function ExecutionLab({ data }: { data: AnalyticsDashboard }) {
                 value: [Number(p.mfe_r ?? 0), Number(p.realized_r ?? 0)],
                 tradeId: p.trade_id,
                 symbol: p.symbol,
-                itemStyle: { color: C.pos },
+                itemStyle: { color: colorForPnl(C, p.realized_r) },
               })),
               symbolSize: 9,
             },
@@ -212,11 +272,20 @@ export function ExecutionLab({ data }: { data: AnalyticsDashboard }) {
 
   return (
     <>
-      <ChartCard title="Position size vs outcome" sampleSize={ex.evidence.n} evidenceLabel={ex.evidence.label} subtitle={ex.position_size.disclaimer} interactive>
+      {showAdvanced && (
+      <ChartCard title="Position size vs outcome" sampleSize={ex.evidence.n} evidenceLabel={ex.evidence.label} subtitle={ex.position_size.disclaimer} tier="deep_dive" interactive>
         {riskPoints.length < 2 ? (
           <Empty>Need at least two closed trades with risk data.</Empty>
         ) : (
           <>
+            <ScatterQuadrantGuide
+              xLabel="Risk %"
+              yLabel="Realized R"
+              quadrants={[
+                { position: "Upper-left", meaning: "Lower risk with positive R." },
+                { position: "Lower-right", meaning: "Higher risk with negative R — review sizing discipline." },
+              ]}
+            />
             <InteractiveChart option={sizeScatter} height={280} showHint={false} onChartClick={handleScatterClick} />
             {regression && (
               <p className="muted">
@@ -226,8 +295,11 @@ export function ExecutionLab({ data }: { data: AnalyticsDashboard }) {
           </>
         )}
       </ChartCard>
+      )}
 
-      <ChartCard title="Position size buckets" subtitle={`Bucketed expectancy by account risk % (${ex.position_size.method}).`}>
+      {showEssential && (
+      <>
+      <ChartCard title="Position size buckets" question={sizeDef?.primaryQuestion} tier={sizeDef?.tier} subtitle={`Bucketed expectancy by account risk % (${ex.position_size.method}).`} insight={sizeInsight}>
         {ex.position_size.buckets.every((b) => b.n === 0) ? (
           <Empty>No closed trades.</Empty>
         ) : (
@@ -244,7 +316,7 @@ export function ExecutionLab({ data }: { data: AnalyticsDashboard }) {
         )}
       </ChartCard>
 
-      <ChartCard title="Duration buckets" subtitle="Holding time segments — historical association only." interactive>
+      <ChartCard title="Duration buckets" question={durDef?.primaryQuestion} tier={durDef?.tier} subtitle="Holding time segments — historical association only." insight={durInsight} interactive>
         {ex.duration.buckets.every((b) => b.n === 0) ? (
           <Empty>No duration data.</Empty>
         ) : (
@@ -265,43 +337,27 @@ export function ExecutionLab({ data }: { data: AnalyticsDashboard }) {
       </ChartCard>
 
       <ChartCard
-        title="MFE / MAE"
-        sampleSize={mfe.available ? mfe.coverage_n : ex.evidence.n}
-        evidenceLabel={mfe.available ? mfe.evidence.label : mfe.evidence.label}
+        title={exitDef?.title ?? "Exit efficiency"}
+        question={exitDef?.primaryQuestion}
+        tier={exitDef?.tier}
+        sampleSize={exit.coverage_n ?? 0}
+        evidenceLabel={exit.evidence.label}
+        insight={exitInsight}
         interactive
       >
-        {!mfe.available ? (
-          <Empty>{mfe.reason ?? "MFE/MAE unavailable."}</Empty>
-        ) : (
-          <>
-            <div className="kpis">
-              <Stat label="Coverage" value={`${mfe.coverage_n}/${ex.evidence.n} trades`} />
-              <Stat label="Avg MFE" value={mfe.average_mfe_r ? `${signed(mfe.average_mfe_r)}R` : "—"} />
-              <Stat label="Avg MAE" value={mfe.average_mae_r ? `${signed(mfe.average_mae_r)}R` : "—"} />
-              <Stat label="Median MFE" value={mfe.median_mfe_r ? `${signed(mfe.median_mfe_r)}R` : "—"} />
-              <Stat label="Median MAE" value={mfe.median_mae_r ? `${signed(mfe.median_mae_r)}R` : "—"} />
-            </div>
-            <p className="muted">{mfe.disclaimer}</p>
-            {mfeScatter && <InteractiveChart option={mfeScatter} height={280} showHint={false} onChartClick={handleScatterClick} />}
-            {mfe.sample_note && <p className="muted">{mfe.sample_note}</p>}
-          </>
-        )}
-      </ChartCard>
-
-      <ChartCard title="Exit efficiency" sampleSize={exit.coverage_n ?? 0} evidenceLabel={exit.evidence.label} interactive>
         {!exit.available ? (
           <Empty>{exit.reason ?? "Exit efficiency unavailable without MFE data."}</Empty>
         ) : (
           <>
+            <ExitEfficiencySummary medianCapturePct={exit.median_capture_pct ? Number(exit.median_capture_pct) : null} />
             <div className="kpis">
               <Stat label="Median capture" value={exit.median_capture_pct ? `${num(exit.median_capture_pct, 1)}%` : "—"} />
               <Stat label="Avg capture" value={exit.average_capture ? num(exit.average_capture, 2) : "—"} />
               <Stat label="Avg giveback" value={exit.average_giveback_r ? `${signed(exit.average_giveback_r)}R` : "—"} />
               <Stat label="Winners w/ MFE" value={String(exit.coverage_n ?? 0)} />
             </div>
-            {exit.insight && <p className="muted">{exit.insight}</p>}
             {exit.disclaimer && <p className="muted">{exit.disclaimer}</p>}
-            {exitHistogram && (
+            {showAdvanced && exitHistogram && (
               <InteractiveChart
                 option={exitHistogram}
                 height={220}
@@ -320,10 +376,49 @@ export function ExecutionLab({ data }: { data: AnalyticsDashboard }) {
                 }}
               />
             )}
-            {exitScatter && <InteractiveChart option={exitScatter} height={280} showHint={false} onChartClick={handleScatterClick} />}
+            {showAdvanced && exitScatter && <InteractiveChart option={exitScatter} height={280} showHint={false} onChartClick={handleScatterClick} />}
           </>
         )}
       </ChartCard>
+      </>
+      )}
+
+      {showAdvanced && (
+      <ChartCard
+        title={mfeDef?.title ?? "MFE / MAE"}
+        question={mfeDef?.primaryQuestion}
+        tier={mfeDef?.tier}
+        sampleSize={mfe.available ? mfe.coverage_n : ex.evidence.n}
+        evidenceLabel={mfe.available ? mfe.evidence.label : mfe.evidence.label}
+        insight={mfeInsight}
+        interactive
+      >
+        {!mfe.available ? (
+          <Empty>{mfe.reason ?? "MFE/MAE unavailable."}</Empty>
+        ) : (
+          <>
+            <ScatterQuadrantGuide
+              xLabel="MAE (max adverse excursion in R)"
+              yLabel="MFE (max favorable excursion in R)"
+              quadrants={[
+                { position: "Top-left", meaning: "Large favorable move, limited adverse movement." },
+                { position: "Bottom-right", meaning: "Large adverse movement with limited favorable move." },
+              ]}
+            />
+            <div className="kpis">
+              <Stat label="Coverage" value={`${mfe.coverage_n}/${ex.evidence.n} trades`} />
+              <Stat label="Avg MFE" value={mfe.average_mfe_r ? `${signed(mfe.average_mfe_r)}R` : "—"} />
+              <Stat label="Avg MAE" value={mfe.average_mae_r ? `${signed(mfe.average_mae_r)}R` : "—"} />
+              <Stat label="Median MFE" value={mfe.median_mfe_r ? `${signed(mfe.median_mfe_r)}R` : "—"} />
+              <Stat label="Median MAE" value={mfe.median_mae_r ? `${signed(mfe.median_mae_r)}R` : "—"} />
+            </div>
+            <p className="muted">{mfe.disclaimer}</p>
+            {mfeScatter && <InteractiveChart option={mfeScatter} height={280} showHint={false} onChartClick={handleScatterClick} />}
+            {mfe.sample_note && <p className="muted">{mfe.sample_note}</p>}
+          </>
+        )}
+      </ChartCard>
+      )}
 
       <style jsx>{`
         .muted {

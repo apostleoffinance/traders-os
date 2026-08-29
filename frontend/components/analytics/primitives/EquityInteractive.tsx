@@ -9,6 +9,20 @@ import { filterForDateRange, filterForSingleDay } from "@/lib/analytics-drilldow
 import type { EquityMarker, EquityPt } from "@/lib/analytics";
 import { money, num } from "@/lib/format";
 
+function areaFill(color: string) {
+  return {
+    type: "linear" as const,
+    x: 0,
+    y: 0,
+    x2: 0,
+    y2: 1,
+    colorStops: [
+      { offset: 0, color: `${color}33` },
+      { offset: 1, color: `${color}00` },
+    ],
+  };
+}
+
 type EqMode = "net_pnl" | "gross_pnl" | "r_multiple";
 
 type MarkerPoint = EquityMarker & { index: number; y: number };
@@ -98,11 +112,8 @@ export function EquityInteractiveChart({
           type: "line",
           showSymbol: false,
           data: values,
-          lineStyle: { width: 1.8, color: mode === "r_multiple" ? C.pos : C.blue },
-          areaStyle:
-            mode === "r_multiple"
-              ? undefined
-              : { color: { type: "linear", x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: "rgba(59,130,246,0.12)" }, { offset: 1, color: "rgba(59,130,246,0)" }] } },
+          lineStyle: { width: 1.8, color: C.pos },
+          areaStyle: mode === "r_multiple" ? undefined : { color: areaFill(C.pos) },
           z: 1,
         },
         {

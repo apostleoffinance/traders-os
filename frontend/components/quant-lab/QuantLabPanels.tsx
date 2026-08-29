@@ -7,6 +7,9 @@ import { ChartCard } from "@/components/analytics/primitives/ChartCard";
 import { InteractiveChart } from "@/components/analytics/primitives/InteractiveChart";
 import type { QuantLabPayload } from "@/lib/quant";
 import { EVIDENCE_LABELS, EVIDENCE_SHORT_LABELS } from "@/lib/quant";
+import { getQuantStudy } from "@/lib/analytics/quant-studies";
+import { QuantStudyFooter } from "@/components/quant-lab/primitives/QuantStudyFooter";
+import { colorForBinRange } from "@/lib/chart-colors";
 import { num, signed, tone } from "@/lib/format";
 
 const CHART_GRID = { left: 52, right: 20, top: 32, bottom: 44 } as const;
@@ -162,13 +165,19 @@ export function ExpectancyEnginePanel({ data }: { data: QuantLabPayload }) {
               />
             </KpiGrid>
             <p className="muted">{ci.note}</p>
+            <QuantStudyFooter studyId="win_rate_ci" />
           </>
         ) : (
           <Empty>Insufficient data for confidence interval.</Empty>
         )}
       </Panel>
 
-      <ChartCard title="Bootstrap expectancy R · BOOTSTRAPPED ESTIMATE" interactive>
+      <ChartCard
+        title={getQuantStudy("bootstrap_expectancy")?.title ?? "Bootstrap expectancy R"}
+        question={getQuantStudy("bootstrap_expectancy")?.primaryQuestion}
+        tier="quant"
+        interactive
+      >
         {boot.available ? (
           <>
             <KpiGrid>
@@ -196,6 +205,7 @@ export function ExpectancyEnginePanel({ data }: { data: QuantLabPayload }) {
           <Empty>{boot.note ?? "Need at least 2 valid R observations."}</Empty>
         )}
         {boot.note && boot.available && <p className="muted">{boot.note}</p>}
+        <QuantStudyFooter studyId="bootstrap_expectancy" sample={exp.sample} />
       </ChartCard>
 
       <Panel title={`Edge stability · ${data.edge.edge_stability.label}`}>
@@ -226,6 +236,7 @@ export function ExpectancyEnginePanel({ data }: { data: QuantLabPayload }) {
           />
         </KpiGrid>
         <p className="muted">{data.edge.edge_stability.disclaimer}</p>
+        <QuantStudyFooter studyId="edge_stability" sample={exp.sample} />
       </Panel>
 
       <style jsx>{`
@@ -264,9 +275,11 @@ export function DrawdownPanel({ data }: { data: QuantLabPayload }) {
         }
       : null;
 
+  const ddDef = getQuantStudy("drawdown_research");
+
   return (
     <>
-      <Panel title="Maximum drawdown">
+      <Panel title={ddDef?.title ?? "Maximum drawdown"}>
         <KpiGrid>
           <Stat label="Max DD (currency)" value={dd.currency.max_drawdown ?? "—"} tone="neg" />
           <Stat label="Max DD (R)" value={dd.r_multiple.max_drawdown_r ? `${num(dd.r_multiple.max_drawdown_r)}R` : "—"} tone="neg" />
@@ -278,10 +291,11 @@ export function DrawdownPanel({ data }: { data: QuantLabPayload }) {
           />
         </KpiGrid>
         {dd.ulcer_index.note && <p className="muted">{dd.ulcer_index.note}</p>}
+        <QuantStudyFooter studyId="drawdown_research" sample={dd.sample} />
       </Panel>
 
       {option && (
-        <ChartCard title="Underwater equity" subtitle="Drawdown depth over time" interactive>
+        <ChartCard title="Underwater equity" subtitle="Drawdown depth over time" tier="quant" interactive>
           <InteractiveChart option={option} height={280} showHint={false} className="chart-spaced" />
         </ChartCard>
       )}
@@ -325,9 +339,14 @@ export function RollingPanel({ data }: { data: QuantLabPayload }) {
         }
       : null;
 
+  const rollingDef = getQuantStudy("rolling_expectancy");
+
   return (
     <ChartCard
-      title="Rolling performance"
+      title={rollingDef?.title ?? "Rolling performance"}
+      question={rollingDef?.primaryQuestion}
+      tier="quant"
+      sampleSize={rolling.n}
       interactive
       actions={
         <div className="window-picks">
@@ -340,6 +359,7 @@ export function RollingPanel({ data }: { data: QuantLabPayload }) {
       }
     >
       {option ? <InteractiveChart option={option} height={300} showHint={false} className="chart-spaced" /> : <Empty>Insufficient trades for rolling window {window}.</Empty>}
+      <QuantStudyFooter studyId="rolling_expectancy" />
       <style jsx>{`
         .window-picks {
           display: flex;
@@ -374,8 +394,16 @@ export function StreakPanel({ data }: { data: QuantLabPayload }) {
     series: [{ type: "bar", data: dist.map((d) => d.occurrences), itemStyle: { color: C.neg } }],
   };
 
+  const streakDef = getQuantStudy("loss_streak_distribution");
+
   return (
-    <ChartCard title="Loss streak distribution" subtitle="Historical loss streak lengths — not a stop-trading rule." interactive>
+    <ChartCard
+      title={streakDef?.title ?? "Loss streak distribution"}
+      question={streakDef?.primaryQuestion}
+      tier="quant"
+      subtitle="Historical loss streak lengths — not a stop-trading rule."
+      interactive
+    >
       {dist.some((d) => d.occurrences > 0) ? (
         <InteractiveChart option={lossOpt} height={220} showHint={false} className="chart-spaced" />
       ) : (
@@ -387,6 +415,7 @@ export function StreakPanel({ data }: { data: QuantLabPayload }) {
         <Stat label="Current wins" value={String(s.current.wins)} />
         <Stat label="Current losses" value={String(s.current.losses)} />
       </KpiGrid>
+      <QuantStudyFooter studyId="loss_streak_distribution" />
       <style jsx>{`
         :global(.chart-spaced) {
           margin-top: 4px;
@@ -398,7 +427,7 @@ export function StreakPanel({ data }: { data: QuantLabPayload }) {
 
 export function DistributionPanel({ data }: { data: QuantLabPayload }) {
   const dist = data.distribution;
-  const chart = useLiveChart();
+  const { C } = useLiveChart();
   const [showAdvanced, setShowAdvanced] = useState(false);
   const primary = dist.primary;
   const unit = primary.unit === "R" ? "R" : "";
@@ -406,7 +435,6 @@ export function DistributionPanel({ data }: { data: QuantLabPayload }) {
   const option =
     primary.histogram.length > 0
       ? {
-          ...chart,
           grid: CHART_GRID,
           tooltip: { trigger: "axis" as const },
           xAxis: {
@@ -415,13 +443,23 @@ export function DistributionPanel({ data }: { data: QuantLabPayload }) {
             axisLabel: { fontSize: 10, rotate: 30 },
           },
           yAxis: { type: "value" as const, name: "Trades" },
-          series: [{ type: "bar" as const, data: primary.histogram.map((b) => b.n), itemStyle: { color: "var(--accent)" } }],
+          series: [
+            {
+              type: "bar" as const,
+              data: primary.histogram.map((b) => ({
+                value: b.n,
+                itemStyle: { color: colorForBinRange(C, b.from, b.to) },
+              })),
+            },
+          ],
         }
       : null;
 
+  const distDef = getQuantStudy("return_distribution");
+
   if (primary.n === 0) {
     return (
-      <ChartCard title="Return distribution">
+      <ChartCard title={distDef?.title ?? "Return distribution"} tier="quant">
         <Empty>No valid trades for distribution analysis.</Empty>
       </ChartCard>
     );
@@ -430,7 +468,9 @@ export function DistributionPanel({ data }: { data: QuantLabPayload }) {
   return (
     <>
       <ChartCard
-        title="Return distribution"
+        title={distDef?.title ?? "Return distribution"}
+        question={distDef?.primaryQuestion}
+        tier="quant"
         sampleSize={primary.sample.sample_size}
         evidenceLabel={EVIDENCE_LABELS[primary.sample.evidence_level as keyof typeof EVIDENCE_LABELS] ?? primary.sample.evidence_level}
         interactive
@@ -444,6 +484,7 @@ export function DistributionPanel({ data }: { data: QuantLabPayload }) {
         </KpiGrid>
         {option && <InteractiveChart option={option} height={260} showHint={false} className="chart-spaced" />}
         <p className="muted">{dist.note}</p>
+        <QuantStudyFooter studyId="return_distribution" sample={primary.sample} />
       </ChartCard>
 
       <Panel title="Advanced distribution metrics">
@@ -514,6 +555,7 @@ export function OutlierDependencyPanel({ data }: { data: QuantLabPayload }) {
         <Stat label="Without top 5 · expectancy R" value={o.performance_without_outliers.without_top_5?.expectancy_r ? `${signed(o.performance_without_outliers.without_top_5.expectancy_r)}R` : "—"} />
       </div>
       <p className="muted">{o.disclaimer}</p>
+      <QuantStudyFooter studyId="outlier_dependency" sample={o.sample} />
       <style jsx>{`
         .grid2 {
           display: grid;
@@ -535,7 +577,7 @@ export function TopTradeRemovalPanel({ data }: { data: QuantLabPayload }) {
   const rob = data.robustness.top_trade_removal;
 
   return (
-    <Panel title="Robustness test · top-trade removal">
+    <Panel title={getQuantStudy("top_trade_removal")?.title ?? "Robustness test · top-trade removal"}>
       <table className="scenario-table">
         <thead>
           <tr>
@@ -559,6 +601,7 @@ export function TopTradeRemovalPanel({ data }: { data: QuantLabPayload }) {
         </tbody>
       </table>
       <p className="muted">{rob.disclaimer}</p>
+      <QuantStudyFooter studyId="top_trade_removal" />
       <style jsx>{`
         .scenario-table {
           width: 100%;
@@ -613,7 +656,12 @@ export function BootstrapRobustnessPanel({ data }: { data: QuantLabPayload }) {
   }
 
   return (
-    <ChartCard title="Bootstrap robustness · BOOTSTRAPPED ESTIMATE" interactive>
+    <ChartCard
+      title={getQuantStudy("bootstrap_expectancy")?.title ?? "Bootstrap robustness"}
+      question="How stable are key metrics under resampling?"
+      tier="quant"
+      interactive
+    >
       {row("Expectancy R", b.expectancy_r, "R")}
       {b.expectancy_r.histogram && b.expectancy_r.histogram.length > 0 && (
         <BootstrapHistogramChart
@@ -625,6 +673,7 @@ export function BootstrapRobustnessPanel({ data }: { data: QuantLabPayload }) {
       {row("Average return", b.average_return)}
       {row("Win rate", b.win_rate, "%")}
       <p className="muted">{b.note}</p>
+      <QuantStudyFooter studyId="bootstrap_expectancy" />
       <style jsx>{`
         .row {
           display: grid;
@@ -687,8 +736,10 @@ function BootstrapHistogramChart({
     series: [
       {
         type: "bar",
-        data: histogram.map((b) => b.n),
-        itemStyle: { color: C.blue },
+        data: histogram.map((b) => ({
+          value: b.n,
+          itemStyle: { color: colorForBinRange(C, b.from, b.to) },
+        })),
       },
     ],
   };

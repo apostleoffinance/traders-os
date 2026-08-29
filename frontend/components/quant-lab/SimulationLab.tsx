@@ -8,6 +8,8 @@ import { Panel, Stat } from "@/components/ui";
 import { Empty, useLiveChart } from "@/components/analytics/Charts";
 import { ChartCard } from "@/components/analytics/primitives/ChartCard";
 import { InteractiveChart } from "@/components/analytics/primitives/InteractiveChart";
+import { QuantStudyFooter } from "@/components/quant-lab/primitives/QuantStudyFooter";
+import { getQuantStudy } from "@/lib/analytics/quant-studies";
 import { num, signed } from "@/lib/format";
 
 type Props = {
@@ -100,17 +102,21 @@ export function SimulationLab({ accountId, filters, data, startingBalance }: Pro
         }
       : null;
 
+  const mcDef = getQuantStudy("monte_carlo");
+  const rorDef = getQuantStudy("risk_of_ruin");
+
   if (!sim.can_run) {
     return (
-      <Panel title="Monte Carlo">
+      <Panel title={mcDef?.title ?? "Monte Carlo"}>
         <Empty>At least 5 valid observations are required to run simulations on the filtered sample.</Empty>
+        <QuantStudyFooter studyId="monte_carlo" />
       </Panel>
     );
   }
 
   return (
     <div className="stack">
-      <Panel title="Monte Carlo · SIMULATED SCENARIOS">
+      <Panel title={`${mcDef?.title ?? "Monte Carlo"} · simulated scenarios`}>
         <p className="muted">
           Historical sample: {sim.historical_sample_size} trades. Resamples with replacement to explore possible return sequences.
         </p>
@@ -191,11 +197,16 @@ export function SimulationLab({ accountId, filters, data, startingBalance }: Pro
               </ul>
             )}
             <p className="muted">{mcResult.disclaimer}</p>
+            <QuantStudyFooter
+              studyId="monte_carlo"
+              extraAssumptions={mcResult.assumptions}
+            />
           </>
         )}
+        {!mcResult?.available && <QuantStudyFooter studyId="monte_carlo" />}
       </Panel>
 
-      <Panel title="Risk of ruin estimator · MODEL ESTIMATE">
+      <Panel title={`${rorDef?.title ?? "Risk of ruin"} · model estimate`}>
         <div className="config">
           <label>
             Account equity
@@ -222,8 +233,10 @@ export function SimulationLab({ accountId, filters, data, startingBalance }: Pro
               <Stat label="Crossings" value={String(ruinResult.crossings ?? "—")} />
             </div>
             <p className="muted">{ruinResult.disclaimer}</p>
+            <QuantStudyFooter studyId="risk_of_ruin" />
           </>
         )}
+        {!ruinResult?.available && <QuantStudyFooter studyId="risk_of_ruin" />}
       </Panel>
 
       <style jsx>{`

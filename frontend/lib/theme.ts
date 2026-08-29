@@ -39,6 +39,8 @@ export function persistTheme(preference: ThemePreference): ResolvedTheme {
 type ChartColors = {
   pos: string;
   neg: string;
+  long: string;
+  short: string;
   ink: string;
   muted: string;
   line: string;
@@ -50,6 +52,8 @@ type ChartColors = {
 const DARK_CHART: ChartColors = {
   pos: "#18B981",
   neg: "#E56B6F",
+  long: "#18B981",
+  short: "#E56B6F",
   ink: "#F1F5F3",
   muted: "#66736C",
   line: "#25312B",
@@ -62,9 +66,13 @@ export function chartTheme(): ChartColors {
   if (typeof document === "undefined") return DARK_CHART;
   const s = getComputedStyle(document.documentElement);
   const v = (name: string, fallback: string) => s.getPropertyValue(name).trim() || fallback;
+  const pos = v("--success", DARK_CHART.pos);
+  const neg = v("--danger", DARK_CHART.neg);
   return {
-    pos: v("--success", DARK_CHART.pos),
-    neg: v("--danger", DARK_CHART.neg),
+    pos,
+    neg,
+    long: pos,
+    short: neg,
     ink: v("--text-primary", DARK_CHART.ink),
     muted: v("--text-muted", DARK_CHART.muted),
     line: v("--border", DARK_CHART.line),
