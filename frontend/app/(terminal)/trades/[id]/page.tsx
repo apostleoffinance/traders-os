@@ -8,6 +8,7 @@ import { useAiStatus } from "@/lib/ai";
 import type { Screenshot, Trade } from "@/lib/types";
 import { Alert, Badge, Panel } from "@/components/ui";
 import { IntelligenceRunner } from "@/components/IntelligenceRunner";
+import { TradeReplayView } from "@/components/trade-replay/TradeReplayView";
 import { formatWhen, holdingLabel, money, sessionLabel, signed, tone } from "@/lib/format";
 
 function Shot({
@@ -172,6 +173,7 @@ export default function TradeDetailPage() {
           <div className="status-row">
             {isOpen ? <span className="open-pill">TRADE OPEN</span> : <Badge status="closed" />}
             {!isOpen && <Badge status={trade.result} />}
+            {trade.source === "mt5" && <span className="source-pill">MT5</span>}
           </div>
         </div>
         <div className="head-right">
@@ -196,6 +198,15 @@ export default function TradeDetailPage() {
           </div>
         </div>
       </div>
+
+      {!isOpen && trade.source === "mt5" && (
+        <Alert kind="info">
+          Trade closed and synced from MT5.{" "}
+          <Link href={`/trades/${trade.id}/edit`}>Complete your review</Link> to capture psychology and lessons.
+        </Alert>
+      )}
+
+      <TradeReplayView tradeId={trade.id} />
 
       <div className="cols">
         <Panel title="Setup">
@@ -394,6 +405,16 @@ export default function TradeDetailPage() {
           padding: 5px 10px;
           background: color-mix(in srgb, var(--accent) 18%, var(--surface));
           color: var(--accent);
+        }
+        .source-pill {
+          display: inline-block;
+          font-family: var(--font-mono), "IBM Plex Mono", ui-monospace, Menlo, monospace;
+          font-size: 11px;
+          font-weight: 600;
+          letter-spacing: 0.08em;
+          padding: 4px 8px;
+          border: 1px solid var(--border);
+          border-radius: var(--radius-sm);
         }
         .open-copy {
           max-width: 220px;

@@ -18,8 +18,10 @@ import {
   type LucideProps,
 } from "lucide-react";
 import { api, clearSession, ensureFreshAccessToken, getActiveAccountId, hasSession, isAuthFailure, setActiveAccountId } from "@/lib/api";
+import { PERIOD_LABELS, useGlobalFilters, type PeriodPreset } from "@/lib/filters";
 import type { Account, User } from "@/lib/types";
 import { BrandMark } from "@/components/BrandMark";
+import { CommandPalette } from "@/components/app-shell/CommandPalette";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { money, signed, tone } from "@/lib/format";
 
@@ -27,21 +29,31 @@ const SIDEBAR_KEY = "trader-os-sidebar-collapsed";
 
 type NavIcon = ComponentType<LucideProps>;
 
+type NavGroup = "command" | "trading" | "intelligence" | "risk" | "account";
+
 type NavItem = {
   href: string;
   label: string;
   icon: NavIcon;
-  group: "workspace" | "account";
+  group: NavGroup;
+};
+
+const GROUP_LABELS: Record<NavGroup, string> = {
+  command: "Command",
+  trading: "Trading",
+  intelligence: "Intelligence",
+  risk: "Risk",
+  account: "Account",
 };
 
 const NAV: NavItem[] = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, group: "workspace" },
-  { href: "/calculator", label: "Trade Calculator", icon: Calculator, group: "workspace" },
-  { href: "/trades/new", label: "New trade", icon: PlusCircle, group: "workspace" },
-  { href: "/trades", label: "History", icon: History, group: "workspace" },
-  { href: "/risk", label: "Risk monitor", icon: ShieldAlert, group: "workspace" },
-  { href: "/analytics", label: "Analytics", icon: ChartNoAxesCombined, group: "workspace" },
-  { href: "/intelligence", label: "Intelligence", icon: BrainCircuit, group: "workspace" },
+  { href: "/dashboard", label: "Command Center", icon: LayoutDashboard, group: "command" },
+  { href: "/trades/new", label: "New trade", icon: PlusCircle, group: "trading" },
+  { href: "/trades", label: "Trade journal", icon: History, group: "trading" },
+  { href: "/calculator", label: "Calculator", icon: Calculator, group: "trading" },
+  { href: "/analytics", label: "Analytics Lab", icon: ChartNoAxesCombined, group: "intelligence" },
+  { href: "/intelligence", label: "Intelligence Feed", icon: BrainCircuit, group: "intelligence" },
+  { href: "/risk", label: "Risk Command", icon: ShieldAlert, group: "risk" },
   { href: "/accounts", label: "Accounts", icon: WalletCards, group: "account" },
   { href: "/settings", label: "Settings", icon: Settings, group: "account" },
 ];
@@ -67,6 +79,7 @@ function readCollapsed(): boolean {
 export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const { filters, setFilters } = useGlobalFilters();
   const [user, setUser] = useState<User | null>(null);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [accountId, setAccountId] = useState<string | null>(null);
@@ -152,8 +165,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const active = useMemo(() => accounts.find((a) => a.id === accountId) ?? null, [accounts, accountId]);
   const pnl = active ? Number(active.current_equity) - Number(active.starting_balance) : 0;
 
-  const workspace = NAV.filter((i) => i.group === "workspace");
-  const account = NAV.filter((i) => i.group === "account");
+  const navGroups: NavGroup[] = ["command", "trading", "intelligence", "risk", "account"];
 
   function renderNav(opts: { collapsedMode: boolean; showToggle?: boolean; onNavigate?: () => void }) {
     const { collapsedMode, showToggle = false, onNavigate } = opts;
@@ -187,44 +199,32 @@ export function Shell({ children }: { children: React.ReactNode }) {
             </button>
           )}
         </div>
-        <nav aria-label="Workspace">
-          {!collapsedMode && <p className="nav-kicker">Workspace</p>}
-          {workspace.map((item) => {
-            const Icon = item.icon;
-            const isActive = navActive(item.href, pathname);
+        <nav aria-label="Main">
+          {navGroups.map((group, gi) => {
+            const items = NAV.filter((i) => i.group === group);
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={isActive ? "nav-link active" : "nav-link"}
-                onClick={onNavigate}
-                title={collapsedMode ? item.label : undefined}
-                aria-label={item.label}
-                aria-current={isActive ? "page" : undefined}
-              >
-                <Icon size={20} strokeWidth={1.75} aria-hidden />
-                {!collapsedMode && <span className="nav-label">{item.label}</span>}
-              </Link>
-            );
-          })}
-          {!collapsedMode && <p className="nav-kicker account-kicker">Account</p>}
-          {collapsedMode && <div className="nav-divider" aria-hidden />}
-          {account.map((item) => {
-            const Icon = item.icon;
-            const isActive = navActive(item.href, pathname);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={isActive ? "nav-link active" : "nav-link"}
-                onClick={onNavigate}
-                title={collapsedMode ? item.label : undefined}
-                aria-label={item.label}
-                aria-current={isActive ? "page" : undefined}
-              >
-                <Icon size={20} strokeWidth={1.75} aria-hidden />
-                {!collapsedMode && <span className="nav-label">{item.label}</span>}
-              </Link>
+              <div key={group} className={gi > 0 ? "nav-group" : ""}>
+                {!collapsedMode && <p className="nav-kicker">{GROUP_LABELS[group]}</p>}
+                {collapsedMode && gi > 0 && <div className="nav-divider" aria-hidden />}
+                {items.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = navActive(item.href, pathname);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={isActive ? "nav-link active" : "nav-link"}
+                      onClick={onNavigate}
+                      title={collapsedMode ? item.label : undefined}
+                      aria-label={item.label}
+                      aria-current={isActive ? "page" : undefined}
+                    >
+                      <Icon size={20} strokeWidth={1.75} aria-hidden />
+                      {!collapsedMode && <span className="nav-label">{item.label}</span>}
+                    </Link>
+                  );
+                })}
+              </div>
             );
           })}
         </nav>
@@ -247,6 +247,21 @@ export function Shell({ children }: { children: React.ReactNode }) {
               </div>
             </div>
             <div className="top-right">
+              <button type="button" className="cmd-btn" onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))}>
+                ⌘K
+              </button>
+              <select
+                className="period-select"
+                aria-label="Period"
+                value={filters.period}
+                onChange={(e) => setFilters({ period: e.target.value as PeriodPreset })}
+              >
+                {(Object.keys(PERIOD_LABELS) as PeriodPreset[]).map((p) => (
+                  <option key={p} value={p}>
+                    {PERIOD_LABELS[p]}
+                  </option>
+                ))}
+              </select>
               {active && (
                 <div className="eq-chip">
                   <span className="muted">Equity</span>
@@ -289,6 +304,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <aside className="rail drawer">{renderNav({ collapsedMode: false, onNavigate: () => setNavOpen(false) })}</aside>
         </div>
       )}
+      <CommandPalette />
       <style jsx>{`
         .shell-wrap {
           min-height: 100vh;
@@ -419,6 +435,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
         .account-kicker {
           margin-top: 18px;
         }
+        .nav-group {
+          margin-top: 8px;
+        }
         .nav-divider {
           height: 1px;
           width: 60%;
@@ -526,6 +545,24 @@ export function Shell({ children }: { children: React.ReactNode }) {
           border-radius: var(--radius-sm);
           font-size: 15px;
           font-weight: 500;
+        }
+        .period-select {
+          min-width: 120px;
+          max-width: 140px;
+        }
+        .cmd-btn {
+          border: 1px solid var(--border);
+          background: var(--surface-2);
+          color: var(--muted);
+          font-size: 12px;
+          font-family: var(--font-mono), monospace;
+          padding: 7px 10px;
+          border-radius: var(--radius-sm);
+          cursor: pointer;
+        }
+        .cmd-btn:hover {
+          color: var(--text-primary);
+          border-color: var(--line-strong);
         }
         .who {
           display: flex;

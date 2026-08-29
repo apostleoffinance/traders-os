@@ -22,6 +22,7 @@ function TradeRow({ trade: t }: { trade: Trade }) {
     },
     { content: sessionLabel(t.session) },
     { content: t.direction },
+    { content: t.source === "mt5" ? "MT5" : "Manual" },
     { content: t.setup_name ?? "-" },
     { content: t.entry_price, className: "num" },
     { content: t.stop_loss, className: "num" },
@@ -160,6 +161,7 @@ export default function TradeHistoryPage() {
               <th>Instrument</th>
               <th>Session</th>
               <th>Dir</th>
+              <th>Source</th>
               <th>Setup</th>
               <th>Entry</th>
               <th>SL</th>

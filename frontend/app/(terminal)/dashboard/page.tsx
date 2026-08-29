@@ -4,22 +4,12 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { api, getActiveAccountId, getStoredUser } from "@/lib/api";
 import type { Dashboard, Trade, User } from "@/lib/types";
-import { Alert, Badge, EmptyState, LimitBar, Panel, Stat } from "@/components/ui";
-import { EquitySparkline } from "@/components/EquitySparkline";
-import { IntelligenceWidget } from "@/components/IntelligenceWidget";
-import { money, num, sessionLabel, signed, tone } from "@/lib/format";
+import { Alert, EmptyState } from "@/components/ui";
+import { CommandCenterView } from "@/components/command-center/CommandCenterView";
 import { firstName, greeting } from "@/lib/theme";
-
-function healthLabel(status: string): string {
-  if (status === "green") return "Account healthy";
-  if (status === "yellow") return "Caution";
-  if (status === "red") return "Risk halt";
-  return status;
-}
 
 export default function DashboardPage() {
   const [data, setData] = useState<Dashboard | null>(null);
-  const [recent, setRecent] = useState<Trade[]>([]);
   const [openTrades, setOpenTrades] = useState<Trade[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [hello, setHello] = useState("Good afternoon");
@@ -30,7 +20,6 @@ export default function DashboardPage() {
     if (!id) {
       setError("Create an account to begin.");
       setData(null);
-      setRecent([]);
       setOpenTrades([]);
       return;
     }
@@ -39,16 +28,14 @@ export default function DashboardPage() {
       const dash = await api<Dashboard>(`/api/dashboard?account_id=${id}`);
       setData(dash);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to load dashboard.");
+      setError(err instanceof Error ? err.message : "Unable to load command center.");
       setData(null);
       return;
     }
     try {
       const trades = await api<Trade[]>(`/api/trades?account_id=${id}`);
-      setRecent(trades.slice(0, 8));
       setOpenTrades(trades.filter((t) => t.status === "open"));
     } catch {
-      setRecent([]);
       setOpenTrades([]);
     }
   }, []);
@@ -66,8 +53,8 @@ export default function DashboardPage() {
   if (error && !data) {
     return (
       <div>
-        <p className="page-kicker">Workspace</p>
-        <h1>Dashboard</h1>
+        <p className="page-kicker">Command Center</p>
+        <h1>Command Center</h1>
         <Alert kind="warn">
           {error} <Link href="/accounts">Open accounts</Link>
         </Alert>
@@ -76,289 +63,76 @@ export default function DashboardPage() {
   }
   if (!data) return <p className="muted">Loading…</p>;
 
-  const health = data.health ?? {
-    score: data.trading_health,
-    status: data.trading_health_status,
-    trades_needed: data.trading_health_trades_needed,
-  };
-  const healthInsufficient = health.status === "insufficient_data";
-  const pnlPct =
-    Number(data.starting_balance) > 0
-      ? (Number(data.total_pnl) / Number(data.starting_balance)) * 100
-      : null;
+  const stable = data.command_center?.account_status === "STABLE";
 
   return (
     <div>
-      <div className="head">
+      <header className="cc-head">
         <div>
-          <p className="page-kicker">{hello}, {name}</p>
-          <h1 style={{ margin: 0 }}>{data.account.name}</h1>
-          <p className="muted">
-            {data.account.firm} · {data.account.program}
+          <p className="page-kicker">Command Center</p>
+          <h1 style={{ margin: "4px 0" }}>
+            {hello}, {name}.
+          </h1>
+          <p className="lede">
+            {stable
+              ? `Your ${data.account.name} account is currently stable.`
+              : `Your ${data.account.name} account needs attention.`}
           </p>
         </div>
-        <div className="head-right">
-          <Badge status={data.risk_status} />
-          <span className="muted status-copy">{healthLabel(data.risk_status)}</span>
-          <div className="hero-eq">
-            <div className={`num eq ${tone(data.total_pnl)}`}>{money(data.equity)}</div>
-            <div className={`num ${tone(data.total_pnl)}`}>
-              {signed(data.total_pnl)}
-              {pnlPct != null ? ` · ${pnlPct >= 0 ? "+" : ""}${pnlPct.toFixed(1)}%` : ""}
-            </div>
-          </div>
+        <div className="actions">
+          <Link href="/trades/new" className="btn primary">
+            New trade
+          </Link>
+          <Link href="/analytics" className="btn">
+            Analytics Lab
+          </Link>
         </div>
-      </div>
+      </header>
 
       {data.n_trades === 0 && (
         <EmptyState
-          title="Log your first trade"
+          title="Start your journal"
           action={
             <Link href="/trades/new" className="btn">
-              New trade
+              Log first trade
             </Link>
           }
         >
           <p className="muted" style={{ margin: 0 }}>
-            Journal after you analyze on your chart. Risk and discipline are scored here - not in the market.
+            Or connect MT5 from Accounts to sync trades automatically.
           </p>
         </EmptyState>
       )}
 
-      {data.risk_reasons.slice(0, 3).map((r) => (
-        <Alert key={r} kind={data.risk_status === "red" ? "danger" : data.risk_status === "yellow" ? "warn" : "info"}>
-          {r}
-        </Alert>
-      ))}
-
-      <Panel title="Equity curve">
-        <div className="equity-head">
-          <Stat label="Equity" value={money(data.equity)} tone={tone(data.total_pnl)} />
-          <Stat label="Realized P/L" value={signed(data.total_pnl)} tone={tone(data.total_pnl)} />
-          <Stat label="Daily P/L" value={signed(data.daily_pnl)} tone={tone(data.daily_pnl)} />
-          <Stat label="Drawdown" value={money(data.drawdown)} tone={Number(data.drawdown) > 0 ? "neg" : ""} />
-        </div>
-        <EquitySparkline series={data.equity_series ?? []} height={140} />
-      </Panel>
-
-      <div style={{ marginTop: 16 }}>
-        <Panel title="Active trades">
-          {openTrades.length === 0 ? (
-            <p className="muted">No active trades.</p>
-          ) : (
-            <ul className="active-list">
-              {openTrades.map((t) => (
-                <li key={t.id}>
-                  <div>
-                    <strong>
-                      {t.symbol} {t.direction.toUpperCase()}
-                    </strong>
-                    <span className="muted">
-                      {" "}
-                      · {sessionLabel(t.session)} · entry {t.entry_price} · risk {money(t.risk_amount)}
-                    </span>
-                    <div className="open-tag">OPEN</div>
-                  </div>
-                  <Link href={`/trades/${t.id}`}>View trade</Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Panel>
-      </div>
-
-      <div className="kpi-grid" style={{ margin: "16px 0" }}>
-        <Stat label="Win rate" value={data.win_rate ? `${num(data.win_rate, 1)}%` : "-"} />
-        <Stat label="Expectancy" value={data.expectancy_r ? `${num(data.expectancy_r)}R` : "-"} />
-        <Stat label="Average R" value={data.average_r ? `${num(data.average_r)}R` : "-"} />
-        <Stat label="Profit factor" value={data.profit_factor ? num(data.profit_factor) : "-"} />
-        <Stat label="Trades" value={data.n_trades} />
-        {healthInsufficient ? (
-          <Stat
-            label="Trading health"
-            value="-"
-            hint={`${health.trades_needed} more trade${health.trades_needed === 1 ? "" : "s"} to score`}
-          />
-        ) : (
-          <Stat label="Trading health" value={`${health.score}/100`} hint={`based on ${data.n_trades} trades`} />
-        )}
-        <Stat
-          label="Trades today"
-          value={`${data.trades_today} / ${data.max_trades_per_day}`}
-          tone={data.trades_today >= data.max_trades_per_day ? "warn" : ""}
-        />
-        <Stat label="Discipline" value={data.discipline_score ?? "-"} />
-      </div>
-
-      <div className="two">
-        <Panel title="Am I safe?">
-          <LimitBar label="Personal daily loss" limit={data.personal_daily_loss.limit} remaining={data.personal_daily_loss.remaining} />
-          <LimitBar label="Personal max drawdown" limit={data.personal_max_dd.limit} remaining={data.personal_max_dd.remaining} />
-          <LimitBar label="Firm daily drawdown" limit={data.firm_daily_dd.limit} remaining={data.firm_daily_dd.remaining} />
-          <LimitBar label="Firm max drawdown" limit={data.firm_max_dd.limit} remaining={data.firm_max_dd.remaining} />
-        </Panel>
-        <Panel title="How am I doing?">
-          {data.n_trades === 0 ? (
-            <p>No journaled trades yet. Log a trade to see how you are doing.</p>
-          ) : (
-            <p>{data.trading_health_summary}</p>
-          )}
-        </Panel>
-      </div>
-
-      <div className="two" style={{ marginTop: 16 }}>
-        <Panel
-          title="Recent performance"
-          right={
-            <Link href="/trades" className="muted">
-              History
-            </Link>
-          }
-        >
-          {recent.length === 0 ? (
-            <p className="muted">No trades yet.</p>
-          ) : (
-            <table className="blotter">
-              <thead>
-                <tr>
-                  <th>Session</th>
-                  <th>Setup</th>
-                  <th>Result</th>
-                  <th>R</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recent.map((t) => {
-                  const href = `/trades/${t.id}`;
-                  const label = t.setup_name ?? t.symbol;
-                  const cells = [
-                    sessionLabel(t.session),
-                    <Link key="label" href={href} className="trade-link">{label}</Link>,
-                    <Badge key="result" status={t.result} />,
-                    t.realized_r ? `${num(t.realized_r)}R` : "-",
-                  ];
-                  return (
-                    <tr key={t.id} className="recent-row">
-                      {cells.map((cell, i) => (
-                        <td key={i} className={i === 3 ? `num ${tone(t.realized_r)}` : undefined}>
-                          <Link
-                            href={href}
-                            className="row-hit"
-                            aria-label={i === 0 ? `Open ${label} trade` : undefined}
-                            aria-hidden={i === 0 ? undefined : true}
-                            tabIndex={i === 0 ? 0 : -1}
-                          />
-                          {cell}
-                        </td>
-                      ))}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
-        </Panel>
-        <IntelligenceWidget />
-      </div>
+      <CommandCenterView data={data} openTrades={openTrades} />
 
       <style jsx>{`
-        .head {
+        .cc-head {
           display: flex;
           justify-content: space-between;
           align-items: flex-start;
-          margin-bottom: 16px;
           gap: 16px;
+          margin-bottom: 20px;
         }
-        .head-right {
-          text-align: right;
-          display: grid;
-          justify-items: end;
-          gap: 6px;
-        }
-        .status-copy {
-          font-size: 11px;
-          letter-spacing: 0.08em;
-          text-transform: uppercase;
-        }
-        .eq {
-          font-size: 34px;
-          font-weight: 700;
-        }
-        .equity-head {
-          display: grid;
-          grid-template-columns: repeat(4, 1fr);
-          gap: 16px;
-          margin-bottom: 10px;
-        }
-        .two {
-          display: grid;
-          grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-          gap: 16px;
-        }
-        .active-list {
-          list-style: none;
+        .lede {
           margin: 0;
-          padding: 0;
-          display: grid;
-          gap: 12px;
+          color: var(--text-secondary);
+          font-size: 16px;
+          max-width: 52ch;
         }
-        .active-list li {
+        .actions {
           display: flex;
-          justify-content: space-between;
-          align-items: center;
-          gap: 12px;
-          padding-bottom: 10px;
-          border-bottom: 1px solid var(--line);
+          gap: 8px;
+          flex-wrap: wrap;
         }
-        .active-list li:last-child {
-          border-bottom: none;
-          padding-bottom: 0;
+        .actions :global(.btn.primary) {
+          background: var(--accent);
+          color: var(--accent-contrast);
+          border-color: var(--accent);
         }
-        .open-tag {
-          margin-top: 4px;
-          font-size: 11px;
-          letter-spacing: 0.1em;
-          font-weight: 700;
-          color: var(--accent);
-        }
-        .active-list a {
-          text-decoration: underline;
-          white-space: nowrap;
-        }
-        .recent-row td {
-          position: relative;
-        }
-        .recent-row:hover td {
-          background: var(--surface-2);
-        }
-        .recent-row :global(.row-hit) {
-          position: absolute;
-          inset: 0;
-          z-index: 1;
-        }
-        .recent-row :global(.trade-link) {
-          position: relative;
-          z-index: 2;
-          color: inherit;
-          text-decoration: underline;
-          text-underline-offset: 2px;
-        }
-        @media (max-width: 900px) {
-          .head {
+        @media (max-width: 700px) {
+          .cc-head {
             flex-direction: column;
-          }
-          .head-right {
-            text-align: left;
-            justify-items: start;
-          }
-          .two,
-          .equity-head {
-            grid-template-columns: 1fr 1fr;
-          }
-        }
-        @media (max-width: 640px) {
-          .equity-head {
-            grid-template-columns: 1fr 1fr;
           }
         }
       `}</style>

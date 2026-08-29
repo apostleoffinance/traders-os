@@ -1,14 +1,17 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { api } from "@/lib/api";
 import type { Account, RiskProfile } from "@/lib/types";
 import { Alert, Button, Field, Panel } from "@/components/ui";
+import { Mt5ConnectionPanel } from "@/components/Mt5ConnectionPanel";
 import { money } from "@/lib/format";
 
 export default function AccountDetailPage() {
   const params = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
+  const connectMt5 = searchParams.get("connect") === "mt5";
   const [account, setAccount] = useState<Account | null>(null);
   const [form, setForm] = useState<Partial<RiskProfile>>({});
   const [saved, setSaved] = useState(false);
@@ -68,6 +71,7 @@ export default function AccountDetailPage() {
         {account.firm} · {account.program} · starting {money(account.starting_balance)} · equity{" "}
         {money(account.current_equity)}
       </p>
+      <Mt5ConnectionPanel accountId={params.id} autoOpen={connectMt5} />
       <Panel title="Risk policy">
         <p className="muted">
           These values live in the database. Personal limits should stay stricter than firm limits.

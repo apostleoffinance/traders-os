@@ -145,6 +145,58 @@ def test_edit_open_trade_and_close(client: TestClient) -> None:
     assert again.status_code == 409
 
 
+def test_trade_replay_endpoint(client: TestClient) -> None:
+    auth = _register(client, "replay@example.com")
+    headers = {"Authorization": f"Bearer {auth['access_token']}"}
+    account_id = _account(client, auth["access_token"])
+
+    body = _open_body(account_id)
+    body["exit_price"] = "1.16000"
+    body["exit_timestamp"] = "2026-08-24T12:00:00+01:00"
+    created = client.post("/api/trades", headers=headers, json=body)
+    assert created.status_code == 201, created.text
+    trade_id = created.json()["id"]
+
+    replay = client.get(f"/api/trades/{trade_id}/replay", headers=headers)
+    assert replay.status_code == 200, replay.text
+    data = replay.json()
+    assert data["trade_id"] == trade_id
+    assert data["symbol"] == "EURUSD"
+    assert len(data["timeline"]) >= 2
+    assert "at_entry" in data["decision_replay"]
+    assert len(data["decision_replay"]["at_entry"]) >= 1
+    assert len(data["decision_replay"]["after"]) >= 1
+    assert "process_score" in data["decision_quality"]
+
+
+def test_risk_command_api(client: TestClient) -> None:
+    auth = _register(client, "riskcmd@example.com")
+    headers = {"Authorization": f"Bearer {auth['access_token']}"}
+    account_id = _account(client, auth["access_token"])
+
+    resp = client.get(f"/api/risk/command?account_id={account_id}", headers=headers)
+    assert resp.status_code == 200, resp.text
+    data = resp.json()
+    assert "risk_radar" in data
+    assert "trading_capacity" in data
+    assert "survival_mode" in data
+    assert data["survival_mode"]["firm"] == "TenTrade"
+
+
+def test_intelligence_feed_api(client: TestClient) -> None:
+    auth = _register(client, "intel@example.com")
+    headers = {"Authorization": f"Bearer {auth['access_token']}"}
+    account_id = _account(client, auth["access_token"])
+
+    resp = client.get(f"/api/intelligence/feed?account_id={account_id}&preset=30d", headers=headers)
+    assert resp.status_code == 200, resp.text
+    data = resp.json()
+    assert "feed" in data
+    assert "today" in data["feed"]
+    assert "insights" in data["feed"]
+    assert "summary" in data
+
+
 def test_open_trade_excluded_from_dashboard_stats(client: TestClient) -> None:
     auth = _register(client, "stats@example.com")
     headers = {"Authorization": f"Bearer {auth['access_token']}"}

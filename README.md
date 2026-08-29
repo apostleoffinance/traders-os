@@ -163,6 +163,8 @@ Covers pip/P/L/R math, drawdown, session DST, discipline independence from P/L, 
 
 **Web (Vercel):** Import the GitHub repo, then set **Root Directory** to `frontend` (required). Framework is Next.js. Set `NEXT_PUBLIC_API_URL` to the Render URL. Redeploy after changing Root Directory. A Vercel `404: NOT_FOUND` page means the project was built from the repo root or has no Ready deploy. Do not put provider keys in Vercel.
 
+**MT5 sync:** Run migration `0007_mt5_sync` on production (`alembic upgrade head`). The Connect MT5 wizard in the web app serves a pre-built EA zip (`frontend/public/downloads/TraderOSSync.zip`, rebuilt on `npm run build`). Users download from the app — no git or MetaEditor required. In production the wizard shows the **Vercel app URL** as `ApiBaseUrl`; Next.js rewrites `/api/*` to Render. Users must allow that URL in MT5 **Tools → Options → Expert Advisors → WebRequest**. Optional overrides: `NEXT_PUBLIC_MT5_API_URL`, `NEXT_PUBLIC_MT5_EA_DOWNLOAD_URL`.
+
 Screenshots use `STORAGE_BACKEND` (default **`db`**):
 
 - **`db`** — image bytes in Postgres (`trade_screenshots.file_data`). Survives Render redeploys with **no extra service**. Cap size with `STORAGE_MAX_UPLOAD_BYTES` (default ~1.5 MB) for Neon free tier (0.5 GB).

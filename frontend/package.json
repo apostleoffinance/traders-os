@@ -4,6 +4,8 @@
   "version": "0.1.0",
   "scripts": {
     "dev": "next dev",
+    "package:mt5": "node scripts/package-mt5-ea.mjs",
+    "prebuild": "node scripts/package-mt5-ea.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"

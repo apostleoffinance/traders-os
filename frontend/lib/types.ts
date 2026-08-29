@@ -60,6 +60,20 @@ export type Account = {
   risk_profile: RiskProfile | null;
 };
 
+export type Mt5Connection = {
+  id: string;
+  account_id: string;
+  status: string;
+  token_prefix: string;
+  mt5_login: string | null;
+  mt5_server: string | null;
+  broker_name: string | null;
+  last_seen_at: string | null;
+  last_sync_at: string | null;
+  created_at: string;
+  revoked_at: string | null;
+};
+
 export type Setup = {
   id: string;
   user_id: string;
@@ -181,6 +195,12 @@ export type Trade = {
   notes: string | null;
   discipline_score: number | null;
   acknowledged_warnings: boolean;
+  source?: string;
+  external_position_id?: string | null;
+  symbol_raw?: string | null;
+  instrument_status?: string | null;
+  commission?: string | null;
+  swap?: string | null;
   created_at: string;
   psychology: (Psychology & { id: string; trade_id: string }) | null;
   screenshots: Screenshot[];
@@ -286,6 +306,65 @@ export type Dashboard = {
   sharpe_note: { available: boolean; reason: string | null; n: number };
   sortino: string | null;
   sortino_note: { available: boolean; reason: string | null; n: number };
+  command_center: CommandCenter;
+};
+
+export type CommandCenterEvidence = {
+  n: number;
+  level: string;
+  label: string;
+  reason: string;
+};
+
+export type CommandCenter = {
+  account_status: string;
+  trading_capacity: {
+    full_risk_trades_remaining: number;
+    half_risk_trades_remaining: number;
+    risk_per_trade: string;
+    daily_loss_used: string;
+    daily_loss_limit: string;
+    daily_loss_used_pct: number;
+  };
+  today_story: {
+    trade_count: number;
+    closed_count: number;
+    discipline_avg: number | null;
+    headline: string;
+    bullets: { tone: string; text: string }[];
+  };
+  timeline: {
+    at: string;
+    type: string;
+    trade_id: string;
+    label: string;
+    detail: string;
+    severity: string;
+    symbol: string;
+  }[];
+  edge_snapshot: {
+    kind: string;
+    label: string;
+    expectancy_r: string;
+    win_rate: string | null;
+    n: number;
+    evidence: CommandCenterEvidence;
+    insight: string;
+  } | null;
+  behaviour_watch: {
+    code: string;
+    severity: string;
+    title: string;
+    summary: string;
+    evidence: CommandCenterEvidence;
+  } | null;
+  insights: {
+    type: string;
+    severity: string;
+    title: string;
+    summary: string;
+    evidence: CommandCenterEvidence | null;
+  }[];
 };
 
 export type GroupStat = {

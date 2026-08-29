@@ -118,9 +118,15 @@ def test_empty_dashboard_health_and_safety_shape(client: TestClient) -> None:
     assert float(body["personal_max_dd"]["limit"]) == 50.0
     assert float(body["firm_daily_dd"]["limit"]) == 60.0
     assert float(body["firm_max_dd"]["limit"]) == 90.0
+    cc = body["command_center"]
+    assert cc["account_status"] in {"STABLE", "CAUTION", "HALT"}
+    assert "today_story" in cc
+    assert "timeline" in cc
+    assert "trading_capacity" in cc
+    assert "insights" in cc
 
 
-def test_dashboard_equity_series_grows_with_closed_trades(client: TestClient) -> None:
+def test_dashboard_command_center_after_trades(client: TestClient) -> None:
     user = _register(client, "spark@example.com")
     headers = _headers(user["access_token"])
     account_id = _account(client, headers)

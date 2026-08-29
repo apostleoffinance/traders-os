@@ -73,6 +73,14 @@ def create_trade(
         raise http_error(exc) from exc
 
 
+@router.get("/{trade_id}/replay")
+def trade_replay(trade_id: UUID, db: Session = Depends(get_db), user_id=Depends(get_current_user_id)):
+    try:
+        return trade_service.get_trade_replay(db, user_id, trade_id)
+    except DomainError as exc:
+        raise http_error(exc) from exc
+
+
 @router.get("/{trade_id}", response_model=TradeOut)
 def get_trade(trade_id: UUID, db: Session = Depends(get_db), user_id=Depends(get_current_user_id)):
     try:

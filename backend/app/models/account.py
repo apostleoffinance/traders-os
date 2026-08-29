@@ -37,6 +37,9 @@ class Account(Base):
         back_populates="account", uselist=False, cascade="all, delete-orphan"
     )
     trades: Mapped[list["Trade"]] = relationship(back_populates="account")  # noqa: F821
+    mt5_connection: Mapped["Mt5Connection | None"] = relationship(  # noqa: F821
+        back_populates="account", uselist=False, cascade="all, delete-orphan"
+    )
 
 
 class AccountRiskProfile(Base):

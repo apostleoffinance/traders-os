@@ -30,6 +30,7 @@ from app.engines.fx_math import (
 )
 from app.engines.process_checks import auto_check_to_dict, evaluate_auto_checks, process_status
 from app.engines.risk_engine import RiskEventDraft, compute_risk_snapshot
+from app.engines.trade_replay import build_trade_replay
 from app.engines.session_engine import classify_session, in_preferred_window
 from app.models.account import Account
 from app.models.checklist import TradeChecklistResponse
@@ -426,6 +427,14 @@ def get_trade(db: Session, user_id: UUID, trade_id: UUID) -> Trade:
     if trade is None:
         raise NotFoundError("Trade not found")
     return trade
+
+
+def get_trade_replay(db: Session, user_id: UUID, trade_id: UUID) -> dict:
+    trade = get_trade(db, user_id, trade_id)
+    account = get_owned_account(db, user_id, trade.account_id)
+    user = db.query(User).filter(User.id == user_id).one()
+    profile = profile_view(account.risk_profile) if account.risk_profile else None
+    return build_trade_replay(trade, profile=profile, timezone=user.timezone or trade.timezone)
 
 
 def list_trades(

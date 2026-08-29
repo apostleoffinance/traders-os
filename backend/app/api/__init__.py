@@ -12,8 +12,10 @@ from app.api.catalog import (
     setups_router,
 )
 from app.api.calculator import router as calculator_router
+from app.api.intelligence import router as intelligence_router
 from app.api.push import router as push_router
 from app.api.trades import router as trades_router
+from app.integrations.mt5.router import router as mt5_router
 
 api_router = APIRouter()
 api_router.include_router(auth_router)
@@ -29,4 +31,6 @@ api_router.include_router(events_router)
 api_router.include_router(media_router)
 api_router.include_router(push_router)
 api_router.include_router(ai_router)
+api_router.include_router(intelligence_router)
 api_router.include_router(calculator_router)
+api_router.include_router(mt5_router)

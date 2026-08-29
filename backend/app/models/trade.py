@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, LargeBinary, String, Text, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, LargeBinary, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.enums import Direction, SessionName, TradeResult, TradeStatus
@@ -14,6 +14,14 @@ from app.models.types import MONEY, PERCENT, PRICE, QTY, RATIO, UUID_PK
 
 class Trade(Base):
     __tablename__ = "trades"
+    __table_args__ = (
+        UniqueConstraint(
+            "account_id",
+            "external_provider",
+            "external_position_id",
+            name="uq_trades_mt5_position",
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID_PK, primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(
@@ -62,6 +70,13 @@ class Trade(Base):
     source_analysis_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID_PK, ForeignKey("market_analyses.id", ondelete="SET NULL"), nullable=True, index=True
     )
+    external_provider: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    external_position_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    external_deal_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    symbol_raw: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    instrument_status: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    commission: Mapped[Decimal | None] = mapped_column(MONEY, nullable=True)
+    swap: Mapped[Decimal | None] = mapped_column(MONEY, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

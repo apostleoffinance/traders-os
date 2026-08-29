@@ -187,6 +187,12 @@ class TradeOut(ORMModel):
     acknowledged_warnings: bool
     source: str = "manual"
     source_analysis_id: UUID | None = None
+    external_provider: str | None = None
+    external_position_id: str | None = None
+    symbol_raw: str | None = None
+    instrument_status: str | None = None
+    commission: Decimal | None = None
+    swap: Decimal | None = None
     created_at: datetime
     psychology: PsychologyOut | None = None
     screenshots: list[ScreenshotOut] = Field(default_factory=list)

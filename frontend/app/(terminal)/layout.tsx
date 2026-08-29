@@ -1,5 +1,10 @@
 import { Shell } from "@/components/Shell";
+import { GlobalFiltersProvider } from "@/lib/filters";
 
 export default function TerminalLayout({ children }: { children: React.ReactNode }) {
-  return <Shell>{children}</Shell>;
+  return (
+    <GlobalFiltersProvider>
+      <Shell>{children}</Shell>
+    </GlobalFiltersProvider>
+  );
 }

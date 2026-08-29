@@ -68,6 +68,36 @@ def analytics_dashboard(
         raise http_error(DomainError(str(exc), "invalid_period")) from exc
 
 
+@analytics_router.get("/edge-detail")
+def edge_detail_route(
+    account_id: UUID,
+    symbol: str = Query(...),
+    session: str = Query(...),
+    setup: str | None = None,
+    direction: str | None = None,
+    preset: str = Query("all"),
+    date_from: str | None = None,
+    date_to: str | None = None,
+    db: Session = Depends(get_db),
+    user_id=Depends(get_current_user_id),
+):
+    try:
+        return analytics_service.edge_explorer_detail(
+            db,
+            _user(db, user_id),
+            account_id,
+            symbol=symbol,
+            session=session,
+            setup=setup,
+            direction=direction,
+            preset=preset,
+            date_from=date_from,
+            date_to=date_to,
+        )
+    except DomainError as exc:
+        raise http_error(exc) from exc
+
+
 @analytics_router.get("/overview")
 def overview(account_id: UUID, db: Session = Depends(get_db), user_id=Depends(get_current_user_id)):
     try:
@@ -144,6 +174,14 @@ def holding(account_id: UUID, db: Session = Depends(get_db), user_id=Depends(get
 def equity_curve(account_id: UUID, db: Session = Depends(get_db), user_id=Depends(get_current_user_id)):
     try:
         return analytics_service.equity_curve(db, _user(db, user_id), account_id)
+    except DomainError as exc:
+        raise http_error(exc) from exc
+
+
+@risk_router.get("/command")
+def risk_command(account_id: UUID, db: Session = Depends(get_db), user_id=Depends(get_current_user_id)):
+    try:
+        return analytics_service.risk_command(db, _user(db, user_id), account_id)
     except DomainError as exc:
         raise http_error(exc) from exc
 

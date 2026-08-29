@@ -7,6 +7,7 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session, joinedload
 
+from app.core.exceptions import DomainError
 from app.core.time import as_utc, utcnow
 from app.engines.analytics_views import (
     after_consecutive_losses,
@@ -25,10 +26,12 @@ from app.engines.analytics_views import (
     streak_histogram,
 )
 from app.engines.discipline_engine import aggregate_discipline
+from app.engines.edge_explorer import edge_detail, edge_matrix, ranked_combos
 from app.engines.evidence import evidence_payload
 from app.engines.fx_math import ZERO
 from app.engines.performance_engine import compute_performance, rr_bucket
 from app.engines.psychology_engine import psychology_groups
+from app.engines.risk_command import build_risk_command
 from app.engines.risk_engine import compute_risk_snapshot
 from app.models.trade import Trade
 from app.models.user import User
@@ -253,6 +256,28 @@ def risk_status(db: Session, user: User, account_id: UUID) -> dict:
     }
 
 
+def risk_command(db: Session, user: User, account_id: UUID) -> dict:
+    account = get_owned_account(db, user.id, account_id)
+    if account.risk_profile is None:
+        raise DomainError("Account has no risk profile configured")
+    trades = _trades(db, user.id, account_id)
+    profile = profile_view(account.risk_profile)
+    snap = compute_risk_snapshot(
+        starting_balance=Decimal(account.starting_balance),
+        profile=profile,
+        trades=[trade_to_closed(t) for t in trades],
+        now=utcnow(),
+        timezone=user.timezone,
+    )
+    return build_risk_command(
+        account=account,
+        profile_model=account.risk_profile,
+        profile=profile,
+        snap=snap,
+        starting=Decimal(account.starting_balance),
+    )
+
+
 def resolve_date_window(
     preset: str,
     date_from: str | None,
@@ -283,6 +308,9 @@ def resolve_date_window(
         return parse(date_from), parse(date_to, end_of_day=True), "custom"
     if key == "7d":
         return now_local - timedelta(days=7), now_local, "7d"
+    if key == "today":
+        start = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
+        return start, now_local, "today"
     if key == "30d":
         return now_local - timedelta(days=30), now_local, "30d"
     if key == "90d":
@@ -507,4 +535,48 @@ def dashboard(
             avg_risk_escalation_pct=snap.risk_escalation_pct,
             n_trades=perf.n_trades,
         ),
+        "edge_matrix": edge_matrix(journals, starting),
+        "edge_combos": ranked_combos(journals, starting),
     }
+
+
+def edge_explorer_detail(
+    db: Session,
+    user: User,
+    account_id: UUID,
+    *,
+    symbol: str,
+    session: str,
+    setup: str | None = None,
+    direction: str | None = None,
+    preset: str = "all",
+    date_from: str | None = None,
+    date_to: str | None = None,
+) -> dict:
+    account = get_owned_account(db, user.id, account_id)
+    all_trades = _trades(db, user.id, account.id)
+    start, end, resolved = resolve_date_window(preset, date_from, date_to, user.timezone)
+    filtered = _apply_filters(
+        all_trades,
+        timezone=user.timezone,
+        date_from=start,
+        date_to=end,
+        symbol=None,
+        session=None,
+        setup_id=None,
+        direction=None,
+        timeframe=None,
+        psychology=None,
+        result=None,
+    )
+    journals = [trade_to_journal(t) for t in filtered]
+    detail = edge_detail(
+        journals,
+        Decimal(account.starting_balance),
+        symbol=symbol,
+        session=session,
+        setup=setup,
+        direction=direction,
+    )
+    detail["filters"] = {"preset": resolved}
+    return detail

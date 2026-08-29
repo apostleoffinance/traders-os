@@ -147,6 +147,20 @@ class TradeSource(StrEnum):
     MANUAL = "manual"
     MARKET_ANALYSIS = "market_analysis"
     IMPORTED = "imported"
+    MT5 = "mt5"
+
+
+class Mt5ConnectionStatus(StrEnum):
+    PENDING = "pending"
+    CONNECTED = "connected"
+    STALE = "stale"
+    DISCONNECTED = "disconnected"
+    REVOKED = "revoked"
+
+
+class InstrumentResolution(StrEnum):
+    RESOLVED = "resolved"
+    UNRESOLVED = "unresolved"
 
 
 class AnalysisStatus(StrEnum):

@@ -22,6 +22,9 @@ class Settings(BaseSettings):
 
     default_timezone: str = "Africa/Lagos"
 
+    # MT5 connector — stale when no heartbeat/sync within this many seconds.
+    mt5_stale_seconds: int = 180
+
     storage_backend: str = "db"
     storage_local_path: str = "./data/uploads"
     storage_max_upload_bytes: int = 1_572_864  # 1.5 MiB — keeps Neon free tier usable

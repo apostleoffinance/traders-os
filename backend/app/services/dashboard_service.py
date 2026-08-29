@@ -14,7 +14,8 @@ from app.engines.risk_engine import compute_risk_snapshot
 from app.models.trade import Trade
 from app.models.user import User
 from app.services.access import get_owned_account
-from app.services.mapping import profile_view, trade_to_closed, trade_to_psych
+from app.engines.command_center import build_command_center
+from app.services.mapping import profile_view, trade_to_closed, trade_to_journal, trade_to_psych
 
 DASHBOARD_EQUITY_POINTS = 30
 
@@ -59,6 +60,18 @@ def dashboard(db: Session, user: User, account_id: UUID) -> dict:
         )
     )
     curve = snap.equity_curve[-DASHBOARD_EQUITY_POINTS:]
+    journal = [trade_to_journal(t) for t in trades]
+    command_center = build_command_center(
+        trades=trades,
+        journal=journal,
+        closed_views=closed_views,
+        snap=snap,
+        profile=profile,
+        starting=Decimal(account.starting_balance),
+        timezone=user.timezone,
+        now=utcnow(),
+        perf_n=perf.n_trades,
+    )
     return {
         "account": {
             "id": str(account.id),
@@ -114,4 +127,5 @@ def dashboard(db: Session, user: User, account_id: UUID) -> dict:
         "sharpe_note": perf.sharpe_note.__dict__,
         "sortino": perf.sortino,
         "sortino_note": perf.sortino_note.__dict__,
+        "command_center": command_center,
     }

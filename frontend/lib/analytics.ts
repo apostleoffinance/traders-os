@@ -165,6 +165,53 @@ export type AnalyticsDashboard = {
     sample_size: number;
     evidence: Evidence;
   }[];
+  edge_matrix: EdgeMatrix;
+  edge_combos: EdgeCombo[];
+};
+
+export type EdgeCell = {
+  symbol: string;
+  session: string;
+  tone: "positive" | "negative" | "mixed" | "neutral";
+  n: number;
+  expectancy_r: string | null;
+  win_rate: string | null;
+  profit_factor: string | null;
+  average_r: string | null;
+  discipline_avg: number | null;
+  net_pnl: string | null;
+  evidence: Evidence;
+};
+
+export type EdgeMatrix = {
+  symbols: string[];
+  sessions: string[];
+  cells: EdgeCell[];
+  evidence: Evidence;
+};
+
+export type EdgeCombo = {
+  symbol: string;
+  session: string;
+  setup: string;
+  label: string;
+  n: number;
+  expectancy_r: string | null;
+  win_rate: string | null;
+  evidence: Evidence;
+};
+
+export type EdgeDetail = {
+  symbol: string;
+  session: string;
+  setup: string | null;
+  direction: string | null;
+  label: string;
+  top_setup: string | null;
+  avg_holding_seconds: number | null;
+  edge: EdgeCell;
+  rest: EdgeCell;
+  filters: { preset: string };
 };
 
 export type FilterState = {
@@ -207,6 +254,23 @@ export function buildAnalyticsQuery(accountId: string, f: FilterState): string {
   if (f.psychology) p.set("psychology", f.psychology);
   if (f.result) p.set("result", f.result);
   return p.toString();
+}
+
+/** Map shell global period to analytics API preset. */
+export function globalPeriodToPreset(period: string): string {
+  const map: Record<string, string> = {
+    today: "today",
+    "7d": "7d",
+    "30d": "30d",
+    "90d": "90d",
+    ytd: "ytd",
+    all: "all",
+  };
+  return map[period] ?? "30d";
+}
+
+export function filtersWithGlobalPeriod(period: string, base: FilterState = EMPTY_FILTERS): FilterState {
+  return { ...base, preset: globalPeriodToPreset(period) };
 }
 
 export type MetricKey = "expectancy_r" | "net_pnl" | "average_r" | "win_rate" | "n";
