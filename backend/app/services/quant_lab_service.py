@@ -13,13 +13,18 @@ from app.services.access import get_owned_account
 from app.services.mapping import profile_view
 
 
+def _configured_risk(account) -> Decimal | None:
+    if account.risk_profile is None:
+        return None
+    return profile_view(account.risk_profile).risk_per_trade
+
+
 def _lab_kwargs(account, date_range) -> dict:
-    profile = profile_view(account.risk_profile)
     return {
         "starting": Decimal(account.starting_balance),
         "date_range": date_range,
         "account_name": account.account_name,
-        "configured_risk": profile.risk_per_trade,
+        "configured_risk": _configured_risk(account),
     }
 
 
@@ -210,14 +215,14 @@ def risk_of_ruin(
     from app.engines.quant_lab.data_quality import filter_valid
     from app.engines.quant_lab.risk_of_ruin import estimate_risk_of_ruin
     from app.engines.quant_lab.returns import r_returns
-    from app.services.mapping import profile_view
 
     account, rows, date_range = _load_rows(db, user, account_id, **filters)
     valid = filter_valid(rows)
     rs = r_returns(valid)
     equity = account_equity or Decimal(account.starting_balance)
-    profile = profile_view(account.risk_profile)
-    risk_pct = risk_per_trade_pct or profile.risk_per_trade
+    risk_pct = risk_per_trade_pct or _configured_risk(account)
+    if risk_pct is None:
+        risk_pct = Decimal("1")
 
     result = estimate_risk_of_ruin(
         rs,

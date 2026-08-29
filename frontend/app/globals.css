@@ -37,6 +37,11 @@
   --rail-hover: #161d19;
   --rail-active: #0f3d2d;
   --rail-border: #25312b;
+  --rail-toggle-bg: rgba(241, 245, 243, 0.06);
+  --rail-toggle-border: rgba(241, 245, 243, 0.14);
+  --rail-toggle-fg: #b8c4bd;
+  --rail-toggle-hover-bg: rgba(24, 185, 129, 0.12);
+  --rail-toggle-hover-fg: #f1f5f3;
   --shadow: 0 1px 0 rgba(23, 32, 28, 0.04);
   --radius: 6px;
   --radius-sm: 4px;
@@ -80,6 +85,11 @@
   --rail-hover: #161d19;
   --rail-active: #0f3d2d;
   --rail-border: #25312b;
+  --rail-toggle-bg: rgba(241, 245, 243, 0.06);
+  --rail-toggle-border: rgba(241, 245, 243, 0.14);
+  --rail-toggle-fg: #b8c4bd;
+  --rail-toggle-hover-bg: rgba(24, 185, 129, 0.14);
+  --rail-toggle-hover-fg: #f1f5f3;
   --shadow: none;
 }
 

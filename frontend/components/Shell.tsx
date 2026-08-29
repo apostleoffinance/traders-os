@@ -390,31 +390,37 @@ export function Shell({ children }: { children: React.ReactNode }) {
           height: 36px;
           margin: 0 4px;
           padding: 0;
-          border: 1px solid var(--rail-border, var(--border));
-          border-radius: var(--radius-sm);
+          border: 1px solid var(--rail-toggle-border, var(--rail-border, var(--border)));
+          border-radius: 8px;
           appearance: none;
           -webkit-appearance: none;
-          background: color-mix(in srgb, var(--rail-text) 8%, var(--rail-bg));
-          color: var(--rail-muted);
+          background: var(--rail-toggle-bg, transparent);
+          color: var(--rail-toggle-fg, var(--rail-muted));
           cursor: pointer;
           flex-shrink: 0;
+          -webkit-tap-highlight-color: transparent;
           transition:
             background-color 160ms ease,
             color 160ms ease,
-            border-color 160ms ease;
+            border-color 160ms ease,
+            box-shadow 160ms ease;
         }
         .sidebar-toggle :global(svg) {
           display: block;
           color: inherit;
           stroke: currentColor;
+          fill: none;
         }
         .brand-block-collapsed .sidebar-toggle {
           margin: 0;
         }
         .sidebar-toggle:hover {
-          background: var(--rail-hover);
-          color: var(--rail-text);
-          border-color: var(--rail-border, var(--border));
+          background: var(--rail-toggle-hover-bg, var(--rail-hover));
+          color: var(--rail-toggle-hover-fg, var(--rail-text));
+          border-color: color-mix(in srgb, var(--accent) 35%, var(--rail-toggle-border, var(--rail-border)));
+        }
+        .sidebar-toggle:active {
+          background: color-mix(in srgb, var(--accent) 8%, var(--rail-hover));
         }
         .sidebar-toggle:focus-visible {
           outline: 2px solid var(--accent);
