@@ -11,8 +11,8 @@ import {
   FlaskConical,
   History,
   LayoutDashboard,
-  ChevronsLeft,
-  ChevronsRight,
+  ChevronLeft,
+  ChevronRight,
   PlusCircle,
   Settings,
   ShieldAlert,
@@ -177,31 +177,33 @@ export function Shell({ children }: { children: React.ReactNode }) {
     return (
       <>
         <div className={collapsedMode ? "brand-block brand-block-collapsed" : "brand-block"}>
-          <Link
-            href="/dashboard"
-            className={collapsedMode ? "brand brand-collapsed" : "brand"}
-            onClick={onNavigate}
-            title={collapsedMode ? "Trader OS" : undefined}
-            aria-label="Trader OS"
-          >
-            <BrandMark size={collapsedMode ? 28 : 26} />
-            {!collapsedMode && <span className="brand-name">Trader OS</span>}
-          </Link>
-          {showToggle && (
-            <button
-              type="button"
-              className="sidebar-toggle"
-              onClick={toggleCollapsed}
-              aria-label={toggleLabel}
-              title={toggleLabel}
+          <div className="brand-row">
+            <Link
+              href="/dashboard"
+              className={collapsedMode ? "brand brand-collapsed" : "brand"}
+              onClick={onNavigate}
+              title={collapsedMode ? "Trader OS" : undefined}
+              aria-label="Trader OS"
             >
-              {collapsedMode ? (
-                <ChevronsRight size={18} strokeWidth={2} aria-hidden />
-              ) : (
-                <ChevronsLeft size={18} strokeWidth={2} aria-hidden />
-              )}
-            </button>
-          )}
+              <BrandMark size={collapsedMode ? 28 : 26} />
+              {!collapsedMode && <span className="brand-name">Trader OS</span>}
+            </Link>
+            {showToggle && (
+              <button
+                type="button"
+                className="sidebar-toggle"
+                onClick={toggleCollapsed}
+                aria-label={toggleLabel}
+                title={toggleLabel}
+              >
+                {collapsedMode ? (
+                  <ChevronRight size={16} strokeWidth={2} aria-hidden />
+                ) : (
+                  <ChevronLeft size={16} strokeWidth={2} aria-hidden />
+                )}
+              </button>
+            )}
+          </div>
         </div>
         <nav aria-label="Main">
           {navGroups.map((group, gi) => {
@@ -351,13 +353,24 @@ export function Shell({ children }: { children: React.ReactNode }) {
         .brand-block {
           display: flex;
           flex-direction: column;
-          align-items: flex-start;
-          gap: 8px;
           margin-bottom: 18px;
           width: 100%;
         }
         .brand-block-collapsed {
           align-items: center;
+        }
+        .brand-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 8px;
+          width: 100%;
+          min-width: 0;
+        }
+        .brand-block-collapsed .brand-row {
+          flex-direction: column;
+          align-items: center;
+          gap: 10px;
         }
         :global(a.brand) {
           display: flex;
@@ -367,6 +380,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
           color: inherit;
           text-decoration: none;
           min-height: 36px;
+          min-width: 0;
+          flex: 1;
         }
         :global(a.brand:hover) {
           color: inherit;
@@ -375,57 +390,13 @@ export function Shell({ children }: { children: React.ReactNode }) {
           justify-content: center;
           padding: 2px 0;
           width: 100%;
+          flex: none;
         }
         .brand-name {
           font-weight: 600;
           letter-spacing: 0.06em;
           font-size: 14px;
           white-space: nowrap;
-        }
-        .sidebar-toggle {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          width: 34px;
-          height: 34px;
-          margin: 0 4px;
-          padding: 0;
-          border: none;
-          border-radius: var(--radius-sm);
-          appearance: none;
-          -webkit-appearance: none;
-          background: transparent;
-          color: var(--rail-muted);
-          cursor: pointer;
-          flex-shrink: 0;
-          -webkit-tap-highlight-color: transparent;
-          transition:
-            background-color 160ms ease,
-            color 160ms ease;
-        }
-        .sidebar-toggle :global(svg) {
-          display: block;
-          color: inherit;
-          stroke: currentColor;
-          fill: none;
-          opacity: 0.88;
-        }
-        .brand-block-collapsed .sidebar-toggle {
-          margin: 0;
-        }
-        .sidebar-toggle:hover {
-          background: var(--rail-hover);
-          color: var(--rail-text);
-        }
-        .sidebar-toggle:hover :global(svg) {
-          opacity: 1;
-        }
-        .sidebar-toggle:active {
-          background: color-mix(in srgb, var(--accent) 12%, var(--rail-hover));
-        }
-        .sidebar-toggle:focus-visible {
-          outline: 2px solid var(--accent);
-          outline-offset: 2px;
         }
         nav {
           display: flex;

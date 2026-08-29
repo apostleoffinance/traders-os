@@ -258,6 +258,56 @@ a.nav-link.active {
   border-left-color: var(--accent);
 }
 
+/* Sidebar rail stays dark in every theme — prevent light color-scheme from whitening controls */
+.rail {
+  color-scheme: dark;
+}
+
+.rail .sidebar-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  margin: 0;
+  flex-shrink: 0;
+  border: 1px solid var(--rail-toggle-border);
+  border-radius: 6px;
+  background-color: var(--rail-toggle-bg);
+  color: var(--rail-toggle-fg);
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease,
+    border-color 160ms ease;
+}
+
+.rail .sidebar-toggle svg {
+  display: block;
+  stroke: currentColor;
+  fill: none;
+}
+
+.rail .sidebar-toggle:hover {
+  background-color: var(--rail-toggle-hover-bg);
+  color: var(--rail-toggle-hover-fg);
+  border-color: rgba(110, 231, 183, 0.28);
+}
+
+.rail .sidebar-toggle:active {
+  background-color: rgba(241, 245, 243, 0.1);
+  color: var(--rail-text);
+}
+
+.rail .sidebar-toggle:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
