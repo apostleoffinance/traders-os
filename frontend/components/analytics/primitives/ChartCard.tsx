@@ -28,19 +28,24 @@ export function ChartCard({
   const drillHint = hint ?? (interactive ? CHART_INTERACTIVE_HINT : undefined);
 
   return (
-    <Panel
-      title={title}
-      right={
-        <div className="right">
-          {actions}
-          {(evidenceLabel || sampleSize != null) && <EvidenceTag label={evidenceLabel} n={sampleSize} />}
-        </div>
-      }
-    >
-      {subtitle && <p className="subtitle muted">{subtitle}</p>}
-      {drillHint && <p className="hint muted">{drillHint}</p>}
-      {children}
+    <div className="chart-card">
+      <Panel
+        title={title}
+        right={
+          <div className="right">
+            {actions}
+            {(evidenceLabel || sampleSize != null) && <EvidenceTag label={evidenceLabel} n={sampleSize} />}
+          </div>
+        }
+      >
+        {subtitle && <p className="subtitle muted">{subtitle}</p>}
+        {drillHint && <p className="hint muted">{drillHint}</p>}
+        {children}
+      </Panel>
       <style jsx>{`
+        .chart-card {
+          margin-bottom: 20px;
+        }
         .right {
           display: flex;
           align-items: center;
@@ -55,6 +60,6 @@ export function ChartCard({
           font-size: 12px;
         }
       `}</style>
-    </Panel>
+    </div>
   );
 }

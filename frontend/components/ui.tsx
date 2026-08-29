@@ -26,6 +26,7 @@ export function Panel({
           border: 1px solid var(--border);
           border-radius: var(--radius);
           padding: 14px 16px;
+          margin-bottom: 16px;
         }
         header {
           display: flex;

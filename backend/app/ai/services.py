@@ -148,7 +148,7 @@ def quant_research(db: Session, user: User, account_id: UUID, force: bool = Fals
     rows = [trade_to_analytics(t) for t in trades]
     profile = account.risk_profile
     ctx = {
-        "account": {"id": str(account.id), "name": account.name},
+        "account": {"id": str(account.id), "name": account.account_name},
         "quant_lab": quant_ai_summary(
             rows,
             starting=Decimal(account.starting_balance),

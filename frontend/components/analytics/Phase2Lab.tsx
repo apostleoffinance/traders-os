@@ -98,7 +98,7 @@ export function DistributionLab({ data }: { data: AnalyticsDashboard }) {
       <div className="stats">
         <Stat label="Per trade" value={exp.expectancy_currency ? money(exp.expectancy_currency, currency) : "—"} />
         <Stat label="Expectancy R" value={exp.expectancy_r ? `${signed(exp.expectancy_r)}R` : "—"} />
-        <Stat label="Avg R" value={exp.average_r ? `${num(exp.average_r)}R` : "—"} hint={`valid n=${exp.valid_r_observations}`} />
+        <Stat label="Avg R" value={exp.average_r ? `${num(exp.average_r)}R` : "—"} hint={exp.valid_r_observations != null ? `R recorded for ${exp.valid_r_observations} trade${exp.valid_r_observations === 1 ? "" : "s"}` : undefined} />
         <Stat label="Total R" value={exp.total_r ? `${signed(exp.total_r)}R` : "—"} />
       </div>
       {exp.missing_r > 0 && <p className="muted">Missing R on {exp.missing_r} trades.</p>}
@@ -154,7 +154,11 @@ export function ConsistencyLab({ data }: { data: AnalyticsDashboard }) {
         <Stat label="Median daily P&L" value={money(c.median_daily_pnl, currency)} />
         <Stat label="Daily volatility" value={c.daily_pnl_volatility ? money(c.daily_pnl_volatility, currency) : "—"} />
         <Stat label="Largest win day" value={money(c.largest_winning_day, currency)} tone="pos" />
-        <Stat label="Largest loss day" value={money(c.largest_losing_day, currency)} tone="neg" />
+        <Stat
+          label="Largest loss day"
+          value={c.losing_days > 0 ? money(c.largest_losing_day, currency) : "—"}
+          tone={c.losing_days > 0 ? "neg" : ""}
+        />
       </div>
       {c.sample_note && <p className="muted">{c.sample_note}</p>}
       <style jsx>{`

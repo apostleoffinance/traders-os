@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { api } from "@/lib/api";
-import { Panel } from "@/components/ui";
+import { Field, Panel } from "@/components/ui";
 import { Empty } from "@/components/analytics/Charts";
 import { money, num, signed } from "@/lib/format";
 import type { AnalyticsDashboard } from "@/lib/analytics";
@@ -51,12 +51,10 @@ function GroupFilters({
   return (
     <div className="col">
       <h3>{title}</h3>
-      <label>
-        Label
+      <Field label="Label">
         <input value={value.label} onChange={(e) => onChange({ ...value, label: e.target.value })} />
-      </label>
-      <label>
-        Session
+      </Field>
+      <Field label="Session">
         <select value={value.session} onChange={(e) => onChange({ ...value, session: e.target.value })}>
           <option value="">Any</option>
           {options.sessions.map((s) => (
@@ -65,9 +63,8 @@ function GroupFilters({
             </option>
           ))}
         </select>
-      </label>
-      <label>
-        Symbol
+      </Field>
+      <Field label="Symbol">
         <select value={value.symbol} onChange={(e) => onChange({ ...value, symbol: e.target.value })}>
           <option value="">Any</option>
           {options.symbols.map((s) => (
@@ -76,17 +73,15 @@ function GroupFilters({
             </option>
           ))}
         </select>
-      </label>
-      <label>
-        Direction
+      </Field>
+      <Field label="Direction">
         <select value={value.direction} onChange={(e) => onChange({ ...value, direction: e.target.value })}>
           <option value="">Any</option>
           <option value="long">Long</option>
           <option value="short">Short</option>
         </select>
-      </label>
-      <label>
-        Min discipline
+      </Field>
+      <Field label="Min discipline">
         <input
           type="number"
           min={0}
@@ -95,9 +90,8 @@ function GroupFilters({
           onChange={(e) => onChange({ ...value, min_discipline: e.target.value })}
           placeholder="e.g. 85"
         />
-      </label>
-      <label>
-        Max discipline
+      </Field>
+      <Field label="Max discipline">
         <input
           type="number"
           min={0}
@@ -106,15 +100,31 @@ function GroupFilters({
           onChange={(e) => onChange({ ...value, max_discipline: e.target.value })}
           placeholder="e.g. 69"
         />
-      </label>
-      <label>
-        Emotional
+      </Field>
+      <Field label="Emotional">
         <select value={value.emotional} onChange={(e) => onChange({ ...value, emotional: e.target.value })}>
           <option value="">Any</option>
           <option value="false">Non-emotional only</option>
           <option value="true">Emotional only</option>
         </select>
-      </label>
+      </Field>
+      <style jsx>{`
+        .col {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          min-width: 0;
+        }
+        h3 {
+          font-size: 14px;
+          margin: 0 0 4px;
+        }
+        .col :global(input),
+        .col :global(select) {
+          width: 100%;
+          box-sizing: border-box;
+        }
+      `}</style>
     </div>
   );
 }
@@ -162,77 +172,81 @@ export function ComparisonLab({ accountId, data }: { accountId: string; data: An
   const presets = (data.lab?.intelligence?.comparisons as { presets?: ComparisonResult[] } | undefined)?.presets;
 
   return (
-    <Panel title="Comparison Lab">
-      <p className="muted">Define two trade groups and compare metrics. Differences are descriptive — not predictive.</p>
-      <div className="cols">
-        <GroupFilters title="Group A" value={groupA} onChange={setGroupA} options={data.filters.options} />
-        <GroupFilters title="Group B" value={groupB} onChange={setGroupB} options={data.filters.options} />
-      </div>
-      <button type="button" className="compare-btn" onClick={() => void compare()} disabled={loading}>
-        {loading ? "Comparing…" : "Compare groups"}
-      </button>
-      {error && <p className="err">{error}</p>}
-
-      {presets && presets.length > 0 && !result && (
-        <div className="presets">
-          <p className="muted">Quick presets from your data:</p>
-          {presets.map((p) => (
-            <button
-              key={`${p.group_a.label}-${p.group_b.label}`}
-              type="button"
-              className="preset-btn"
-              onClick={() => setResult(p as ComparisonResult)}
-            >
-              {p.group_a.label} vs {p.group_b.label}
-            </button>
-          ))}
+    <div className="comparison-lab">
+      <Panel title="Comparison Lab">
+        <p className="muted">Define two trade groups and compare metrics. Differences are descriptive — not predictive.</p>
+        <div className="cols">
+          <GroupFilters title="Group A" value={groupA} onChange={setGroupA} options={data.filters.options} />
+          <GroupFilters title="Group B" value={groupB} onChange={setGroupB} options={data.filters.options} />
         </div>
-      )}
+        <button type="button" className="compare-btn" onClick={() => void compare()} disabled={loading}>
+          {loading ? "Comparing…" : "Compare groups"}
+        </button>
+        {error && <p className="err">{error}</p>}
 
-      {result && (
-        <>
-          <div className="summary">
-            <div>
-              <strong>{result.group_a.label}</strong>
-              <span>n={result.group_a.n} · {result.group_a.confidence.confidence_level}</span>
-              <span>Exp {result.group_a.expectancy_r ? `${result.group_a.expectancy_r}R` : "—"}</span>
-            </div>
-            <div>
-              <strong>{result.group_b.label}</strong>
-              <span>n={result.group_b.n} · {result.group_b.confidence.confidence_level}</span>
-              <span>Exp {result.group_b.expectancy_r ? `${result.group_b.expectancy_r}R` : "—"}</span>
-            </div>
+        {presets && presets.length > 0 && !result && (
+          <div className="presets">
+            <p className="muted">Quick presets from your data:</p>
+            {presets.map((p) => (
+              <button
+                key={`${p.group_a.label}-${p.group_b.label}`}
+                type="button"
+                className="preset-btn"
+                onClick={() => setResult(p as ComparisonResult)}
+              >
+                {p.group_a.label} vs {p.group_b.label}
+              </button>
+            ))}
           </div>
-          <table className="tbl">
-            <thead>
-              <tr>
-                <th>Metric</th>
-                <th>{result.group_a.label}</th>
-                <th>{result.group_b.label}</th>
-                <th>Difference</th>
-              </tr>
-            </thead>
-            <tbody>
-              {result.comparison.map((row) => (
-                <tr key={row.metric}>
-                  <td>{row.metric}</td>
-                  <td>{row.metric === "net_pnl" && row.a ? money(String(row.a), currency) : row.a ?? "—"}</td>
-                  <td>{row.metric === "net_pnl" && row.b ? money(String(row.b), currency) : row.b ?? "—"}</td>
-                  <td>{row.difference ?? "—"}</td>
+        )}
+
+        {result && (
+          <>
+            <div className="summary">
+              <div>
+                <strong>{result.group_a.label}</strong>
+                <span>{result.group_a.n} trades · {result.group_a.confidence.confidence_level}</span>
+                <span>Exp {result.group_a.expectancy_r ? `${result.group_a.expectancy_r}R` : "—"}</span>
+              </div>
+              <div>
+                <strong>{result.group_b.label}</strong>
+                <span>{result.group_b.n} trades · {result.group_b.confidence.confidence_level}</span>
+                <span>Exp {result.group_b.expectancy_r ? `${result.group_b.expectancy_r}R` : "—"}</span>
+              </div>
+            </div>
+            <table className="tbl">
+              <thead>
+                <tr>
+                  <th>Metric</th>
+                  <th>{result.group_a.label}</th>
+                  <th>{result.group_b.label}</th>
+                  <th>Difference</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          <p className="muted">
-            {result.statistical_notes.disclaimer}
-            {result.statistical_notes.effect_size && ` Effect size: ${result.statistical_notes.effect_size}.`}
-          </p>
-        </>
-      )}
+              </thead>
+              <tbody>
+                {result.comparison.map((row) => (
+                  <tr key={row.metric}>
+                    <td>{row.metric}</td>
+                    <td>{row.metric === "net_pnl" && row.a ? money(String(row.a), currency) : row.a ?? "—"}</td>
+                    <td>{row.metric === "net_pnl" && row.b ? money(String(row.b), currency) : row.b ?? "—"}</td>
+                    <td>{row.difference ?? "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="muted">
+              {result.statistical_notes.disclaimer}
+              {result.statistical_notes.effect_size && ` Effect size: ${result.statistical_notes.effect_size}.`}
+            </p>
+          </>
+        )}
 
-      {!result && !loading && <Empty>Select filters and compare, or use a preset.</Empty>}
-
+        {!result && !loading && <Empty>Select filters and compare, or use a preset.</Empty>}
+      </Panel>
       <style jsx>{`
+        .comparison-lab {
+          margin-bottom: 24px;
+        }
         .muted {
           font-size: 13px;
           margin-bottom: 12px;
@@ -240,24 +254,8 @@ export function ComparisonLab({ accountId, data }: { accountId: string; data: An
         .cols {
           display: grid;
           grid-template-columns: 1fr 1fr;
-          gap: 20px;
-          margin-bottom: 12px;
-        }
-        .col h3 {
-          font-size: 14px;
-          margin: 0 0 10px;
-        }
-        label {
-          display: block;
-          font-size: 12px;
-          margin-bottom: 8px;
-        }
-        input,
-        select {
-          display: block;
-          width: 100%;
-          margin-top: 4px;
-          font-size: 13px;
+          gap: 24px;
+          margin-bottom: 16px;
         }
         .compare-btn {
           margin-bottom: 14px;
@@ -299,12 +297,12 @@ export function ComparisonLab({ accountId, data }: { accountId: string; data: An
           color: var(--neg, #c44);
           font-size: 13px;
         }
-        @media (max-width: 800px) {
+        @media (max-width: 900px) {
           .cols {
             grid-template-columns: 1fr;
           }
         }
       `}</style>
-    </Panel>
+    </div>
   );
 }

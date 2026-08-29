@@ -12,7 +12,7 @@ from app.engines.analytics_lab.distribution import _daily_groups, build_distribu
 from app.engines.analytics_lab.sample_rules import sample_note, with_evidence
 from app.engines.analytics_lab.trade_row import AnalyticsTrade, closed_trades, journal_rows
 from app.engines.analytics_views import consistency
-from app.engines.fx_math import ZERO, ratio
+from app.engines.fx_math import ZERO, money, ratio
 from app.engines.performance_engine import _stdev_sample
 
 
@@ -36,6 +36,8 @@ def build_consistency_scorecard(trades: Sequence[AnalyticsTrade], *, timezone: s
 
     by_day = _daily_groups(trades, timezone)
     daily_pnls = [sum((t.net_pnl for t in items), ZERO) for items in by_day.values()]
+    losing_daily = [p for p in daily_pnls if p < ZERO]
+    winning_daily = [p for p in daily_pnls if p > ZERO]
 
     return {
         "winning_days_pct": base.get("profitable_day_pct"),
@@ -48,8 +50,8 @@ def build_consistency_scorecard(trades: Sequence[AnalyticsTrade], *, timezone: s
         "average_daily_pnl": daily.get("mean"),
         "median_daily_pnl": daily.get("median"),
         "daily_pnl_volatility": daily.get("stdev"),
-        "largest_winning_day": daily.get("max"),
-        "largest_losing_day": daily.get("min"),
+        "largest_winning_day": money(max(winning_daily)) if winning_daily else None,
+        "largest_losing_day": money(min(losing_daily)) if losing_daily else None,
         "average_daily_r": base.get("average_daily_r"),
         "median_daily_r": base.get("median_daily_r"),
         "stdev_daily_r": base.get("stdev_daily_r"),

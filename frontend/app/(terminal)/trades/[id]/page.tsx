@@ -261,11 +261,23 @@ export default function TradeDetailPage() {
                 </td>
               </tr>
               <tr>
-                <td>P/L</td>
+                <td>P/L (net)</td>
                 <td className={`num ${tone(trade.realized_pnl)}`}>
                   {isOpen ? "—" : signed(trade.realized_pnl)}
                 </td>
               </tr>
+              {!isOpen && (trade.commission || trade.swap) && (
+                <>
+                  <tr>
+                    <td>Commission</td>
+                    <td className="num">{trade.commission ? signed(trade.commission) : "—"}</td>
+                  </tr>
+                  <tr>
+                    <td>Swap</td>
+                    <td className="num">{trade.swap ? signed(trade.swap) : "—"}</td>
+                  </tr>
+                </>
+              )}
               <tr>
                 <td>Discipline</td>
                 <td className="num">{trade.discipline_score ?? "-"} / 100</td>

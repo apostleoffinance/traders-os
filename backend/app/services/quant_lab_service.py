@@ -18,7 +18,7 @@ def _lab_kwargs(account, date_range) -> dict:
     return {
         "starting": Decimal(account.starting_balance),
         "date_range": date_range,
-        "account_name": account.name,
+        "account_name": account.account_name,
         "configured_risk": profile.risk_per_trade,
     }
 
@@ -142,7 +142,7 @@ def bootstrap_analysis(
             "filtered_trades": len(rows),
             "valid_trades": len(valid),
             "date_range": date_range,
-            "account_name": account.name,
+            "account_name": account.account_name,
         },
         "bootstrap": build_bootstrap_robustness(valid, iterations=iterations, seed=seed),
     }
@@ -188,7 +188,7 @@ def monte_carlo(
             "valid_trades": len(valid),
             "valid_r_trades": len(rs),
             "date_range": date_range,
-            "account_name": account.name,
+            "account_name": account.account_name,
         },
         "monte_carlo": result,
     }
@@ -234,7 +234,7 @@ def risk_of_ruin(
             "valid_trades": len(valid),
             "valid_r_trades": len(rs),
             "date_range": date_range,
-            "account_name": account.name,
+            "account_name": account.account_name,
         },
         "risk_of_ruin": result,
     }
@@ -339,7 +339,7 @@ def compare_combination(
             "filtered_trades": len(rows),
             "valid_trades": len(valid),
             "date_range": date_range,
-            "account_name": account.name,
+            "account_name": account.account_name,
         },
         "comparison": result,
     }

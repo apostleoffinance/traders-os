@@ -10,10 +10,11 @@ import { EVIDENCE_LABELS } from "@/lib/quant";
 import { num, signed, tone } from "@/lib/format";
 
 function EvidenceBadge({ sample }: { sample: { evidence_level: string; sample_size: number; message: string } }) {
+  const n = sample.sample_size;
   return (
     <span className="evidence-badge" title={sample.message}>
-      {EVIDENCE_LABELS[sample.evidence_level as keyof typeof EVIDENCE_LABELS] ?? sample.evidence_level} · n=
-      {sample.sample_size}
+      {EVIDENCE_LABELS[sample.evidence_level as keyof typeof EVIDENCE_LABELS] ?? sample.evidence_level} · {n} trade
+      {n === 1 ? "" : "s"}
     </span>
   );
 }
@@ -23,7 +24,7 @@ export function DataQualityStrip({ dq, meta }: { dq: QuantLabPayload["overview"]
     <div className="dq-strip">
       <span className="dq-label">Data quality</span>
       <span>
-        {dq.valid_quant_trades} valid / {dq.total_trades} closed
+        {dq.valid_quant_trades} of {dq.total_trades} closed trades used for analysis
         {dq.excluded_trades > 0 && ` · ${dq.excluded_trades} excluded`}
       </span>
       <span className="muted">

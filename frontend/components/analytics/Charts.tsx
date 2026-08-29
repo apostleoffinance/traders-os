@@ -16,11 +16,17 @@ export function Empty({ children }: { children: React.ReactNode }) {
 }
 
 export function EvidenceTag({ label, n }: { label?: string; n?: number }) {
-  if (!label) return null;
+  if (!label && n == null) return null;
+  const count =
+    n != null ? ` · ${n} trade${n === 1 ? "" : "s"}` : "";
+  const title =
+    n != null
+      ? `This metric is based on ${n} trade${n === 1 ? "" : "s"} in the selected period.`
+      : undefined;
   return (
-    <span className="muted" style={{ fontSize: 11 }}>
+    <span className="muted" style={{ fontSize: 11 }} title={title}>
       {label}
-      {n != null ? ` · n=${n}` : ""}
+      {count}
     </span>
   );
 }

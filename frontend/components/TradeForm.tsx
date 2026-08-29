@@ -66,6 +66,8 @@ export function TradeForm({ mode, trade = null }: Props) {
   const [tp, setTp] = useState(trade?.take_profit ?? "1.08700");
   const [lot, setLot] = useState(trade?.lot_size ?? "0.05");
   const [exit, setExit] = useState(trade?.exit_price ?? "");
+  const [commission, setCommission] = useState(trade?.commission ?? "");
+  const [swap, setSwap] = useState(trade?.swap ?? "");
   const [recordClosed, setRecordClosed] = useState(Boolean(trade?.exit_price) && isCreate);
   const [preview, setPreview] = useState<TradePreview | null>(null);
   const [setupValid, setSetupValid] = useState(trade?.setup_valid ?? true);
@@ -277,6 +279,8 @@ export function TradeForm({ mode, trade = null }: Props) {
           body: JSON.stringify({
             exit_price: exit,
             exit_timestamp: exitWhen ? new Date(exitWhen).toISOString() : new Date().toISOString(),
+            commission: commission !== "" ? commission : null,
+            swap: swap !== "" ? swap : null,
             notes: notes || null,
             setup_valid: setupValid,
             rules_followed: rulesFollowed,
@@ -297,6 +301,8 @@ export function TradeForm({ mode, trade = null }: Props) {
             timeframe,
             entry_price: entry,
             exit_price: exit || null,
+            commission: commission !== "" ? commission : null,
+            swap: swap !== "" ? swap : null,
             stop_loss: sl,
             take_profit: tp || null,
             lot_size: lot,
@@ -323,6 +329,8 @@ export function TradeForm({ mode, trade = null }: Props) {
             timeframe,
             entry_price: entry,
             exit_price: recordClosed && exit ? exit : null,
+            commission: recordClosed && commission !== "" ? commission : null,
+            swap: recordClosed && swap !== "" ? swap : null,
             stop_loss: sl,
             take_profit: tp || null,
             lot_size: lot,
@@ -539,7 +547,21 @@ export function TradeForm({ mode, trade = null }: Props) {
               <Field label="Exit time">
                 <input type="datetime-local" value={exitWhen} onChange={(e) => setExitWhen(e.target.value)} />
               </Field>
+              <Field label="Commission">
+                <input
+                  className="num"
+                  value={commission}
+                  onChange={(e) => setCommission(e.target.value)}
+                  placeholder="0.00"
+                />
+              </Field>
+              <Field label="Swap">
+                <input className="num" value={swap} onChange={(e) => setSwap(e.target.value)} placeholder="0.00" />
+              </Field>
             </div>
+            <p className="muted calc-note">
+              Commission and swap are added to trading P/L for net result. Use negative values for costs (e.g. -1.20).
+            </p>
             {preview?.estimated_realized_pnl != null && (
               <dl className="metrics">
                 <div>

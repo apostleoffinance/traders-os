@@ -106,6 +106,8 @@ class TradeCreate(BaseModel):
     acknowledged_warnings: bool = False
     source: str = "manual"
     source_analysis_id: UUID | None = None
+    commission: Decimal | None = None
+    swap: Decimal | None = None
     psychology: PsychologyIn | None = None
     checklist: list[ChecklistResponseIn] = Field(default_factory=list)
 
@@ -132,11 +134,15 @@ class TradeUpdate(BaseModel):
     psychology: PsychologyIn | None = None
     checklist: list[ChecklistResponseIn] | None = None
     acknowledged_warnings: bool | None = None
+    commission: Decimal | None = None
+    swap: Decimal | None = None
 
 
 class TradeClose(BaseModel):
     exit_price: Decimal = Field(gt=0)
     exit_timestamp: datetime | None = None
+    commission: Decimal | None = None
+    swap: Decimal | None = None
     notes: str | None = None
     setup_valid: bool | None = None
     rules_followed: bool | None = None

@@ -21,6 +21,7 @@ from app.core.time import as_utc, utcnow
 from app.engines.account_rules_engine import evaluate_submission, raise_if_blocked
 from app.engines.discipline_engine import TradeDisciplineInput, score_trade
 from app.engines.fx_math import (
+    ZERO,
     classify_result,
     holding_seconds,
     planned_metrics,
@@ -371,9 +372,19 @@ def create_trade(db: Session, user: User, payload: TradeCreate) -> Trade:
         acknowledged_warnings=payload.acknowledged_warnings,
         source=payload.source,
         source_analysis_id=payload.source_analysis_id,
+        commission=payload.commission,
+        swap=payload.swap,
     )
     db.add(trade)
     db.flush()
+    if computed["status"] == TradeStatus.CLOSED and computed["pnl"] is not None:
+        if payload.commission is not None or payload.swap is not None:
+            _apply_net_economics(
+                trade,
+                gross_pnl=computed["pnl"],
+                commission=payload.commission,
+                swap=payload.swap,
+            )
 
     if payload.psychology:
         pdata = payload.psychology.model_dump()
@@ -521,6 +532,30 @@ def _apply_computed(trade: Trade, computed: dict, exit_ts: datetime | None = Non
         backfill_mfe_mae_for_trade(db, trade)
 
 
+def _apply_net_economics(
+    trade: Trade,
+    *,
+    gross_pnl: Decimal | None,
+    commission: Decimal | None = None,
+    swap: Decimal | None = None,
+) -> None:
+    """Apply commission/swap and set net realized P/L (gross + commission + swap)."""
+    if commission is not None:
+        trade.commission = commission
+    if swap is not None:
+        trade.swap = swap
+    if gross_pnl is None:
+        return
+    comm = Decimal(trade.commission or 0)
+    sw = Decimal(trade.swap or 0)
+    net = gross_pnl + comm + sw
+    trade.realized_pnl = net
+    if trade.risk_amount and trade.risk_amount > ZERO:
+        trade.realized_r = realized_r(net, trade.risk_amount)
+        trade.realized_rr = trade.realized_r
+    trade.result = classify_result(TradeStatus.CLOSED, net).value
+
+
 def update_trade(db: Session, user: User, trade_id: UUID, payload: TradeUpdate) -> Trade:
     trade = get_trade(db, user.id, trade_id)
     account = get_owned_account(db, user.id, trade.account_id)
@@ -555,6 +590,11 @@ def update_trade(db: Session, user: User, trade_id: UUID, payload: TradeUpdate) 
         trade.exit_timestamp = exit_ts
 
     _apply_computed(trade, computed, exit_ts=trade.exit_timestamp, db=db)
+    if trade.status == TradeStatus.CLOSED.value and computed.get("pnl") is not None:
+        comm = payload.commission if "commission" in payload.model_fields_set else None
+        sw = payload.swap if "swap" in payload.model_fields_set else None
+        if comm is not None or sw is not None or trade.commission or trade.swap:
+            _apply_net_economics(trade, gross_pnl=computed["pnl"], commission=comm, swap=sw)
     _apply_psychology(db, user, trade, payload.psychology)
 
     if payload.checklist is not None:
@@ -590,6 +630,10 @@ def close_trade(db: Session, user: User, trade_id: UUID, payload: TradeClose) ->
         data["mistake_notes"] = payload.mistake_notes
     if payload.psychology is not None:
         data["psychology"] = payload.psychology
+    if payload.commission is not None:
+        data["commission"] = payload.commission
+    if payload.swap is not None:
+        data["swap"] = payload.swap
     return update_trade(db, user, trade_id, TradeUpdate(**data))
 
 
