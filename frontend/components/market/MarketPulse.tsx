@@ -57,8 +57,6 @@ export function MarketPulse() {
           className={`viewport${reducedMotion ? " reduced" : ""}`}
           onMouseEnter={() => setPaused(true)}
           onMouseLeave={() => setPaused(false)}
-          onFocus={() => setPaused(true)}
-          onBlur={() => setPaused(false)}
         >
           <div
             className={`track${paused ? " paused" : ""}`}
@@ -72,7 +70,7 @@ export function MarketPulse() {
             {!reducedMotion && (
               <div className="sequence" aria-hidden>
                 {visible.map((q) => (
-                  <MarketPulseItem key={`${q.symbol}-b`} quote={q} />
+                  <MarketPulseItem key={`${q.symbol}-b`} quote={q} tabbable={false} />
                 ))}
               </div>
             )}
