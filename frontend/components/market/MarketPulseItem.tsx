@@ -13,69 +13,23 @@ export function MarketPulseItem({ quote, tabbable = true }: { quote: MarketQuote
   return (
     <Link
       href={href}
-      className={`item ${changeClass}`}
+      className="market-pulse__item"
       tabIndex={tabbable ? undefined : -1}
       title={`Open ${quote.display_symbol} in calculator`}
     >
-      <span className="sym">{quote.display_symbol}</span>
-      <span className="price">{quote.price != null ? formatQuotePrice(quote.price, quote.asset_class) : "—"}</span>
-      <span className={`chg ${changeClass}`} aria-label={`Change ${formatChangePercent(quote.change_percent)}`}>
-        <span className="arrow" aria-hidden>
+      <span className="market-pulse__symbol">{quote.display_symbol}</span>
+      <span className="market-pulse__price">
+        {quote.price != null ? formatQuotePrice(quote.price, quote.asset_class) : "—"}
+      </span>
+      <span
+        className={`market-pulse__change market-pulse__change--${changeClass}`}
+        aria-label={`Change ${formatChangePercent(quote.change_percent)}`}
+      >
+        <span className="market-pulse__arrow" aria-hidden>
           {changeArrow(quote.direction)}
         </span>
-        {formatChangePercent(quote.change_percent)}
+        <span className="market-pulse__percent">{formatChangePercent(quote.change_percent)}</span>
       </span>
-      <style jsx>{`
-        .item {
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          padding: 0 28px;
-          flex-shrink: 0;
-          text-decoration: none;
-          color: inherit;
-          white-space: nowrap;
-          border-right: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
-          height: 100%;
-          font-size: 11px;
-          line-height: 1;
-          letter-spacing: 0.02em;
-        }
-        .item:hover {
-          background: color-mix(in srgb, var(--accent) 4%, transparent);
-        }
-        .sym {
-          font-weight: 600;
-          color: var(--text-primary);
-        }
-        .price {
-          font-weight: 500;
-          font-variant-numeric: tabular-nums;
-          color: var(--text-primary);
-        }
-        .chg {
-          margin-left: 2px;
-          font-size: 10px;
-          font-weight: 600;
-          display: inline-flex;
-          align-items: center;
-          gap: 4px;
-        }
-        .chg.up {
-          color: var(--success);
-        }
-        .chg.down {
-          color: var(--danger);
-        }
-        .chg.flat {
-          color: var(--text-muted);
-        }
-        @media (max-width: 640px) {
-          .item {
-            padding: 0 20px;
-          }
-        }
-      `}</style>
     </Link>
   );
 }

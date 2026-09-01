@@ -77,6 +77,64 @@ export function MarketPulse() {
           </div>
         </div>
       )}
+      <style jsx global>{`
+        .market-pulse__item {
+          display: inline-flex;
+          align-items: center;
+          flex-shrink: 0;
+          padding: 0 26px;
+          height: 100%;
+          white-space: nowrap;
+          text-decoration: none;
+          color: inherit;
+          line-height: 1;
+          border-right: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+        }
+        .market-pulse__item:hover {
+          background: color-mix(in srgb, var(--accent) 4%, transparent);
+        }
+        .market-pulse__symbol {
+          font-size: 11px;
+          font-weight: 600;
+          color: var(--text-primary);
+          margin-right: 8px;
+        }
+        .market-pulse__price {
+          font-size: 11px;
+          font-weight: 500;
+          font-variant-numeric: tabular-nums;
+          color: var(--text-primary);
+          margin-right: 7px;
+        }
+        .market-pulse__change {
+          display: inline-flex;
+          align-items: center;
+          gap: 3px;
+          font-size: 10px;
+          font-weight: 600;
+          line-height: 1;
+        }
+        .market-pulse__change--up {
+          color: var(--success);
+        }
+        .market-pulse__change--down {
+          color: var(--danger);
+        }
+        .market-pulse__change--flat {
+          color: var(--text-muted);
+        }
+        @media (max-width: 640px) {
+          .market-pulse__item {
+            padding: 0 18px;
+          }
+          .market-pulse__symbol {
+            margin-right: 6px;
+          }
+          .market-pulse__price {
+            margin-right: 6px;
+          }
+        }
+      `}</style>
       <style jsx>{`
         .pulse {
           height: 42px;
