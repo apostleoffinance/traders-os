@@ -24,6 +24,7 @@ import { PERIOD_LABELS, useGlobalFilters, type PeriodPreset } from "@/lib/filter
 import type { Account, User } from "@/lib/types";
 import { BrandMark } from "@/components/BrandMark";
 import { CommandPalette } from "@/components/app-shell/CommandPalette";
+import { MarketPulse } from "@/components/market/MarketPulse";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { money, signed, tone } from "@/lib/format";
 
@@ -243,6 +244,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
       <div className="shell">
         <aside className="rail desktop">{renderNav({ collapsedMode: collapsed, showToggle: true })}</aside>
         <div className="main">
+          <MarketPulse />
           <header className="top">
             <div className="top-left">
               <button type="button" className="menu" aria-label="Open menu" onClick={() => setNavOpen(true)}>

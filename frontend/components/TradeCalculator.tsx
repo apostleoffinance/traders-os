@@ -147,6 +147,18 @@ export function TradeCalculator({ compact = false, initial, onApply }: Props) {
   }, []);
 
   useEffect(() => {
+    if (!initial?.symbol) return;
+    const key = initial.symbol.toUpperCase().replace(/\//g, "");
+    if (instruments.length === 0) {
+      setSymbol(key);
+      return;
+    }
+    if (instruments.some((i) => i.symbol === key)) {
+      setSymbol(key);
+    }
+  }, [initial?.symbol, instruments]);
+
+  useEffect(() => {
     if (!accountId) return;
     void api<typeof ctx>(`/api/calculator/account-context?account_id=${accountId}`)
       .then(setCtx)

@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.core.exceptions import DomainError, http_error
 from app.core.security import get_current_user_id, get_db
 from app.market_data import service as market_service
+from app.market_data.ticker import get_ticker, market_status
 from app.schemas.market import (
     AnalysisIn,
     AnalysisOut,
@@ -51,6 +52,26 @@ def quote(symbol: str, db: Session = Depends(get_db), user_id=Depends(get_curren
         return market_service.get_quote(db, symbol)
     except DomainError as exc:
         raise http_error(exc) from exc
+
+
+@router.get("/ticker")
+def ticker(db: Session = Depends(get_db), user_id=Depends(get_current_user_id)):
+    return get_ticker(db)
+
+
+@router.get("/quotes")
+def quotes(
+    symbols: str | None = Query(default=None, description="Comma-separated symbols"),
+    db: Session = Depends(get_db),
+    user_id=Depends(get_current_user_id),
+):
+    sym_list = [s.strip() for s in symbols.split(",")] if symbols else None
+    return get_ticker(db, sym_list)
+
+
+@router.get("/status")
+def status(user_id=Depends(get_current_user_id)):
+    return market_status()
 
 
 @router.post("/size")

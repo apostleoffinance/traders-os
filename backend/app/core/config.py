@@ -64,6 +64,9 @@ class Settings(BaseSettings):
     fx_rate_recent_seconds: int = 300
     fx_quote_cache_ttl_seconds: int = 45
     fx_provider: str = "market"  # market = Dukascopy/CCXT chain; no paid FX API
+    market_ticker_cache_ttl_seconds: int = 15
+    market_ticker_fresh_forex_seconds: int = 60
+    market_ticker_fresh_crypto_seconds: int = 30
 
     # Web Push — empty keys disable reminders. Private key stays server-side.
     vapid_public_key: str = ""
