@@ -79,7 +79,7 @@ export function MarketPulse() {
       )}
       <style jsx>{`
         .pulse {
-          height: 36px;
+          height: 42px;
           border-bottom: 1px solid var(--border);
           background: color-mix(in srgb, var(--surface-2, var(--surface)) 35%, var(--surface));
           overflow: hidden;
@@ -88,8 +88,8 @@ export function MarketPulse() {
         .fallback {
           margin: 0;
           padding: 0 16px;
-          font-size: 12px;
-          line-height: 36px;
+          font-size: 11px;
+          line-height: 42px;
         }
         .viewport {
           height: 100%;
@@ -114,7 +114,7 @@ export function MarketPulse() {
         }
         .sequence {
           display: flex;
-          align-items: stretch;
+          align-items: center;
           flex-shrink: 0;
         }
         @keyframes pulse-scroll {
@@ -127,7 +127,10 @@ export function MarketPulse() {
         }
         @media (max-width: 640px) {
           .pulse {
-            height: 34px;
+            height: 38px;
+          }
+          .fallback {
+            line-height: 38px;
           }
         }
       `}</style>

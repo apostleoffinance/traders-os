@@ -29,34 +29,37 @@ export function MarketPulseItem({ quote, tabbable = true }: { quote: MarketQuote
         .item {
           display: inline-flex;
           align-items: center;
-          gap: 8px;
-          padding: 0 16px;
+          gap: 6px;
+          padding: 0 28px;
+          flex-shrink: 0;
           text-decoration: none;
           color: inherit;
           white-space: nowrap;
-          border-right: 1px solid var(--border);
+          border-right: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
           height: 100%;
           font-size: 11px;
+          line-height: 1;
+          letter-spacing: 0.02em;
         }
         .item:hover {
           background: color-mix(in srgb, var(--accent) 4%, transparent);
         }
         .sym {
-          font-weight: 700;
+          font-weight: 600;
           color: var(--text-primary);
-          min-width: 4rem;
         }
         .price {
-          font-weight: 700;
+          font-weight: 500;
           font-variant-numeric: tabular-nums;
           color: var(--text-primary);
-          min-width: 4rem;
         }
         .chg {
+          margin-left: 2px;
+          font-size: 10px;
           font-weight: 600;
           display: inline-flex;
           align-items: center;
-          gap: 3px;
+          gap: 4px;
         }
         .chg.up {
           color: var(--success);
@@ -66,6 +69,11 @@ export function MarketPulseItem({ quote, tabbable = true }: { quote: MarketQuote
         }
         .chg.flat {
           color: var(--text-muted);
+        }
+        @media (max-width: 640px) {
+          .item {
+            padding: 0 20px;
+          }
         }
       `}</style>
     </Link>
