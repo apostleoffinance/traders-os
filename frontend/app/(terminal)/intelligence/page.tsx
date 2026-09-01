@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, getActiveAccountId } from "@/lib/api";
 import { AI_UNAVAILABLE_MESSAGE, useAiStatus } from "@/lib/ai";
-import { useGlobalFilters, PERIOD_LABELS } from "@/lib/filters";
+import { useGlobalFilters, PERIOD_LABELS, type PeriodPreset } from "@/lib/filters";
 import {
   buildAnalyticsQuery,
   filtersWithGlobalPeriod,
@@ -27,9 +27,14 @@ import {
   PsychologyBubbleMatrix,
 } from "@/components/intelligence/IntelligenceViz";
 import { AnalyticsDrilldownProvider } from "@/components/analytics/AnalyticsDrilldownContext";
+import { AnalyticsFilters } from "@/components/analytics/Filters";
 import { DrilldownFilterBar } from "@/components/analytics/primitives/DrilldownFilterBar";
 import { PeriodReview } from "@/components/PeriodReview";
 import { Alert, Panel } from "@/components/ui";
+
+function periodLabel(preset: string): string {
+  return PERIOD_LABELS[preset as PeriodPreset] ?? preset;
+}
 
 export default function IntelligencePage() {
   const [accountId, setAccountId] = useState<string | null>(null);
@@ -37,51 +42,43 @@ export default function IntelligencePage() {
   const [intel, setIntel] = useState<IntelligenceLabPayload | null>(null);
   const [dash, setDash] = useState<AnalyticsDashboard | null>(null);
   const { filters: globalFilters, ready: filtersReady } = useGlobalFilters();
+  const [draft, setDraft] = useState<FilterState>(filtersWithGlobalPeriod(globalFilters.period));
   const [applied, setApplied] = useState<FilterState>(filtersWithGlobalPeriod(globalFilters.period));
   const status = useAiStatus();
   const loadSeq = useRef(0);
 
-  const handleFiltersChange = useCallback(
-    (next: FilterState) => {
-      setApplied(filtersWithGlobalPeriod(globalFilters.period, next));
-    },
-    [globalFilters.period],
-  );
-
   useEffect(() => {
     if (!filtersReady) return;
-    setApplied((prev) => filtersWithGlobalPeriod(globalFilters.period, prev));
+    const next = filtersWithGlobalPeriod(globalFilters.period, applied);
+    setApplied((prev) => (prev.preset === next.preset ? prev : { ...prev, preset: next.preset }));
+    setDraft((prev) => (prev.preset === next.preset ? prev : { ...prev, preset: next.preset }));
   }, [filtersReady, globalFilters.period]);
 
-  const load = useCallback(
-    async (filters: FilterState) => {
-      const id = getActiveAccountId();
-      setAccountId(id);
-      if (!id) {
-        setFeed(null);
-        setIntel(null);
-        setDash(null);
-        return;
-      }
-      const seq = ++loadSeq.current;
-      const resolved = filtersWithGlobalPeriod(globalFilters.period, filters);
-      const q = buildAnalyticsQuery(id, resolved);
-      try {
-        const [feedRes, intelRes, dashRes] = await Promise.all([
-          api<IntelligenceFeedResponse>(`/api/intelligence/feed?account_id=${id}&preset=${resolved.preset}`),
-          api<IntelligenceLabPayload>(`/api/analytics/intelligence?${q}`),
-          api<AnalyticsDashboard>(`/api/analytics/dashboard?${q}`),
-        ]);
-        if (seq !== loadSeq.current) return;
-        setFeed(feedRes);
-        setIntel(intelRes);
-        setDash(dashRes);
-      } catch {
-        if (seq !== loadSeq.current) return;
-      }
-    },
-    [globalFilters.period],
-  );
+  const load = useCallback(async (filters: FilterState) => {
+    const id = getActiveAccountId();
+    setAccountId(id);
+    if (!id) {
+      setFeed(null);
+      setIntel(null);
+      setDash(null);
+      return;
+    }
+    const seq = ++loadSeq.current;
+    const q = buildAnalyticsQuery(id, filters);
+    try {
+      const [feedRes, intelRes, dashRes] = await Promise.all([
+        api<IntelligenceFeedResponse>(`/api/intelligence/feed?account_id=${id}&preset=${filters.preset}`),
+        api<IntelligenceLabPayload>(`/api/analytics/intelligence?${q}`),
+        api<AnalyticsDashboard>(`/api/analytics/dashboard?${q}`),
+      ]);
+      if (seq !== loadSeq.current) return;
+      setFeed(feedRes);
+      setIntel(intelRes);
+      setDash(dashRes);
+    } catch {
+      if (seq !== loadSeq.current) return;
+    }
+  }, []);
 
   useEffect(() => {
     if (!filtersReady) return;
@@ -89,10 +86,10 @@ export default function IntelligencePage() {
     const onAccount = () => void load(applied);
     window.addEventListener("traderos-account", onAccount);
     return () => window.removeEventListener("traderos-account", onAccount);
-  }, [applied, globalFilters.period, filtersReady, load]);
+  }, [applied, filtersReady, load]);
 
-  const periodLabel = PERIOD_LABELS[globalFilters.period];
   const tradesInPeriod = dash?.overview.n_trades ?? intel?.metadata.trades_analyzed;
+  const activePeriodLabel = periodLabel(applied.preset);
 
   const base = accountId ? `/api/ai/accounts/${accountId}` : null;
   const currency = dash?.account.currency ?? "USD";
@@ -105,10 +102,10 @@ export default function IntelligencePage() {
 
       {dash && filtersReady && tradesInPeriod != null && (
         <p className="period-context muted">
-          <strong>{tradesInPeriod}</strong> closed trade{tradesInPeriod === 1 ? "" : "s"} in{" "}
-          <strong>{periodLabel}</strong>
+          <strong>{tradesInPeriod}</strong> closed trade{tradesInPeriod === 1 ? "" : "s"} opened or closed in{" "}
+          <strong>{activePeriodLabel}</strong>
           {tradesInPeriod === 0
-            ? " — try a longer period in the header or log trades in this window."
+            ? " — try a longer period or log trades in this window."
             : tradesInPeriod < 10
               ? " — some pattern insights need at least 10 trades in the window."
               : "."}
@@ -183,15 +180,21 @@ export default function IntelligencePage() {
           currency={currency}
           timezone={dash?.lab?.metadata?.timezone}
           filters={applied}
-          onFiltersChange={handleFiltersChange}
+          onFiltersChange={setApplied}
         >
+          <AnalyticsFilters
+            draft={draft}
+            setDraft={setDraft}
+            data={dash}
+            onApply={() => setApplied({ ...draft })}
+            onReset={() => {
+              const reset = filtersWithGlobalPeriod(globalFilters.period);
+              setDraft(reset);
+              setApplied(reset);
+            }}
+          />
           {dash && (
-            <DrilldownFilterBar
-              filters={applied}
-              data={dash}
-              onChange={handleFiltersChange}
-              excludePeriod
-            />
+            <DrilldownFilterBar filters={applied} data={dash} onChange={setApplied} excludePeriod />
           )}
           {body}
         </AnalyticsDrilldownProvider>

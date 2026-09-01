@@ -326,6 +326,31 @@ def resolve_date_window(
     return None, None, "all"
 
 
+def _activity_in_date_window(
+    local_entry: datetime,
+    local_exit: datetime | None,
+    *,
+    date_from: datetime | None,
+    date_to: datetime | None,
+) -> bool:
+    """Include a trade when its entry or close (if any) falls in the period window."""
+    if not date_from and not date_to:
+        return True
+
+    def in_range(dt: datetime) -> bool:
+        if date_from and dt < date_from:
+            return False
+        if date_to and dt > date_to:
+            return False
+        return True
+
+    if in_range(local_entry):
+        return True
+    if local_exit is not None and in_range(local_exit):
+        return True
+    return False
+
+
 def _apply_filters(
     trades: list[Trade],
     *,
@@ -345,9 +370,8 @@ def _apply_filters(
     out = []
     for t in trades:
         local = as_utc(t.trade_timestamp).astimezone(tz)
-        if date_from and local < date_from:
-            continue
-        if date_to and local > date_to:
+        local_exit = as_utc(t.exit_timestamp).astimezone(tz) if t.exit_timestamp else None
+        if not _activity_in_date_window(local, local_exit, date_from=date_from, date_to=date_to):
             continue
         if hour is not None and local.hour != hour:
             continue

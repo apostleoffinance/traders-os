@@ -203,7 +203,7 @@ export function IntelligenceFeedPanel({
 
   const patternsEmpty =
     tradesInPeriod === 0
-      ? `No closed trades in ${period}. Change the period in the header or log trades in this window.`
+      ? `No closed trades opened or closed in ${period}. Change the period or log trades in this window.`
       : tradesInPeriod != null && tradesInPeriod < 10
         ? `${tradesInPeriod} trade${tradesInPeriod === 1 ? "" : "s"} in ${period} — pattern insights usually need at least 10. Try a longer period.`
         : `No pattern insights for ${period} yet. Risk and behaviour cards above may still apply.`;
