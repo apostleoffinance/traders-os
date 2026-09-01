@@ -22,6 +22,8 @@ const DEFAULT: GlobalFilters = {
 
 type Ctx = {
   filters: GlobalFilters;
+  /** False until localStorage period has been read (avoids double-fetch on mount). */
+  ready: boolean;
   setFilters: (patch: Partial<GlobalFilters>) => void;
   resetFilters: () => void;
 };
@@ -41,9 +43,11 @@ function readStored(): GlobalFilters {
 
 export function GlobalFiltersProvider({ children }: { children: ReactNode }) {
   const [filters, setState] = useState<GlobalFilters>(DEFAULT);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     setState(readStored());
+    setReady(true);
   }, []);
 
   const setFilters = useCallback((patch: Partial<GlobalFilters>) => {
@@ -68,8 +72,8 @@ export function GlobalFiltersProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ filters, setFilters, resetFilters }),
-    [filters, setFilters, resetFilters],
+    () => ({ filters, ready, setFilters, resetFilters }),
+    [filters, ready, setFilters, resetFilters],
   );
 
   return <GlobalFiltersContext.Provider value={value}>{children}</GlobalFiltersContext.Provider>;

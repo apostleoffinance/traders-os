@@ -38,9 +38,13 @@ export function mergeFilterPatch(base: FilterState, patch: Partial<FilterState>)
   return { ...base, ...patch };
 }
 
-export function describeFilterChips(filters: FilterState, setupName?: (id: string) => string): FilterChip[] {
+export function describeFilterChips(
+  filters: FilterState,
+  setupName?: (id: string) => string,
+  opts?: { excludePreset?: boolean },
+): FilterChip[] {
   const chips: FilterChip[] = [];
-  if (filters.preset && filters.preset !== "all") {
+  if (!opts?.excludePreset && filters.preset && filters.preset !== "all") {
     chips.push({ key: "preset", label: `Period: ${filters.preset}` });
   }
   if (filters.symbol) chips.push({ key: "symbol", label: `${FILTER_LABELS.symbol}: ${filters.symbol}` });
@@ -61,6 +65,24 @@ export function describeFilterChips(filters: FilterState, setupName?: (id: strin
     chips.push({ key: "date_to", label: `To ${filters.date_to}` });
   }
   return chips;
+}
+
+/** Clear chart drill-down fields only; leaves period preset unchanged. */
+export function clearDrilldownOnly(filters: FilterState): FilterState {
+  return {
+    ...filters,
+    symbol: "",
+    session: "",
+    setup_id: "",
+    direction: "",
+    timeframe: "",
+    psychology: "",
+    result: "",
+    hour: "",
+    date_from: "",
+    date_to: "",
+    preset: filters.preset === "custom" ? "all" : filters.preset,
+  };
 }
 
 export function clearFilterKey(filters: FilterState, key: keyof FilterState): FilterState {

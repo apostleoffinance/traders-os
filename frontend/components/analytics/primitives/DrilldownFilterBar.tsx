@@ -8,10 +8,12 @@ export function DrilldownFilterBar({
   filters,
   data,
   onChange,
+  excludePeriod = false,
 }: {
   filters: FilterState;
   data: AnalyticsDashboard;
   onChange: (f: FilterState) => void;
+  excludePeriod?: boolean;
 }) {
   const drill = useAnalyticsDrilldown();
   return (
@@ -20,6 +22,7 @@ export function DrilldownFilterBar({
       setupName={(id) => data.filters.options?.setups.find((s) => s.id === id)?.name ?? id}
       onChange={onChange}
       onViewTrades={() => drill.openTrades("Filtered trades")}
+      excludePeriod={excludePeriod}
     />
   );
 }

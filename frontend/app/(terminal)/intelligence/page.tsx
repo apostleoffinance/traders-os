@@ -1,13 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api, getActiveAccountId } from "@/lib/api";
 import { AI_UNAVAILABLE_MESSAGE, useAiStatus } from "@/lib/ai";
-import { useGlobalFilters } from "@/lib/filters";
+import { useGlobalFilters, PERIOD_LABELS } from "@/lib/filters";
 import {
   buildAnalyticsQuery,
   filtersWithGlobalPeriod,
-  globalPeriodToPreset,
   type AnalyticsDashboard,
   type FilterState,
   type IntelligenceLabPayload,
@@ -37,42 +36,63 @@ export default function IntelligencePage() {
   const [feed, setFeed] = useState<IntelligenceFeedResponse | null>(null);
   const [intel, setIntel] = useState<IntelligenceLabPayload | null>(null);
   const [dash, setDash] = useState<AnalyticsDashboard | null>(null);
-  const { filters: globalFilters } = useGlobalFilters();
+  const { filters: globalFilters, ready: filtersReady } = useGlobalFilters();
   const [applied, setApplied] = useState<FilterState>(filtersWithGlobalPeriod(globalFilters.period));
   const status = useAiStatus();
+  const loadSeq = useRef(0);
+
+  const handleFiltersChange = useCallback(
+    (next: FilterState) => {
+      setApplied(filtersWithGlobalPeriod(globalFilters.period, next));
+    },
+    [globalFilters.period],
+  );
 
   useEffect(() => {
-    const next = filtersWithGlobalPeriod(globalFilters.period, applied);
-    setApplied((prev) => (prev.preset === next.preset ? prev : { ...prev, preset: next.preset }));
-  }, [globalFilters.period, applied]);
+    if (!filtersReady) return;
+    setApplied((prev) => filtersWithGlobalPeriod(globalFilters.period, prev));
+  }, [filtersReady, globalFilters.period]);
 
-  const load = useCallback(async () => {
-    const id = getActiveAccountId();
-    setAccountId(id);
-    if (!id) {
-      setFeed(null);
-      setIntel(null);
-      setDash(null);
-      return;
-    }
-    const preset = globalPeriodToPreset(filtersWithGlobalPeriod(globalFilters.period, applied).preset);
-    const q = buildAnalyticsQuery(id, applied);
-    const [feedRes, intelRes, dashRes] = await Promise.all([
-      api<IntelligenceFeedResponse>(`/api/intelligence/feed?account_id=${id}&preset=${preset}`),
-      api<IntelligenceLabPayload>(`/api/analytics/intelligence?${q}`),
-      api<AnalyticsDashboard>(`/api/analytics/dashboard?${q}`),
-    ]);
-    setFeed(feedRes);
-    setIntel(intelRes);
-    setDash(dashRes);
-  }, [applied, globalFilters.period]);
+  const load = useCallback(
+    async (filters: FilterState) => {
+      const id = getActiveAccountId();
+      setAccountId(id);
+      if (!id) {
+        setFeed(null);
+        setIntel(null);
+        setDash(null);
+        return;
+      }
+      const seq = ++loadSeq.current;
+      const resolved = filtersWithGlobalPeriod(globalFilters.period, filters);
+      const q = buildAnalyticsQuery(id, resolved);
+      try {
+        const [feedRes, intelRes, dashRes] = await Promise.all([
+          api<IntelligenceFeedResponse>(`/api/intelligence/feed?account_id=${id}&preset=${resolved.preset}`),
+          api<IntelligenceLabPayload>(`/api/analytics/intelligence?${q}`),
+          api<AnalyticsDashboard>(`/api/analytics/dashboard?${q}`),
+        ]);
+        if (seq !== loadSeq.current) return;
+        setFeed(feedRes);
+        setIntel(intelRes);
+        setDash(dashRes);
+      } catch {
+        if (seq !== loadSeq.current) return;
+      }
+    },
+    [globalFilters.period],
+  );
 
   useEffect(() => {
-    void load();
-    const onAccount = () => void load();
+    if (!filtersReady) return;
+    void load(applied);
+    const onAccount = () => void load(applied);
     window.addEventListener("traderos-account", onAccount);
     return () => window.removeEventListener("traderos-account", onAccount);
-  }, [load]);
+  }, [applied, globalFilters.period, filtersReady, load]);
+
+  const periodLabel = PERIOD_LABELS[globalFilters.period];
+  const tradesInPeriod = dash?.overview.n_trades ?? intel?.metadata.trades_analyzed;
 
   const base = accountId ? `/api/ai/accounts/${accountId}` : null;
   const currency = dash?.account.currency ?? "USD";
@@ -81,7 +101,19 @@ export default function IntelligencePage() {
     <>
       {status && !status.available && <Alert kind="warn">{status.message ?? AI_UNAVAILABLE_MESSAGE}</Alert>}
       {!accountId && <Alert kind="info">Select an account to load the feed.</Alert>}
-      {!feed && accountId && <p className="muted">Loading insights…</p>}
+      {!feed && accountId && filtersReady && <p className="muted">Loading insights…</p>}
+
+      {dash && filtersReady && tradesInPeriod != null && (
+        <p className="period-context muted">
+          <strong>{tradesInPeriod}</strong> closed trade{tradesInPeriod === 1 ? "" : "s"} in{" "}
+          <strong>{periodLabel}</strong>
+          {tradesInPeriod === 0
+            ? " — try a longer period in the header or log trades in this window."
+            : tradesInPeriod < 10
+              ? " — some pattern insights need at least 10 trades in the window."
+              : "."}
+        </p>
+      )}
 
       {intel && (
         <div className="phase3">
@@ -98,7 +130,7 @@ export default function IntelligencePage() {
 
       {feed && (
         <div className="feed-block">
-          <IntelligenceFeedPanel data={feed} />
+          <IntelligenceFeedPanel data={feed} tradesInPeriod={tradesInPeriod ?? undefined} />
         </div>
       )}
 
@@ -151,9 +183,16 @@ export default function IntelligencePage() {
           currency={currency}
           timezone={dash?.lab?.metadata?.timezone}
           filters={applied}
-          onFiltersChange={setApplied}
+          onFiltersChange={handleFiltersChange}
         >
-          {dash && <DrilldownFilterBar filters={applied} data={dash} onChange={setApplied} />}
+          {dash && (
+            <DrilldownFilterBar
+              filters={applied}
+              data={dash}
+              onChange={handleFiltersChange}
+              excludePeriod
+            />
+          )}
           {body}
         </AnalyticsDrilldownProvider>
       ) : (
@@ -164,6 +203,11 @@ export default function IntelligencePage() {
         .intro {
           max-width: 640px;
           margin-bottom: 16px;
+        }
+        .period-context {
+          margin: 0 0 14px;
+          font-size: 13px;
+          max-width: 640px;
         }
         .feed-block {
           margin-bottom: 20px;

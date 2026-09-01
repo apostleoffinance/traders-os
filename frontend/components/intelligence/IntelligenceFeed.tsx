@@ -192,8 +192,21 @@ function InsightSection({
   );
 }
 
-export function IntelligenceFeedPanel({ data }: { data: IntelligenceFeedResponse }) {
+export function IntelligenceFeedPanel({
+  data,
+  tradesInPeriod,
+}: {
+  data: IntelligenceFeedResponse;
+  tradesInPeriod?: number;
+}) {
   const period = PERIOD_LABELS[data.filters.preset as keyof typeof PERIOD_LABELS] ?? data.filters.preset;
+
+  const patternsEmpty =
+    tradesInPeriod === 0
+      ? `No closed trades in ${period}. Change the period in the header or log trades in this window.`
+      : tradesInPeriod != null && tradesInPeriod < 10
+        ? `${tradesInPeriod} trade${tradesInPeriod === 1 ? "" : "s"} in ${period} — pattern insights usually need at least 10. Try a longer period.`
+        : `No pattern insights for ${period} yet. Risk and behaviour cards above may still apply.`;
 
   return (
     <div className="feed">
@@ -219,7 +232,7 @@ export function IntelligenceFeedPanel({ data }: { data: IntelligenceFeedResponse
       <InsightSection
         title={`Patterns · ${period}`}
         items={data.feed.insights}
-        empty="Insights appear as your journal grows. Try a longer period or log more trades."
+        empty={patternsEmpty}
       />
 
       <style jsx>{`

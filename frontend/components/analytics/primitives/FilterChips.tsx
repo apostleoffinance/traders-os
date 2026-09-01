@@ -1,6 +1,6 @@
 "use client";
 
-import { describeFilterChips, clearFilterKey } from "@/lib/analytics-drilldown";
+import { describeFilterChips, clearDrilldownOnly, clearFilterKey } from "@/lib/analytics-drilldown";
 import type { FilterState } from "@/lib/analytics";
 
 export function FilterChips({
@@ -8,13 +8,16 @@ export function FilterChips({
   setupName,
   onChange,
   onViewTrades,
+  excludePeriod = false,
 }: {
   filters: FilterState;
   setupName?: (id: string) => string;
   onChange: (next: FilterState) => void;
   onViewTrades?: () => void;
+  /** Hide period chip when period is controlled by the shell header. */
+  excludePeriod?: boolean;
 }) {
-  const chips = describeFilterChips(filters, setupName);
+  const chips = describeFilterChips(filters, setupName, { excludePreset: excludePeriod });
   if (chips.length === 0) return null;
 
   return (
@@ -36,7 +39,7 @@ export function FilterChips({
           View trades
         </button>
       )}
-      <button type="button" className="reset" onClick={() => onChange(clearAllDrilldown(filters))}>
+      <button type="button" className="reset" onClick={() => onChange(clearDrilldownOnly(filters))}>
         Reset drill-down
       </button>
       <style jsx>{`
@@ -80,21 +83,4 @@ export function FilterChips({
       `}</style>
     </div>
   );
-}
-
-function clearAllDrilldown(filters: FilterState): FilterState {
-  return {
-    ...filters,
-    symbol: "",
-    session: "",
-    setup_id: "",
-    direction: "",
-    timeframe: "",
-    psychology: "",
-    result: "",
-    hour: "",
-    date_from: "",
-    date_to: "",
-    preset: filters.preset === "custom" ? "all" : filters.preset,
-  };
 }
