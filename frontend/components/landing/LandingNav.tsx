@@ -8,7 +8,8 @@ import { primaryHref, primaryLabel, useSignedIn } from "./useSignedIn";
 
 const LINKS = [
   { href: "/#product", label: "Product" },
-  { href: "/#how-it-works", label: "How it works" },
+  { href: "/#features", label: "Features" },
+  { href: "/#workspace", label: "Workspace" },
   { href: "/#intelligence", label: "Intelligence" },
   { href: "/#risk", label: "Risk" },
   { href: "/#community", label: "Community" },

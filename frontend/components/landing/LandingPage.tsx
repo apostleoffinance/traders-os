@@ -4,15 +4,16 @@ import Link from "next/link";
 import { Badge, LimitBar, Panel } from "@/components/ui";
 import { LandingFooter } from "./LandingFooter";
 import { LandingNav } from "./LandingNav";
+import { HeroBackdrop } from "./HeroBackdrop";
 import { HeroCanvas } from "./HeroCanvas";
 import { HeroPreview } from "./HeroPreview";
 import { WorkspacePreview } from "./WorkspacePreview";
 import { TelegramMark, YouTubeMark } from "@/components/SocialMarks";
 import { COMMUNITY } from "@/lib/community";
-import { SAMPLE_EVIDENCE, SAMPLE_LABEL, SAMPLE_LIMITS } from "./sample";
+import { FEATURE_HIGHLIGHTS, SAMPLE_EVIDENCE, SAMPLE_LABEL, SAMPLE_LIMITS } from "./sample";
 import { primaryHref, primaryLabel, useSignedIn } from "./useSignedIn";
 
-const FLOW = ["Analyze", "Journal", "Review", "Understand", "Improve"] as const;
+const FLOW = ["Sync", "Journal", "Analyze", "Risk", "Improve"] as const;
 
 export function LandingPage() {
   const signedIn = useSignedIn();
@@ -27,6 +28,7 @@ export function LandingPage() {
       <LandingNav />
 
       <section className="lp-hero">
+        <HeroBackdrop />
         <HeroCanvas />
         <div className="lp-hero-inner">
           <div>
@@ -38,15 +40,15 @@ export function LandingPage() {
               Understood deeply.
             </h1>
             <p className="lp-lede">
-              Trader OS turns your trading history into structured data, helping you understand performance, risk,
-              discipline and behavior over time.
+              Command Center, Analytics Lab, Quant Lab, and Intelligence Feed — one terminal for performance, risk,
+              discipline, and behaviour. Built on your journal, not market noise.
             </p>
             <div className="lp-hero-actions">
               <Link href={href} className="lp-cta">
                 {label}
               </Link>
-              <a href="#workspace" className="lp-cta ghost">
-                Explore the workspace
+              <a href="#features" className="lp-cta ghost">
+                See feature highlights
               </a>
             </div>
             <p className="lp-aside">No signals. No noise. Just your data.</p>
@@ -59,22 +61,39 @@ export function LandingPage() {
         <p className="lp-section-label">Product</p>
         <h2>Every trade tells a story.</h2>
         <p className="lp-copy">
-          P/L is a result. Trader OS captures the trade, the setup, the execution, the risk and the reasoning, so you
-          can see whether the story is repeating, and whether you actually followed your own process.
+          P/L is a result. Trader OS captures the trade, the setup, the execution, the risk and the reasoning — then
+          surfaces what repeats across Command Center, Analytics Lab, and Intelligence Feed.
         </p>
         <div className="lp-concepts">
           <article className="lp-concept">
             <h3>Journal</h3>
-            <p>Record the trade, setup, execution, risk and reasoning.</p>
+            <p>Log manually or sync from MT5. Setup, risk, checklist, psychology, and outcome in one place.</p>
           </article>
           <article className="lp-concept">
             <h3>Discipline</h3>
-            <p>Measure whether you followed your own process, independent of whether the trade won or lost.</p>
+            <p>Score whether you followed your process — independent of whether the trade won or lost.</p>
           </article>
           <article className="lp-concept">
             <h3>Intelligence</h3>
-            <p>Turn historical trading data into evidence about your behavior and performance.</p>
+            <p>Deterministic insights and sample-aware evidence about edge, behaviour, and risk after losses.</p>
           </article>
+        </div>
+      </section>
+
+      <section className="lp-section" id="features">
+        <p className="lp-section-label">Feature highlights</p>
+        <h2>Built for serious process work.</h2>
+        <p className="lp-copy">
+          Sync, analyze, stress-test your edge, and interpret patterns — without turning Trader OS into a signal feed.
+        </p>
+        <div className="lp-features">
+          {FEATURE_HIGHLIGHTS.map((f) => (
+            <article key={f.title} className="lp-feature">
+              <p className="lp-feature-kicker">{f.subtitle}</p>
+              <h3>{f.title}</h3>
+              <p>{f.body}</p>
+            </article>
+          ))}
         </div>
       </section>
 
@@ -82,8 +101,8 @@ export function LandingPage() {
         <p className="lp-kicker">{SAMPLE_LABEL}</p>
         <h2>Stop judging yourself by the last trade.</h2>
         <p className="lp-copy">
-          One trade does not tell you whether you are a good trader. Trader OS looks across your history: expectancy,
-          sessions, streaks and the moments where risk quietly changes after a loss.
+          Analytics Lab looks across your history: expectancy, sessions, streaks, profit factor, and where risk changes
+          after a loss. Short windows stay honest when the sample is thin.
         </p>
         <div className="lp-metrics">
           {SAMPLE_EVIDENCE.map((m) => (
@@ -101,16 +120,15 @@ export function LandingPage() {
       <section className="lp-section" id="risk">
         <div className="lp-split">
           <div>
-            <p className="lp-section-label">Risk</p>
+            <p className="lp-section-label">Risk Command</p>
             <h2>Know when you&apos;re going too hard.</h2>
             <p className="lp-copy">
-              Trader OS monitors daily risk, maximum drawdown, consecutive losses, risk escalation, account limits and
-              personal risk limits. It does not encourage you to trade more. It helps you recognize when your behavior
-              is becoming dangerous.
+              Risk Command monitors daily risk, maximum drawdown, consecutive losses, risk escalation, firm and personal
+              limits. It does not push you to trade more — it flags when behaviour is becoming dangerous.
             </p>
           </div>
           <div className="lp-risk-card">
-            <p className="lp-example">{SAMPLE_LABEL} · Risk monitor</p>
+            <p className="lp-example">{SAMPLE_LABEL} · Risk Command</p>
             <Panel title="Limits" right={<Badge status="green" />}>
               <LimitBar label={SAMPLE_LIMITS[0].label} limit={SAMPLE_LIMITS[0].limit} remaining={SAMPLE_LIMITS[0].remaining} />
               <LimitBar label={SAMPLE_LIMITS[1].label} limit={SAMPLE_LIMITS[1].limit} remaining={SAMPLE_LIMITS[1].remaining} />
@@ -123,11 +141,11 @@ export function LandingPage() {
       <section className="lp-section" id="intelligence">
         <div className="lp-split">
           <div>
-            <p className="lp-section-label">Intelligence</p>
+            <p className="lp-section-label">Intelligence Feed</p>
             <h2>Your history becomes your edge.</h2>
             <p className="lp-copy">
-              AI is not used to tell you to buy or sell anything. It interprets your historical dataset: the patterns
-              already calculated by the analytics engine. Gemini never invents numerical evidence.
+              Intelligence Feed surfaces deterministic findings with evidence and sample size. Optional AI coaching
+              interprets those same stats — it never invents numbers or tells you what to buy or sell.
             </p>
           </div>
           <div className="lp-finding-card">
@@ -162,8 +180,8 @@ export function LandingPage() {
         <p className="lp-section-label">Workspace</p>
         <h2>This is what you get when you enter Trader OS.</h2>
         <p className="lp-copy">
-          Dashboard, analytics, risk and intelligence. One visual language. The figures below are labelled product
-          examples, not live account data.
+          Command Center, Analytics Lab, Quant Lab, Reports, Intelligence Feed, Risk Command, Calculator, and Market
+          Pulse. One visual language. Figures below are labelled product examples, not live account data.
         </p>
         <WorkspacePreview />
       </section>
@@ -172,8 +190,9 @@ export function LandingPage() {
         <p className="lp-section-label">How it works</p>
         <h2>Built around your process.</h2>
         <p className="lp-copy">
-          Analyze wherever you already work: TradingView, MetaTrader, your broker. Trader OS is where you record the
-          process and understand it. It is not a charting replacement and not a place to hunt for the next trade.
+          Trade on MetaTrader or your broker. Sync with TraderOSSync or journal by hand. Size with the calculator. Review
+          in Analytics Lab and Quant Lab. Trader OS is not a charting replacement and not a place to hunt for the next
+          trade.
         </p>
         <div className="lp-flow" aria-label="Process">
           {FLOW.map((step, i) => (

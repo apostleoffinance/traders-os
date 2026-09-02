@@ -1,23 +1,23 @@
 import { Badge, LimitBar, Panel, Stat } from "@/components/ui";
 import { EquitySparkline } from "@/components/EquitySparkline";
-import { SAMPLE_EQUITY, SAMPLE_EVIDENCE, SAMPLE_LABEL, SAMPLE_LIMITS, SAMPLE_TRADES } from "./sample";
+import { SAMPLE_EQUITY, SAMPLE_EVIDENCE, SAMPLE_LABEL, SAMPLE_LIMITS } from "./sample";
 
 export function WorkspacePreview() {
   return (
     <div className="lp-workspace-grid">
       <div className="lp-frame">
-        <p className="lp-example">{SAMPLE_LABEL} · Dashboard</p>
+        <p className="lp-example">{SAMPLE_LABEL} · Command Center</p>
         <Panel title="Command">
           <div className="lp-preview-kpis">
             <Stat label="Expectancy" value={SAMPLE_EVIDENCE[0].value} tone="pos" />
             <Stat label="Win rate" value={SAMPLE_EVIDENCE[1].value} />
-            <Stat label="Health" value="74" tone="ok" />
+            <Stat label="Profit factor" value={SAMPLE_EVIDENCE[2].value} tone="pos" />
           </div>
           <EquitySparkline series={SAMPLE_EQUITY} width={360} height={52} />
         </Panel>
       </div>
       <div className="lp-frame">
-        <p className="lp-example">{SAMPLE_LABEL} · Analytics</p>
+        <p className="lp-example">{SAMPLE_LABEL} · Analytics Lab</p>
         <Panel title="Session expectancy">
           <div className="lp-bars" aria-hidden>
             <div className="lp-bar">
@@ -39,14 +39,14 @@ export function WorkspacePreview() {
         </Panel>
       </div>
       <div className="lp-frame">
-        <p className="lp-example">{SAMPLE_LABEL} · Risk</p>
+        <p className="lp-example">{SAMPLE_LABEL} · Risk Command</p>
         <Panel title="Limits" right={<Badge status="green" />}>
           <LimitBar label={SAMPLE_LIMITS[0].label} limit={SAMPLE_LIMITS[0].limit} remaining={SAMPLE_LIMITS[0].remaining} />
           <LimitBar label={SAMPLE_LIMITS[1].label} limit={SAMPLE_LIMITS[1].limit} remaining={SAMPLE_LIMITS[1].remaining} />
         </Panel>
       </div>
       <div className="lp-frame">
-        <p className="lp-example">{SAMPLE_LABEL} · Intelligence</p>
+        <p className="lp-example">{SAMPLE_LABEL} · Intelligence Feed</p>
         <Panel title="Finding">
           <p className="lp-finding">
             Your worst-performing trades tend to occur when you increase risk after a loss.
@@ -69,10 +69,7 @@ export function WorkspacePreview() {
               <dd className="num">47 trades</dd>
             </div>
           </dl>
-          <p className="muted lp-tiny">
-            {SAMPLE_TRADES.length} recent rows shown for layout only. Statistics are calculated by the analytics
-            engine; AI interprets the structured result.
-          </p>
+          <p className="muted lp-tiny">Deterministic analytics first. AI interprets the structured result — never invents numbers.</p>
         </Panel>
       </div>
     </div>

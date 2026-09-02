@@ -16,7 +16,8 @@ export function LandingFooter() {
         </div>
         <nav aria-label="Footer">
           <Link href="/#product">Product</Link>
-          <Link href="/#how-it-works">How it works</Link>
+          <Link href="/#features">Features</Link>
+          <Link href="/#workspace">Workspace</Link>
           <Link href="/#community">Community</Link>
           <a href={COMMUNITY.telegram.href} target="_blank" rel="noreferrer" className="lp-social">
             <TelegramMark size={16} />

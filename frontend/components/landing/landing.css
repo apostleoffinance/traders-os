@@ -224,13 +224,60 @@
   min-height: min(92vh, 920px);
   display: flex;
   align-items: center;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.lp-hero-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.lp-hero-photo {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.45s ease;
+}
+
+.lp-hero-photo.is-active {
+  opacity: 1;
+}
+
+.lp-hero-img {
+  object-fit: cover;
+  object-position: 58% 42%;
+}
+
+.lp-hero-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    linear-gradient(105deg, rgba(11, 15, 13, 0.88) 0%, rgba(11, 15, 13, 0.62) 38%, rgba(11, 15, 13, 0.28) 68%, rgba(11, 15, 13, 0.12) 100%),
+    linear-gradient(180deg, rgba(11, 15, 13, 0.35) 0%, transparent 28%, transparent 72%, rgba(11, 15, 13, 0.45) 100%);
+}
+
+[data-theme="light"] .lp-hero-scrim {
+  background:
+    linear-gradient(105deg, rgba(248, 250, 249, 0.92) 0%, rgba(248, 250, 249, 0.72) 36%, rgba(248, 250, 249, 0.28) 66%, rgba(248, 250, 249, 0.08) 100%),
+    linear-gradient(180deg, rgba(248, 250, 249, 0.4) 0%, transparent 30%, transparent 70%, rgba(248, 250, 249, 0.5) 100%);
 }
 
 .hero-canvas {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  z-index: 0;
+  z-index: 1;
+  opacity: 0.28;
+  mix-blend-mode: soft-light;
+}
+
+[data-theme="light"] .hero-canvas {
+  opacity: 0.18;
+  mix-blend-mode: multiply;
 }
 
 .hero-canvas canvas {
@@ -241,7 +288,7 @@
 
 .lp-hero-inner {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   max-width: 1280px;
   margin: 0 auto;
   padding: 72px 28px 88px;
@@ -420,18 +467,67 @@
 .lp-concept h3 {
   margin: 0 0 12px;
   font-family: var(--font-mono), "IBM Plex Mono", ui-monospace, Menlo, monospace;
-  font-size: 16px;
-  letter-spacing: 0.16em;
+  font-size: 13px;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--accent);
 }
 
 .lp-concept p {
   margin: 0;
-  color: var(--lp-copy);
-  font-size: 17px;
+  font-size: 16px;
   line-height: 1.5;
+  color: var(--lp-copy);
   max-width: 32ch;
+}
+
+.lp-features {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.lp-feature {
+  padding: 28px 32px 28px 0;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.lp-feature:nth-child(2n) {
+  border-right: none;
+  padding-right: 0;
+  padding-left: 32px;
+}
+
+.lp-feature:nth-last-child(-n + 2) {
+  border-bottom: none;
+}
+
+.lp-feature-kicker {
+  margin: 0 0 8px;
+  font-family: var(--font-mono), "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--lp-kicker);
+}
+
+.lp-feature h3 {
+  margin: 0 0 12px;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text-primary, #f1f5f3);
+}
+
+.lp-feature p {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--lp-copy);
+  max-width: 42ch;
 }
 
 .lp-metrics {
@@ -737,6 +833,20 @@
     min-height: 0;
   }
 
+  .lp-hero-img {
+    object-position: 62% 40%;
+  }
+
+  .lp-hero-scrim {
+    background:
+      linear-gradient(180deg, rgba(11, 15, 13, 0.82) 0%, rgba(11, 15, 13, 0.55) 42%, rgba(11, 15, 13, 0.35) 100%);
+  }
+
+  [data-theme="light"] .lp-hero-scrim {
+    background:
+      linear-gradient(180deg, rgba(248, 250, 249, 0.9) 0%, rgba(248, 250, 249, 0.68) 42%, rgba(248, 250, 249, 0.4) 100%);
+  }
+
   .lp-hero-inner {
     padding: 56px 24px 64px;
   }
@@ -762,6 +872,14 @@
 
   .lp-nav-theme {
     display: none;
+  }
+
+  .lp-hero-img {
+    object-position: 70% 38%;
+  }
+
+  .hero-canvas {
+    opacity: 0.16;
   }
 
   .lp-nav-inner {
@@ -792,6 +910,26 @@
   }
 
   .lp-concept:last-child {
+    border-bottom: none;
+  }
+
+  .lp-features {
+    grid-template-columns: 1fr;
+  }
+
+  .lp-feature,
+  .lp-feature:nth-child(2n) {
+    border-right: none;
+    padding: 22px 0;
+    padding-left: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .lp-feature:nth-last-child(-n + 2) {
+    border-bottom: 1px solid var(--border);
+  }
+
+  .lp-feature:last-child {
     border-bottom: none;
   }
 
