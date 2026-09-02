@@ -6,7 +6,6 @@ import { LandingFooter } from "./LandingFooter";
 import { LandingNav } from "./LandingNav";
 import { HeroBackdrop } from "./HeroBackdrop";
 import { HeroCanvas } from "./HeroCanvas";
-import { HeroPreview } from "./HeroPreview";
 import { WorkspacePreview } from "./WorkspacePreview";
 import { TelegramMark, YouTubeMark } from "@/components/SocialMarks";
 import { COMMUNITY } from "@/lib/community";
@@ -31,7 +30,7 @@ export function LandingPage() {
         <HeroBackdrop />
         <HeroCanvas />
         <div className="lp-hero-inner">
-          <div>
+          <div className="lp-hero-copy">
             <p className="lp-wordmark">Trader OS</p>
             <p className="lp-hero-tag">Journal · Discipline · Intelligence</p>
             <h1>
@@ -53,7 +52,6 @@ export function LandingPage() {
             </div>
             <p className="lp-aside">No signals. No noise. Just your data.</p>
           </div>
-          <HeroPreview />
         </div>
       </section>
 

@@ -248,7 +248,7 @@
 
 .lp-hero-img {
   object-fit: cover;
-  object-position: 58% 42%;
+  object-position: 72% 40%;
 }
 
 .lp-hero-scrim {
@@ -256,14 +256,14 @@
   inset: 0;
   z-index: 1;
   background:
-    linear-gradient(105deg, rgba(11, 15, 13, 0.88) 0%, rgba(11, 15, 13, 0.62) 38%, rgba(11, 15, 13, 0.28) 68%, rgba(11, 15, 13, 0.12) 100%),
-    linear-gradient(180deg, rgba(11, 15, 13, 0.35) 0%, transparent 28%, transparent 72%, rgba(11, 15, 13, 0.45) 100%);
+    linear-gradient(105deg, rgba(11, 15, 13, 0.9) 0%, rgba(11, 15, 13, 0.72) 32%, rgba(11, 15, 13, 0.28) 58%, rgba(11, 15, 13, 0.08) 100%),
+    linear-gradient(180deg, rgba(11, 15, 13, 0.28) 0%, transparent 30%, transparent 75%, rgba(11, 15, 13, 0.4) 100%);
 }
 
 [data-theme="light"] .lp-hero-scrim {
   background:
-    linear-gradient(105deg, rgba(248, 250, 249, 0.92) 0%, rgba(248, 250, 249, 0.72) 36%, rgba(248, 250, 249, 0.28) 66%, rgba(248, 250, 249, 0.08) 100%),
-    linear-gradient(180deg, rgba(248, 250, 249, 0.4) 0%, transparent 30%, transparent 70%, rgba(248, 250, 249, 0.5) 100%);
+    linear-gradient(105deg, rgba(248, 250, 249, 0.94) 0%, rgba(248, 250, 249, 0.78) 30%, rgba(248, 250, 249, 0.28) 58%, rgba(248, 250, 249, 0.06) 100%),
+    linear-gradient(180deg, rgba(248, 250, 249, 0.35) 0%, transparent 30%, transparent 75%, rgba(248, 250, 249, 0.45) 100%);
 }
 
 .hero-canvas {
@@ -271,12 +271,12 @@
   inset: 0;
   pointer-events: none;
   z-index: 1;
-  opacity: 0.28;
+  opacity: 0.14;
   mix-blend-mode: soft-light;
 }
 
 [data-theme="light"] .hero-canvas {
-  opacity: 0.18;
+  opacity: 0.1;
   mix-blend-mode: multiply;
 }
 
@@ -292,11 +292,12 @@
   max-width: 1280px;
   margin: 0 auto;
   padding: 72px 28px 88px;
-  display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
-  gap: 48px;
-  align-items: center;
+  display: block;
   width: 100%;
+}
+
+.lp-hero-copy {
+  max-width: 36rem;
 }
 
 .lp-wordmark {
@@ -823,7 +824,6 @@
 }
 
 @media (max-width: 1024px) {
-  .lp-hero-inner,
   .lp-split {
     grid-template-columns: 1fr;
     gap: 32px;
@@ -834,17 +834,17 @@
   }
 
   .lp-hero-img {
-    object-position: 62% 40%;
+    object-position: 68% 38%;
   }
 
   .lp-hero-scrim {
     background:
-      linear-gradient(180deg, rgba(11, 15, 13, 0.82) 0%, rgba(11, 15, 13, 0.55) 42%, rgba(11, 15, 13, 0.35) 100%);
+      linear-gradient(180deg, rgba(11, 15, 13, 0.86) 0%, rgba(11, 15, 13, 0.58) 45%, rgba(11, 15, 13, 0.32) 100%);
   }
 
   [data-theme="light"] .lp-hero-scrim {
     background:
-      linear-gradient(180deg, rgba(248, 250, 249, 0.9) 0%, rgba(248, 250, 249, 0.68) 42%, rgba(248, 250, 249, 0.4) 100%);
+      linear-gradient(180deg, rgba(248, 250, 249, 0.92) 0%, rgba(248, 250, 249, 0.7) 45%, rgba(248, 250, 249, 0.38) 100%);
   }
 
   .lp-hero-inner {
