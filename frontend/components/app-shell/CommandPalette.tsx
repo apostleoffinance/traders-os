@@ -19,6 +19,7 @@ const NAV_ITEMS: Item[] = [
   { id: "analytics", label: "Analytics Lab", href: "/analytics" },
   { id: "insights", label: "Intelligence", href: "/intelligence" },
   { id: "quant", label: "Quant Lab", href: "/quant-lab" },
+  { id: "vela", label: "Vela Lab (chart POC)", href: "/labs/vela" },
   { id: "reports", label: "Performance Reports", href: "/reports" },
   { id: "risk", label: "Risk Command", href: "/risk" },
   { id: "calc", label: "Position calculator", href: "/calculator" },

@@ -37,11 +37,17 @@ def ohlcv(
     symbol: str,
     timeframe: str = "M15",
     limit: int = Query(default=500, ge=10, le=1500),
+    provider: str | None = Query(
+        default=None,
+        description="Optional preferred provider (e.g. dukascopy, binance). Must serve this symbol.",
+    ),
     db: Session = Depends(get_db),
     user_id=Depends(get_current_user_id),
 ):
     try:
-        return market_service.get_ohlcv(db, symbol, timeframe, limit=limit)
+        return market_service.get_ohlcv(
+            db, symbol, timeframe, limit=limit, preferred_provider=provider
+        )
     except DomainError as exc:
         raise http_error(exc) from exc
 

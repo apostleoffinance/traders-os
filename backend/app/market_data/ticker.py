@@ -259,9 +259,15 @@ def market_status() -> dict[str, Any]:
 
     providers: dict[str, dict[str, str]] = {}
     for p in fx_chain():
-        providers[p.name] = {"status": "healthy" if p.enabled() else "disabled"}
+        providers[p.name] = {
+            "status": "healthy" if p.enabled() else "disabled",
+            "asset_class": "fx",
+        }
     for p in crypto_providers():
-        providers[p.name] = {"status": "healthy" if p.enabled() else "disabled"}
+        providers[p.name] = {
+            "status": "healthy" if p.enabled() else "disabled",
+            "asset_class": "crypto",
+        }
 
     with _lock:
         last = _cache_at.isoformat().replace("+00:00", "Z") if _cache_at else None
@@ -273,6 +279,17 @@ def market_status() -> dict[str, Any]:
         "cached_quotes": quote_count,
         "ticker_symbols": list(TICKER_SYMBOLS),
         "cache_ttl_seconds": settings.market_ticker_cache_ttl_seconds,
+        "ohlcv": {
+            "endpoint": "/api/market/ohlcv",
+            "fx_chain": [p.name for p in fx_chain()],
+            "crypto_chain": [p.name for p in crypto_providers() if p.enabled()],
+            "preferred_provider_param": "provider",
+        },
+        "chart_poc": {
+            "library": "vela",
+            "data_path": "/api/market/ohlcv",
+            "route": "/labs/vela",
+        },
     }
 
 

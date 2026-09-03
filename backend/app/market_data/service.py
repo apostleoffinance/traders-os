@@ -90,10 +90,22 @@ def get_ohlcv(
     timeframe: str,
     *,
     limit: int | None = None,
+    preferred_provider: str | None = None,
 ) -> dict:
     key = normalize_symbol(symbol)
     limit = min(limit or settings.market_ohlcv_limit, 1500)
     chain = _try_providers(key)
+    if preferred_provider:
+        pref = preferred_provider.strip().lower()
+        preferred = [p for p in chain if p.name.lower() == pref]
+        if not preferred:
+            names = ", ".join(p.name for p in chain) or "none"
+            raise ProviderUnavailable(
+                f"Provider '{preferred_provider}' is not available for {key}. "
+                f"Available: {names}."
+            )
+        rest = [p for p in chain if p.name.lower() != pref]
+        chain = preferred + rest
     last_error: Exception | None = None
     for provider in chain:
         pkey = cache.inflight_key(provider.name, key, timeframe)
