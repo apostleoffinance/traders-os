@@ -5,7 +5,7 @@ import { ChartCard } from "@/components/trader/ChartCard";
 import { Empty } from "@/components/analytics/Charts";
 import { useLiveChart } from "@/components/analytics/Charts";
 import { useOptionalAnalyticsDrilldown } from "@/components/analytics/AnalyticsDrilldownContext";
-import { filterForDateRange } from "@/lib/analytics-drilldown";
+import { filterForDateRange, formatDrillMonthLabel } from "@/lib/analytics-drilldown";
 import type { AnalyticsDashboard } from "@/lib/analytics";
 import {
   MONTH_LABELS,
@@ -14,6 +14,7 @@ import {
   heatColor,
   monthRangeBounds,
 } from "@/lib/analytics/calendar-view";
+import { formatSampleSize } from "@/lib/visualization";
 import { num, signed } from "@/lib/format";
 
 /** Year × month returns heatmap — R when available, else net P&L intensity. */
@@ -72,12 +73,14 @@ export function MonthlyReturnsHeatmap({ data }: { data: AnalyticsDashboard }) {
                       className="cell"
                       role="gridcell"
                       style={{ background: heatColor(value, model.maxAbsR, posRgb, negRgb) }}
-                      title={`${key} · ${label} · n=${cell.n}`}
+                      title={`${formatDrillMonthLabel(key)} · ${label} · ${formatSampleSize(cell.n)}`}
+                      aria-label={`${formatDrillMonthLabel(key)}. ${label}. ${formatSampleSize(cell.n)}. Activate to view trades.`}
                       onClick={() => {
                         if (!drill) return;
                         const { from, to } = monthRangeBounds(key);
-                        drill.applyPatch(filterForDateRange(from, to), key);
-                        drill.openTrades(`Trades in ${key}`);
+                        const monthLabel = formatDrillMonthLabel(key);
+                        drill.applyPatch(filterForDateRange(from, to), monthLabel);
+                        drill.openTrades(`Trades in ${monthLabel}`);
                       }}
                     >
                       <span className={`v num ${value >= 0 ? "pos" : "neg"}`}>

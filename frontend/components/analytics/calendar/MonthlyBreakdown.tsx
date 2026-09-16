@@ -4,9 +4,10 @@ import { useMemo } from "react";
 import { ChartCard } from "@/components/trader/ChartCard";
 import { Empty } from "@/components/analytics/Charts";
 import { useOptionalAnalyticsDrilldown } from "@/components/analytics/AnalyticsDrilldownContext";
-import { filterForDateRange } from "@/lib/analytics-drilldown";
+import { filterForDateRange, formatDrillMonthLabel } from "@/lib/analytics-drilldown";
 import type { AnalyticsDashboard } from "@/lib/analytics";
 import { buildMonthCells, monthRangeBounds, MONTH_LABELS } from "@/lib/analytics/calendar-view";
+import { formatSampleSize } from "@/lib/visualization";
 import { money, num, signed, tone } from "@/lib/format";
 
 function monthLabel(key: string): string {
@@ -50,11 +51,21 @@ export function MonthlyBreakdown({ data }: { data: AnalyticsDashboard }) {
               return (
                 <tr
                   key={row.key}
+                  tabIndex={drill ? 0 : undefined}
                   onClick={() => {
                     if (!drill) return;
                     const { from, to } = monthRangeBounds(row.key);
-                    drill.applyPatch(filterForDateRange(from, to), row.key);
-                    drill.openTrades(`Trades in ${row.key}`);
+                    const label = formatDrillMonthLabel(row.key);
+                    drill.applyPatch(filterForDateRange(from, to), label);
+                    drill.openTrades(`Trades in ${label}`);
+                  }}
+                  onKeyDown={(e) => {
+                    if (!drill || (e.key !== "Enter" && e.key !== " ")) return;
+                    e.preventDefault();
+                    const { from, to } = monthRangeBounds(row.key);
+                    const label = formatDrillMonthLabel(row.key);
+                    drill.applyPatch(filterForDateRange(from, to), label);
+                    drill.openTrades(`Trades in ${label}`);
                   }}
                 >
                   <td>
@@ -64,7 +75,7 @@ export function MonthlyBreakdown({ data }: { data: AnalyticsDashboard }) {
                   <td className={`num ${rTone}`}>
                     {row.r != null ? `${signed(num(row.r, 1))}R` : "—"}
                   </td>
-                  <td className="num">{row.n}</td>
+                  <td className="num">{formatSampleSize(row.n)}</td>
                   <td>
                     <div className="wr">
                       <span className="num">{row.winRate != null ? `${num(row.winRate, 0)}%` : "—"}</span>

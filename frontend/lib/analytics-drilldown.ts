@@ -109,3 +109,32 @@ export function filterForDateRange(dateFrom: string, dateTo: string): Partial<Fi
   const to = dateTo.slice(0, 10);
   return { preset: "custom", date_from: from, date_to: to };
 }
+
+const MONTH_NAMES = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+] as const;
+
+/** Human date label: 2026-08-28 → August 28, 2026 */
+export function formatDrillDayLabel(isoDate: string): string {
+  const [y, m, d] = isoDate.slice(0, 10).split("-").map(Number);
+  if (!y || !m || !d) return isoDate;
+  return `${MONTH_NAMES[m - 1]} ${d}, ${y}`;
+}
+
+/** Human month label: 2026-08 → August 2026 */
+export function formatDrillMonthLabel(yearMonth: string): string {
+  const [y, m] = yearMonth.slice(0, 7).split("-").map(Number);
+  if (!y || !m) return yearMonth;
+  return `${MONTH_NAMES[m - 1]} ${y}`;
+}

@@ -85,3 +85,77 @@ export function heatColor(value: number, maxAbs: number, posRgb: string, negRgb:
   const alpha = 0.12 + intensity * 0.72;
   return value >= 0 ? `rgba(${posRgb},${alpha})` : `rgba(${negRgb},${alpha})`;
 }
+
+export type MonthGridCell = {
+  /** YYYY-MM-DD when in month; null for padding. */
+  date: string | null;
+  dayOfMonth: number | null;
+  inMonth: boolean;
+  day: CalendarDay | null;
+};
+
+/** Monday-first month grid with empty padding cells. Days keyed by YYYY-MM-DD. */
+export function buildMonthGrid(year: number, month: number, days: CalendarDay[]): MonthGridCell[] {
+  const byDate = new Map(days.map((d) => [d.date, d]));
+  const first = new Date(Date.UTC(year, month - 1, 1));
+  const mondayIndex = (first.getUTCDay() + 6) % 7;
+  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const cells: MonthGridCell[] = [];
+
+  for (let i = 0; i < mondayIndex; i++) {
+    cells.push({ date: null, dayOfMonth: null, inMonth: false, day: null });
+  }
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    cells.push({
+      date,
+      dayOfMonth: d,
+      inMonth: true,
+      day: byDate.get(date) ?? null,
+    });
+  }
+  while (cells.length % 7 !== 0) {
+    cells.push({ date: null, dayOfMonth: null, inMonth: false, day: null });
+  }
+  return cells;
+}
+
+export function shiftYearMonth(year: number, month: number, delta: number): { year: number; month: number } {
+  const idx = year * 12 + (month - 1) + delta;
+  return { year: Math.floor(idx / 12), month: (idx % 12) + 1 };
+}
+
+/** Prefer latest month that has trades; else latest month in range; else UTC now. */
+export function initialCalendarMonth(days: CalendarDay[]): { year: number; month: number } {
+  const traded = days.filter((d) => d.n > 0).sort((a, b) => b.date.localeCompare(a.date));
+  if (traded[0]) {
+    const [y, m] = traded[0].date.split("-").map(Number);
+    return { year: y, month: m };
+  }
+  if (days.length) {
+    const sorted = [...days].sort((a, b) => b.date.localeCompare(a.date));
+    const [y, m] = sorted[0].date.split("-").map(Number);
+    return { year: y, month: m };
+  }
+  const now = new Date();
+  return { year: now.getUTCFullYear(), month: now.getUTCMonth() + 1 };
+}
+
+export function dayPerformanceValue(day: CalendarDay | null | undefined): number | null {
+  if (!day || day.n <= 0) return null;
+  if (day.r != null && Number.isFinite(Number(day.r))) return Number(day.r);
+  if (day.net_pnl != null && Number.isFinite(Number(day.net_pnl))) return Number(day.net_pnl);
+  return null;
+}
+
+/** 0–1 intensity for restrained calendar fills. */
+export function dayIntensity(value: number, maxAbs: number): number {
+  if (maxAbs <= 0 || !Number.isFinite(value)) return 0.2;
+  return 0.18 + Math.min(1, Math.abs(value) / maxAbs) * 0.55;
+}
+
+export function formatMonthTitle(year: number, month: number): string {
+  return `${MONTH_LABELS[month - 1]} ${year}`;
+}
+
+export const WEEKDAY_HEADERS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;

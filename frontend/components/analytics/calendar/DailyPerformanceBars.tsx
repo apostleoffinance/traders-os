@@ -5,9 +5,10 @@ import { ChartCard } from "@/components/trader/ChartCard";
 import { Empty, useLiveChart } from "@/components/analytics/Charts";
 import { InteractiveChart } from "@/components/analytics/primitives/InteractiveChart";
 import { useOptionalAnalyticsDrilldown } from "@/components/analytics/AnalyticsDrilldownContext";
-import { filterForSingleDay } from "@/lib/analytics-drilldown";
+import { jumpCalendarToDay } from "@/components/analytics/calendar/PerformanceCalendar";
 import type { AnalyticsDashboard } from "@/lib/analytics";
 import { money, num } from "@/lib/format";
+import { formatSampleSize } from "@/lib/visualization";
 
 type Metric = "r" | "net_pnl" | "n";
 
@@ -41,7 +42,7 @@ export function DailyPerformanceBars({ data }: { data: AnalyticsDashboard }) {
           if (i == null || !days[i]) return "";
           const d = days[i];
           const r = d.r != null ? `${num(d.r, 2)}R` : "—";
-          return `${d.date}<br/>R ${r}<br/>P&L ${money(d.net_pnl, currency)}<br/>Trades ${d.n}<br/>${d.record}`;
+          return `${d.date}<br/>R ${r}<br/>P&L ${money(d.net_pnl, currency)}<br/>${formatSampleSize(d.n)}<br/>${d.record}`;
         },
       },
       xAxis: {
@@ -117,8 +118,7 @@ export function DailyPerformanceBars({ data }: { data: AnalyticsDashboard }) {
             if (!drill || e.dataIndex == null) return;
             const d = days[e.dataIndex];
             if (!d) return;
-            drill.applyPatch(filterForSingleDay(d.date), d.date);
-            drill.openTrades(`Trades on ${d.date}`);
+            jumpCalendarToDay(d.date);
           }}
         />
       )}
