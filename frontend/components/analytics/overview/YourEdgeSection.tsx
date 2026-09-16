@@ -123,26 +123,28 @@ export function YourEdgeSection({ data }: { data: AnalyticsDashboard }) {
     <section className="section">
       <h2 className="section-title">Your edge</h2>
 
-      <EdgeChart
-        analyticsId={REGISTRY_ID.instrument}
-        rows={instrumentRows}
-        dimension="instrument"
-        insight={instrumentInsight}
-      />
-      <EdgeChart
-        analyticsId={REGISTRY_ID.setup}
-        rows={data.setups}
-        dimension="setup"
-        setupIdForName={setupIdForName}
-        insight={setupInsight}
-      />
-      <EdgeChart
-        analyticsId={REGISTRY_ID.session}
-        rows={data.sessions}
-        dimension="session"
-        labelFn={sessionLabel}
-        insight={sessionInsight}
-      />
+      <div className="grid">
+        <EdgeChart
+          analyticsId={REGISTRY_ID.instrument}
+          rows={instrumentRows}
+          dimension="instrument"
+          insight={instrumentInsight}
+        />
+        <EdgeChart
+          analyticsId={REGISTRY_ID.setup}
+          rows={data.setups}
+          dimension="setup"
+          setupIdForName={setupIdForName}
+          insight={setupInsight}
+        />
+        <EdgeChart
+          analyticsId={REGISTRY_ID.session}
+          rows={data.sessions}
+          dimension="session"
+          labelFn={sessionLabel}
+          insight={sessionInsight}
+        />
+      </div>
 
       <style jsx>{`
         .section {
@@ -156,6 +158,13 @@ export function YourEdgeSection({ data }: { data: AnalyticsDashboard }) {
           margin: 0 0 14px;
           font-size: 14px;
           color: var(--text-muted);
+        }
+        .grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+          gap: 10px;
+          align-items: stretch;
+          grid-auto-rows: 1fr;
         }
       `}</style>
     </section>

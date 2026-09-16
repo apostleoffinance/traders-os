@@ -453,12 +453,14 @@ export function CommandCenterView({ data, trades, openTrades }: Props) {
           display: grid;
           grid-template-columns: minmax(0, 1.65fr) minmax(260px, 0.95fr);
           gap: 14px;
-          align-items: start;
+          align-items: stretch;
         }
         .hero {
           display: flex;
           flex-direction: column;
           min-height: 0;
+          height: 100%;
+          flex: 1 1 auto;
         }
         .hero-head {
           display: flex;

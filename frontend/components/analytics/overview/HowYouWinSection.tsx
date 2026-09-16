@@ -208,7 +208,10 @@ export function HowYouWinSection({ data }: { data: AnalyticsDashboard }) {
         }
         .grid {
           display: grid;
-          gap: 0;
+          grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+          gap: 10px;
+          align-items: stretch;
+          grid-auto-rows: 1fr;
         }
         .wl-labels {
           display: flex;

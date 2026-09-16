@@ -70,7 +70,7 @@ export function SessionSetupPsych({ data }: { data: AnalyticsDashboard }) {
   }, [data.weekday]);
   const setupIdForName = (name: string) => data.filters.options?.setups.find((s) => s.name === name)?.id;
   return (
-    <>
+    <div className="grid">
       <GroupBlock
         title="Session performance"
         subtitle="Click a bar to filter analytics and view trades."
@@ -92,7 +92,16 @@ export function SessionSetupPsych({ data }: { data: AnalyticsDashboard }) {
         dimension="psychology"
       />
       <GroupBlock title="Day of week" subtitle="Average outcomes by weekday in your timezone." rows={weekday} dimension="weekday" />
-    </>
+      <style jsx>{`
+        .grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+          gap: 10px;
+          align-items: stretch;
+          grid-auto-rows: 1fr;
+        }
+      `}</style>
+    </div>
   );
 }
 
