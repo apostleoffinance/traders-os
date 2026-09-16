@@ -11,12 +11,9 @@ export function IntelligenceOverview({ intel }: { intel: IntelligenceLab }) {
   const insights = intel.insights ?? [];
   const meta = intel.metadata;
   return (
-    <Panel title="Your Trading Intelligence" right={<EvidenceTag label={meta.confidence.confidence_level} n={meta.sample_size} />}>
-      <p className="muted">
-        {meta.trades_analyzed} trades analyzed · {meta.confidence.message}
-      </p>
+    <Panel title="Intelligence" right={<EvidenceTag label={meta.confidence.confidence_level} n={meta.sample_size} />}>
       {insights.length === 0 ? (
-        <Empty>Not enough data yet for key findings. Keep journaling closed trades.</Empty>
+        <Empty>Not enough data yet. Keep journaling closed trades.</Empty>
       ) : (
         <div className="cards">
           {insights.slice(0, 5).map((ins) => (
@@ -193,7 +190,6 @@ export function DecisionQualityMatrix({ intel }: { intel: IntelligenceLab }) {
   const labels = dq.labels;
   return (
     <Panel title="Process vs Outcome" right={<EvidenceTag n={dq.sample_size} />}>
-      <p className="muted">{dq.methodology}</p>
       <div className="matrix">
         <div />
         <div className="head">Win</div>

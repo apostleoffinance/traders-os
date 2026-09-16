@@ -579,7 +579,6 @@ export function RiskAndObservations({ data }: { data: AnalyticsDashboard }) {
         ))}
       </Panel>
       <Panel title="Key observations">
-        <p className="muted">Deterministic. Every claim includes sample size. This is not trading advice.</p>
         <ul>
           {data.observations.map((o) => (
             <li key={o.title}>

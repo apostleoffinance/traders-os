@@ -321,9 +321,8 @@ export function TradeCalculator({ compact = false, initial, onApply }: Props) {
       {!compact && (
         <div className="head">
           <div>
-            <p className="page-kicker">Workspace</p>
             <h1>Trade Calculator</h1>
-            <p className="muted">Calculate risk, position size and trade parameters. Not a signal tool.</p>
+            <p className="muted">Risk, size, and trade parameters.</p>
           </div>
           {ctx && (
             <div className="acct muted">

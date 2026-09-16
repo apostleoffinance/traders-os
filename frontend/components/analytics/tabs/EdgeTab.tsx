@@ -1,6 +1,5 @@
 "use client";
 
-import { AnalyticsTabIntro } from "@/components/analytics/primitives/AnalyticsTabIntro";
 import { DisclosureLayer } from "@/components/analytics/primitives/DisclosureLayer";
 import { DeepDiveSection } from "@/components/analytics/primitives/DeepDiveSection";
 import { EdgeLabSections } from "@/components/analytics/EdgeLabSections";
@@ -20,14 +19,10 @@ export function EdgeTab({
 }) {
   return (
     <>
-      <AnalyticsTabIntro page="edge" />
       <DisclosureLayer kind="evidence">
         <EdgeLabSections data={data} mode="essential" />
       </DisclosureLayer>
-      <DeepDiveSection
-        title="Advanced edge tools"
-        description="Instrument scatter map, day × hour heatmap, condition comparison, and symbol × session matrix."
-      >
+      <DeepDiveSection title="More detail">
         <EdgeLabSections data={data} mode="bubble" />
         <ComparisonLab accountId={accountId} data={data} />
         <EdgeExplorer accountId={accountId} data={data} filters={filters} />

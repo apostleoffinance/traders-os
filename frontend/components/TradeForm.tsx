@@ -390,7 +390,6 @@ export function TradeForm({ mode, trade = null }: Props) {
   }
 
   const title = isClose ? "Close trade" : isEdit ? "Edit trade" : "New trade";
-  const kicker = isClose ? "Exit & review" : isEdit ? "Update journal" : "Workspace";
   const submitLabel = isClose
     ? busy
       ? "Closing…"
@@ -405,14 +404,13 @@ export function TradeForm({ mode, trade = null }: Props) {
 
   return (
     <div className="trade-form">
-      <p className="page-kicker">{kicker}</p>
       <h1>{title}</h1>
       <p className="muted">
         {isClose
-          ? "Enter exit details. Realized P/L and R are calculated by the risk engine, not by AI."
+          ? "Enter exit details. P/L and R come from the risk engine."
           : isEdit
-            ? "Correct journal fields. Changing entry, exit, SL, TP or size recalculates risk and P/L."
-            : "Save as an open trade while you are still in the market. Close it later when the position ends."}
+            ? "Changing entry, exit, SL, TP or size recalculates risk and P/L."
+            : "Save open while in market. Close when the position ends."}
       </p>
       {ready && !accountId && isCreate && (
         <Alert kind="warn">Create or select an account before journaling.</Alert>

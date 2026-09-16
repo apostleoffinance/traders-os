@@ -28,7 +28,6 @@ export function TradeHabitsSection({
   return (
     <section className="section">
       <h2 className="section-title">Trade habits</h2>
-      <p className="section-lead">How often you trade and how you size positions in this sample.</p>
 
       <ChartCard title="Activity snapshot" question="How active am I, and how long do I hold trades?">
         <div className="stats">

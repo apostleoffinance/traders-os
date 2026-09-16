@@ -112,8 +112,7 @@ function AnalyticsLab() {
   if (!accountId) {
     return (
       <div>
-        <p className="page-kicker">Intelligence</p>
-        <h1>Analytics Lab</h1>
+        <h1>Analytics</h1>
         <Alert kind="info">
           Select an account to view analytics. <Link href="/accounts">Open accounts</Link>
         </Alert>
@@ -130,11 +129,7 @@ function AnalyticsLab() {
       onFiltersChange={setApplied}
     >
     <div>
-      <p className="page-kicker">Intelligence</p>
-      <h1>Analytics Lab</h1>
-      <p className="muted">
-        Understand your trading performance, discover your edge, and identify what to improve. Period syncs with the top bar.
-      </p>
+      <h1>Analytics</h1>
 
       <nav className="tabs" aria-label="Analytics sections">
         {TABS.map((t) => (

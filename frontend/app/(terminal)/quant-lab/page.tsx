@@ -24,7 +24,6 @@ import {
 } from "@/components/quant-lab/QuantLabPanels";
 import { AnalyticsDrilldownProvider } from "@/components/analytics/AnalyticsDrilldownContext";
 import { DrilldownFilterBar } from "@/components/analytics/primitives/DrilldownFilterBar";
-import { QuantLabIntro } from "@/components/quant-lab/primitives/QuantLabIntro";
 import { Alert } from "@/components/ui";
 
 const RobustnessLab = dynamic(
@@ -121,14 +120,7 @@ function QuantLab() {
 
   return (
     <div className="quant-lab">
-      <p className="page-kicker">Insights</p>
-      <div className="head-row">
-        <div>
-          <h1>Quant Lab</h1>
-        </div>
-      </div>
-
-      {accountId && <QuantLabIntro />}
+      <h1>Quant Lab</h1>
 
       {accountId && (
         <AnalyticsFilters
@@ -161,7 +153,7 @@ function QuantLab() {
 
       {!accountId && <Alert kind="info">Select an account to load Quant Lab.</Alert>}
       {error && <Alert kind="danger">{error}</Alert>}
-      {loading && !data && <p className="muted" role="status">Computing research metrics…</p>}
+      {loading && !data && <p className="muted" role="status">Loading…</p>}
 
       {accountId && data && (
         <AnalyticsDrilldownProvider
@@ -206,7 +198,6 @@ function QuantLab() {
               </>
             )}
           </div>
-          <p className="disclaimer muted">{data.disclaimer}</p>
         </AnalyticsDrilldownProvider>
       )}
 
@@ -261,10 +252,6 @@ function QuantLab() {
           grid-template-columns: 1fr 1fr;
           gap: 20px;
           align-items: start;
-        }
-        .disclaimer {
-          margin-top: 24px;
-          font-size: 13px;
         }
         @media (max-width: 900px) {
           .two-col {

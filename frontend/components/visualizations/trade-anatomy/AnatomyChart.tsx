@@ -219,8 +219,6 @@ export function AnatomyChart({
         <circle cx={cursor.x} cy={cursor.y} r={4} fill="var(--text)" opacity={0.85} aria-hidden />
       </svg>
 
-      {model.timingNote && <p className="note">{model.timingNote}</p>}
-
       <style jsx>{`
         .anatomy-chart {
           background: color-mix(in srgb, var(--surface) 90%, var(--bg));
@@ -231,12 +229,6 @@ export function AnatomyChart({
           width: 100%;
           height: auto;
           display: block;
-        }
-        .note {
-          margin: 8px 2px 0;
-          font-size: 11px;
-          color: var(--text-secondary);
-          line-height: 1.4;
         }
       `}</style>
     </div>

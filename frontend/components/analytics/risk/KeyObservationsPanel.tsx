@@ -7,7 +7,6 @@ import type { AnalyticsDashboard } from "@/lib/analytics";
 export function KeyObservationsPanel({ data }: { data: AnalyticsDashboard }) {
   return (
     <Panel title="Key observations">
-      <p className="muted">Deterministic. Every claim includes sample size. This is not trading advice.</p>
       {data.observations.length === 0 ? (
         <p className="muted">No observations for this filter yet.</p>
       ) : (

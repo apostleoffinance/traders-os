@@ -102,12 +102,7 @@ export default function ReportsPage() {
 
   return (
     <div className="reports-page">
-      <p className="page-kicker">Reports</p>
-      <h1>Performance Intelligence Report</h1>
-      <p className="intro">
-        Institutional-quality performance, risk, discipline, and intelligence — built from your journal data. All metrics are
-        computed deterministically on the server.
-      </p>
+      <h1>Reports</h1>
 
       {!getActiveAccountId() && (
         <Alert kind="info">

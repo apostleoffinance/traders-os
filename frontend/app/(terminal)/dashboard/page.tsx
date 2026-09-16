@@ -53,7 +53,6 @@ export default function DashboardPage() {
   if (error && !data) {
     return (
       <div>
-        <p className="page-kicker">Command Center</p>
         <h1>Command Center</h1>
         <Alert kind="warn">
           {error} <Link href="/accounts">Open accounts</Link>
@@ -63,28 +62,20 @@ export default function DashboardPage() {
   }
   if (!data) return <p className="muted">Loading…</p>;
 
-  const stable = data.command_center?.account_status === "STABLE";
-
   return (
     <div>
       <header className="cc-head">
         <div>
-          <p className="page-kicker">Command Center</p>
           <h1 style={{ margin: "4px 0" }}>
             {hello}, {name}.
           </h1>
-          <p className="lede">
-            {stable
-              ? `Your ${data.account.name} account is currently stable.`
-              : `Your ${data.account.name} account needs attention.`}
-          </p>
         </div>
         <div className="actions">
           <Link href="/trades/new" className="btn primary">
             New trade
           </Link>
           <Link href="/analytics" className="btn">
-            Analytics Lab
+            Analytics
           </Link>
         </div>
       </header>

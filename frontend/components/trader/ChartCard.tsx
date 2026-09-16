@@ -3,26 +3,26 @@
 import type { ReactNode } from "react";
 import { Panel } from "@/components/ui";
 import { EvidenceTag } from "@/components/analytics/Charts";
-import { InsightCard } from "@/components/trader/InsightCard";
-import { AnalyticsTierBadge } from "@/components/analytics/insights/AnalyticsTierBadge";
 import type { AnalyticsInsight, AnalyticsTier } from "@/lib/analytics/types";
-import { CHART_INTERACTIVE_HINT } from "@/lib/chart-constants";
 
+/**
+ * Chart-first panel — title + optional sample tag + children.
+ * Subtitles, questions, insights, and drill hints are accepted but not rendered.
+ */
 export function ChartCard({
   title,
-  question,
-  subtitle,
+  question: _question,
+  subtitle: _subtitle,
   sampleSize,
   evidenceLabel,
-  tier,
-  insight,
+  tier: _tier,
+  insight: _insight,
   actions,
-  hint,
-  interactive = false,
+  hint: _hint,
+  interactive: _interactive = false,
   children,
 }: {
   title: string;
-  /** One-line explanation of what question this chart answers */
   question?: string;
   subtitle?: string;
   sampleSize?: number;
@@ -31,33 +31,25 @@ export function ChartCard({
   insight?: AnalyticsInsight | null;
   actions?: ReactNode;
   hint?: string;
-  /** Shows standard drill-down hint when no custom hint is provided */
   interactive?: boolean;
   children: ReactNode;
 }) {
-  const drillHint = hint ?? (interactive ? CHART_INTERACTIVE_HINT : undefined);
-
   return (
     <div className="chart-card">
       <Panel
         title={title}
         right={
           <div className="right">
-            {tier && <AnalyticsTierBadge tier={tier} />}
             {actions}
             {(evidenceLabel || sampleSize != null) && <EvidenceTag label={evidenceLabel} n={sampleSize} />}
           </div>
         }
       >
-        {question && <p className="question">{question}</p>}
-        {subtitle && <p className="subtitle muted">{subtitle}</p>}
-        {drillHint && <p className="hint muted">{drillHint}</p>}
         {children}
-        {insight && <InsightCard insight={insight} compact />}
       </Panel>
       <style jsx>{`
         .chart-card {
-          margin-bottom: 24px;
+          margin-bottom: 20px;
           min-width: 0;
           max-width: 100%;
           overflow-x: hidden;
@@ -72,21 +64,6 @@ export function ChartCard({
           display: flex;
           align-items: center;
           gap: 8px;
-        }
-        .question {
-          font-size: 13px;
-          font-weight: 400;
-          color: var(--text-muted);
-          margin: 0 0 6px;
-          line-height: 1.4;
-        }
-        .subtitle,
-        .hint {
-          font-size: 13px;
-          margin: 0 0 12px;
-        }
-        .hint {
-          font-size: 12px;
         }
       `}</style>
     </div>

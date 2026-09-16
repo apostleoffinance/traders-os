@@ -55,7 +55,7 @@ export function ReportShell({
 
   return (
     <div className="report-shell">
-      <nav className="report-nav" aria-label="Report story">
+      <nav className="report-nav" aria-label="Report sections">
         {SECTIONS.filter((s) => {
           if (s.id === "interpretation" && !interpretation) return false;
           if (s.id === "comparison" && !data.comparison) return false;

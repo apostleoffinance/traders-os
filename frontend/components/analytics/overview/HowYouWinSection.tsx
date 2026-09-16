@@ -118,7 +118,6 @@ export function HowYouWinSection({ data }: { data: AnalyticsDashboard }) {
   return (
     <section className="section">
       <h2 className="section-title">How you win</h2>
-      <p className="section-lead">Understand your win rate, payoff, and direction mix at a glance.</p>
 
       <div className="grid">
         <ChartCard

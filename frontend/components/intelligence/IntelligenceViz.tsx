@@ -218,7 +218,7 @@ export function DecisionQualityChart({ intel }: { intel: IntelligenceLab }) {
   };
 
   return (
-    <ChartCard title="Process vs outcome" sampleSize={dq.sample_size} subtitle={dq.methodology} interactive>
+    <ChartCard title="Process vs outcome" sampleSize={dq.sample_size}>
       <InteractiveChart
         option={option}
         height={240}

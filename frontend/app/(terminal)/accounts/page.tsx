@@ -83,9 +83,8 @@ export default function AccountsPage() {
 
   return (
     <div>
-      <p className="page-kicker">Account</p>
       <h1>Accounts</h1>
-      <p className="muted">Each account has its own balance, risk policy, trades and analytics. Accounts are never mixed.</p>
+      <p className="muted">Each account has its own balance, risk policy, trades and analytics.</p>
 
       <Panel title="MetaTrader 5 sync">
         <p className="muted">

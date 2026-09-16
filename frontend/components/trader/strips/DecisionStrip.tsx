@@ -30,11 +30,9 @@ export function DecisionStrip({
   return (
     <section className="section">
       <h2 className="section-title">Behaviour & risk</h2>
-      <p className="section-lead">Quick status — open the dedicated tabs when you need the research views.</p>
       <div className="grid">
         <button type="button" className="card" onClick={() => onTabChange?.("risk")}>
           <strong>{riskCopy.title}</strong>
-          <span className="q">{riskCopy.question}</span>
           <div className="metrics">
             <span>
               Current DD <em className={ddTone}>{curDd}</em>
@@ -52,7 +50,6 @@ export function DecisionStrip({
         </button>
         <button type="button" className="card" onClick={() => onTabChange?.("behaviour")}>
           <strong>Behaviour</strong>
-          <span className="q">Is my behavior helping my trading?</span>
           <div className="metrics">
             {overtrading?.status ? (
               <span>

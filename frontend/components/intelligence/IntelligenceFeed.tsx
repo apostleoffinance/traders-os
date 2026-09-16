@@ -28,25 +28,16 @@ function InsightCard({ insight, defaultOpen }: { insight: IntelligenceInsight; d
       </button>
       {open && (
         <div className="body">
-          <div className="why">
-            <span className="lbl">Why am I seeing this?</span>
-            <p>{insight.why}</p>
-          </div>
-          <div className="evidence">
-            <span className="lbl">Evidence</span>
-            <p>
-              {insight.evidence.label} · n={insight.evidence.n} · {insight.evidence.reason}
+          {insight.why ? <p>{insight.why}</p> : null}
+          <p className="meta">
+            {insight.evidence.label} · n={insight.evidence.n}
+          </p>
+          {insight.comparison ? (
+            <p className="meta">
+              {insight.comparison.subject} ({insight.comparison.subject_value}) vs{" "}
+              {insight.comparison.baseline} ({insight.comparison.baseline_value})
             </p>
-          </div>
-          {insight.comparison && (
-            <div className="comparison">
-              <span className="lbl">Comparison</span>
-              <p>
-                <strong>{insight.comparison.subject}</strong> ({insight.comparison.subject_value}) vs{" "}
-                <strong>{insight.comparison.baseline}</strong> ({insight.comparison.baseline_value})
-              </p>
-            </div>
-          )}
+          ) : null}
           {insight.action && (
             <Link href={insight.action.href} className="action">
               {insight.action.label} →
@@ -112,23 +103,17 @@ function InsightCard({ insight, defaultOpen }: { insight: IntelligenceInsight; d
         .body {
           padding: 0 16px 14px 54px;
           display: grid;
-          gap: 10px;
+          gap: 8px;
         }
-        .lbl {
-          display: block;
-          font-size: 11px;
-          letter-spacing: 0.08em;
-          text-transform: uppercase;
-          color: var(--text-secondary);
-          font-weight: 700;
-          margin-bottom: 4px;
-        }
-        .why p,
-        .evidence p,
-        .comparison p {
+        .body p {
           margin: 0;
           font-size: 13px;
+          color: var(--text-secondary);
           line-height: 1.45;
+        }
+        .meta {
+          font-size: 12px;
+          color: var(--text-muted);
         }
         .action {
           font-size: 13px;
@@ -211,16 +196,12 @@ export function IntelligenceFeedPanel({
   return (
     <div className="feed">
       <div className="summary-bar">
-        <div>
-          <span className="kicker">Live feed</span>
-          <p className="counts">
-            <strong>{data.summary.total}</strong> insights · {period}
-            {data.summary.warnings > 0 && (
-              <span className="warn-count"> · {data.summary.warnings} need attention</span>
-            )}
-          </p>
-        </div>
-        <p className="muted">Deterministic — every insight shows sample size and evidence. Not trade signals.</p>
+        <p className="counts">
+          <strong>{data.summary.total}</strong> insights · {period}
+          {data.summary.warnings > 0 && (
+            <span className="warn-count"> · {data.summary.warnings} need attention</span>
+          )}
+        </p>
       </div>
 
       <InsightSection

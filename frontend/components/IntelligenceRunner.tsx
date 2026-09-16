@@ -59,7 +59,7 @@ function renderValue(value: unknown): ReactNode {
 export function IntelligenceRunner({
   path,
   label,
-  hint,
+  hint: _hint,
   available = true,
 }: {
   path: string | null;
@@ -106,7 +106,6 @@ export function IntelligenceRunner({
           </Button>
         )}
       </div>
-      {hint && <p className="muted">{hint}</p>}
       {!available && !data && <Alert kind="warn">{AI_UNAVAILABLE_MESSAGE}</Alert>}
       {error && <Alert kind="warn">{error}</Alert>}
       {data && (

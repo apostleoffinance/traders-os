@@ -125,7 +125,6 @@ export default function SettingsPage() {
 
   return (
     <div>
-      <p className="page-kicker">Account</p>
       <h1>Settings</h1>
       {saved && <Alert kind="info">Saved. The selected template is what New trade loads for that setup.</Alert>}
       <div className="cols">

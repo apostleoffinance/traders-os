@@ -10,8 +10,7 @@ export function ReportRecommendationsSection({
 }) {
   return (
     <>
-      <h2 className="section-title">What deserves your attention next?</h2>
-      <p className="disclaimer">{recommendations.disclaimer}</p>
+      <h2 className="section-title">Next</h2>
       <div className="cols">
         <RecCol title="Keep" items={recommendations.keep} tone="keep" />
         <RecCol title="Review" items={recommendations.review} tone="review" />
@@ -20,12 +19,7 @@ export function ReportRecommendationsSection({
       <style jsx>{`
         .section-title {
           font-size: 18px;
-          margin: 0 0 8px;
-        }
-        .disclaimer {
-          font-size: 13px;
-          color: var(--muted);
-          margin-bottom: 16px;
+          margin: 0 0 14px;
         }
         .cols {
           display: grid;

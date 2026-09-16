@@ -5,8 +5,8 @@ import { AnimatePresence, motion } from "motion/react";
 import { motion as motionTokens } from "@/lib/design-system/motion";
 
 export function DeepDiveSection({
-  title = "Advanced analysis",
-  description = "Statistical and diagnostic charts for deeper investigation.",
+  title = "More detail",
+  description: _description,
   defaultOpen = false,
   children,
 }: {
@@ -21,11 +21,7 @@ export function DeepDiveSection({
   return (
     <section className="deep-dive" data-disclosure="deep_dive">
       <button type="button" className="toggle" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
-        <span>
-          <span className="layer">Deep dive</span>
-          <strong>{title}</strong>
-          <span className="desc">{description}</span>
-        </span>
+        <strong>{title}</strong>
         <span className="chev" aria-hidden>
           {open ? "−" : "+"}
         </span>
@@ -63,25 +59,9 @@ export function DeepDiveSection({
           cursor: pointer;
           text-align: left;
         }
-        .layer {
-          display: block;
-          font-size: 10px;
-          font-weight: 700;
-          letter-spacing: 0.06em;
-          text-transform: uppercase;
-          color: var(--accent);
-          margin-bottom: 2px;
-        }
         .toggle strong {
-          display: block;
           font-size: 14px;
-          margin-bottom: 2px;
-        }
-        .desc {
-          display: block;
-          font-size: 12px;
-          color: var(--text-muted);
-          font-weight: 400;
+          font-weight: 600;
         }
         .chev {
           font-size: 16px;

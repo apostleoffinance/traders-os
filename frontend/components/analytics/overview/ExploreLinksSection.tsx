@@ -21,7 +21,6 @@ export function ExploreLinksSection({
   return (
     <section className="section">
       <h2 className="section-title">Go deeper</h2>
-      <p className="section-lead">Advanced analytics live in dedicated sections when you want to investigate further.</p>
       <div className="links">
         {LINKS.map((link) =>
           onTabChange ? (

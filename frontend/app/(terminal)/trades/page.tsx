@@ -45,8 +45,7 @@ export default function TradeHistoryPage() {
 
   return (
     <div>
-      <p className="page-kicker">Workspace</p>
-      <h1>Trade history</h1>
+      <h1>Trades</h1>
       <p className="muted">
         {trades == null ? (
           <LoadingState label="Loading trades…" />

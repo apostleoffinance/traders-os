@@ -1,6 +1,5 @@
 "use client";
 
-import { AnalyticsTabIntro } from "@/components/analytics/primitives/AnalyticsTabIntro";
 import { DisclosureLayer } from "@/components/analytics/primitives/DisclosureLayer";
 import { DeepDiveSection } from "@/components/analytics/primitives/DeepDiveSection";
 import { QuantLabBridge } from "@/components/analytics/primitives/QuantLabBridge";
@@ -22,7 +21,6 @@ export function BehaviourTab({ data }: { data: AnalyticsDashboard }) {
 
   return (
     <>
-      <AnalyticsTabIntro page="behaviour" />
       <DisclosureLayer kind="decision">
         {intel ? <DecisionQualitySummary intel={intel} /> : null}
       </DisclosureLayer>
@@ -30,16 +28,13 @@ export function BehaviourTab({ data }: { data: AnalyticsDashboard }) {
         <BehaviourSignals data={data} intel={intel} />
         <BehaviourLab data={data} />
       </DisclosureLayer>
-      <DeepDiveSection
-        title="Psychology & discipline research"
-        description="Bubble maps, discipline scatter, streak tables, and checklist detail — optional when you want to dig deeper."
-      >
+      <DeepDiveSection title="More detail">
         {intel && <DecisionQualityChart intel={intel} />}
         {intel && <PsychologyBubbleMatrix intel={intel} currency={currency} />}
         {intel && <DisciplineScatterPanel intel={intel} currency={currency} />}
         {intel && <BehaviourIntelligenceLab intel={intel} />}
         {intel && <ChecklistItemPanel intel={intel} />}
-        <QuantLabBridge variant="behaviour" compact />
+        <QuantLabBridge variant="behaviour" />
       </DeepDiveSection>
     </>
   );

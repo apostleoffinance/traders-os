@@ -3,8 +3,6 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { MarketChart, type DataMode } from "@/components/visualizations/market/MarketChart";
-import { MarketLabIntro } from "@/components/market/MarketLabIntro";
-import { MarketSystemBridge } from "@/components/market/MarketSystemBridge";
 import { Alert } from "@/components/ui";
 import { LoadingState } from "@/components/trader/LoadingState";
 import { EmptyState } from "@/components/trader/EmptyState";
@@ -157,13 +155,12 @@ function MarketLab() {
 
   return (
     <div className="market-lab">
-      <MarketLabIntro />
+      <h1>Market Lab</h1>
 
       {catalogLoading ? <LoadingState label="Loading instruments…" /> : null}
       {loadError ? (
         <EmptyState title="Market catalog unavailable">
           <p className="hint">{loadError}</p>
-          <p className="hint">Your existing journal data is unaffected. Retry after the market API is reachable.</p>
         </EmptyState>
       ) : null}
       {meta.error ? (
@@ -280,24 +277,7 @@ function MarketLab() {
         tradeOverlay={overlay}
         height={580}
         onMeta={onMeta}
-        showChrome
       />
-
-      <MarketSystemBridge tradeId={tradeId || undefined} symbol={symbol} />
-
-      <section className="notes">
-        <h2>POC notes</h2>
-        <ul>
-          <li>
-            Route stays <code>/labs/vela</code> — no product <code>/market</code> until the POC is ready.
-          </li>
-          <li>
-            Candles from <code>GET /api/market/ohlcv</code>. Deep-link with <code>?trade=</code> /{" "}
-            <code>?symbol=</code>.
-          </li>
-          <li>Trade overlay paints Entry / SL / TP / Exit. Native EMA/RSI only (no AGPL pinets).</li>
-        </ul>
-      </section>
 
       <style jsx>{`
         .market-lab {

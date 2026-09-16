@@ -2,16 +2,13 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnatomyChart } from "./AnatomyChart";
-import { InsightCard } from "@/components/trader/InsightCard";
 import {
   buildTradeAnatomyModel,
   pointAtProgress,
   type AnatomyPoint,
   type TradeAnatomyFallbacks,
-  type TradeAnatomyModel,
 } from "@/lib/trade-anatomy";
 import type { TradeReplay } from "@/lib/trade-replay";
-import type { AnalyticsInsight } from "@/lib/analytics/types";
 import { holdingLabel, num, signed, tone } from "@/lib/format";
 
 const PLAY_MS = 3200;
@@ -62,18 +59,6 @@ function Metric({
       `}</style>
     </div>
   );
-}
-
-function toInsight(model: TradeAnatomyModel): AnalyticsInsight {
-  return {
-    summary: model.story.what,
-    observation: model.story.soWhat,
-    takeaway: model.story.nowWhat,
-    direction: model.story.direction,
-    warning: model.story.warning,
-    strength: model.hasExcursions ? "moderate" : "early",
-    sampleSize: 1,
-  };
 }
 
 export function TradeAnatomy({
@@ -242,15 +227,10 @@ export function TradeAnatomy({
             {activePoint.r != null && (
               <span className={`num ${tone(activePoint.r)}`}>{signed(activePoint.r, "R")}</span>
             )}
-            {model.pathMode === "ohlc" && <span className="mode">M1 path</span>}
-            {!activePoint.timed && activePoint.id !== "entry" && activePoint.id !== "exit" && (
-              <span className="untimed">untimed marker</span>
-            )}
+            {model.pathMode === "ohlc" && <span className="mode">M1</span>}
           </p>
         )}
       </div>
-
-      {!compact && <InsightCard insight={toInsight(model)} compact />}
 
       <style jsx>{`
         .trade-anatomy {
@@ -313,11 +293,6 @@ export function TradeAnatomy({
         }
         .active-readout strong {
           color: var(--text);
-        }
-        .untimed {
-          font-size: 11px;
-          letter-spacing: 0.04em;
-          text-transform: uppercase;
         }
         .mode {
           font-size: 11px;

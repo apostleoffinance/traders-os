@@ -163,12 +163,12 @@ export default function TradeDetailPage() {
       {uploadWarning && <Alert kind="warn">{uploadWarning}</Alert>}
       <div className="head">
         <div>
-          <p className="page-kicker">{sessionLabel(trade.session)} · {trade.timeframe}</p>
           <h1>
             {trade.symbol} {trade.direction.toUpperCase()}
           </h1>
           <p className="muted">
-            {trade.lot_size} lot · {formatWhen(trade.trade_timestamp, trade.timezone)}
+            {sessionLabel(trade.session)} · {trade.timeframe} · {trade.lot_size} lot ·{" "}
+            {formatWhen(trade.trade_timestamp, trade.timezone)}
           </p>
           <div className="status-row">
             {isOpen ? <span className="open-pill">TRADE OPEN</span> : <Badge status="closed" />}
@@ -314,24 +314,7 @@ export default function TradeDetailPage() {
         </Panel>
       </div>
 
-      {!isOpen && (
-        <div style={{ marginBottom: 14 }}>
-          <IntelligenceRunner
-            path={`/api/ai/trades/${trade.id}/review`}
-            label="Analyze trade with AI"
-            hint="Separates P/L from discipline. Historical comparables exclude later trades (no look-ahead)."
-            available={aiStatus?.available ?? true}
-          />
-          <IntelligenceRunner
-            path={`/api/ai/trades/${trade.id}/challenge`}
-            label="Challenge my thinking"
-            hint="Questions assumptions. Never BUY / SELL / HOLD."
-            available={aiStatus?.available ?? true}
-          />
-        </div>
-      )}
-
-      <Panel title="Charts">
+      <Panel title="Screenshots">
         <div className="shots">
           <ChartSlot
             label="Entry chart"
@@ -357,6 +340,22 @@ export default function TradeDetailPage() {
           />
         </div>
       </Panel>
+
+      {!isOpen && (
+        <div style={{ marginBottom: 14 }}>
+          <IntelligenceRunner
+            path={`/api/ai/trades/${trade.id}/review`}
+            label="Analyze trade with AI"
+            available={aiStatus?.available ?? true}
+          />
+          <IntelligenceRunner
+            path={`/api/ai/trades/${trade.id}/challenge`}
+            label="Challenge my thinking"
+            available={aiStatus?.available ?? true}
+          />
+        </div>
+      )}
+
       <div className="cols">
         <Panel title="Psychology">
           {trade.psychology ? (

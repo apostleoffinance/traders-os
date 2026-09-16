@@ -122,7 +122,6 @@ export function YourEdgeSection({ data }: { data: AnalyticsDashboard }) {
   return (
     <section className="section">
       <h2 className="section-title">Your edge</h2>
-      <p className="section-lead">Where your strongest observed results come from in this sample.</p>
 
       <EdgeChart
         analyticsId={REGISTRY_ID.instrument}

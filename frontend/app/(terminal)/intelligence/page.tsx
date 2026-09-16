@@ -167,12 +167,7 @@ export default function IntelligencePage() {
 
   return (
     <div>
-      <p className="page-kicker">Intelligence</p>
-      <h1>Trading Intelligence</h1>
-      <p className="muted intro">
-        Living intelligence from your journal — edge, behaviour, risk, and discipline. Every card is deterministic
-        with evidence. Click charts to drill into matching trades.
-      </p>
+      <h1>Intelligence</h1>
 
       {accountId ? (
         <AnalyticsDrilldownProvider

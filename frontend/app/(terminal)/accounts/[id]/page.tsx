@@ -65,7 +65,6 @@ export default function AccountDetailPage() {
 
   return (
     <div>
-      <p className="page-kicker">Account</p>
       <h1>{account.account_name}</h1>
       <p className="muted">
         {account.firm} · {account.program} · starting {money(account.starting_balance)} · equity{" "}

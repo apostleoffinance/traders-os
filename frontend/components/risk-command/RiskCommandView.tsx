@@ -437,12 +437,8 @@ export function RiskCommandView({ data }: { data: RiskCommand }) {
     <div className="rc">
       <div className="head">
         <div>
-          <p className="page-kicker">Risk Command</p>
-          <h1>Protect capital</h1>
-          <p className="muted">
-            Personal limits are stricter than firm limits. Green means safety — not permission to size up after
-            losses.
-          </p>
+          <h1>Risk Command</h1>
+          <p className="muted">Personal limits override firm limits.</p>
         </div>
         <div className="head-right">
           <Badge status={data.status} />

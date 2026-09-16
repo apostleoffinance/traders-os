@@ -26,9 +26,6 @@ export function BehaviourSignals({
 
   return (
     <section className="signals">
-      <h3 className="title">Behaviour signals</h3>
-      <p className="lead">Observable patterns from your journal — each card cites how it was measured.</p>
-
       <div className="grid">
         <ChartCard
           title="Overtrading"
@@ -118,16 +115,6 @@ export function BehaviourSignals({
       <style jsx>{`
         .signals {
           margin-bottom: 8px;
-        }
-        .title {
-          margin: 0 0 4px;
-          font-size: 14px;
-          font-weight: 600;
-        }
-        .lead {
-          margin: 0 0 12px;
-          font-size: 13px;
-          color: var(--text-muted);
         }
         .grid {
           display: grid;

@@ -55,7 +55,6 @@ export function CostSummarySection({
   return (
     <section className="section">
       <h2 className="section-title">Cost of trading</h2>
-      <p className="section-lead">How commissions and swap affect your gross results.</p>
 
       <ChartCard
         title={def?.title ?? "Gross to net bridge"}

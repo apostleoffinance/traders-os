@@ -1,6 +1,5 @@
 "use client";
 
-import { AnalyticsTabIntro } from "@/components/analytics/primitives/AnalyticsTabIntro";
 import { DisclosureLayer } from "@/components/analytics/primitives/DisclosureLayer";
 import { DeepDiveSection } from "@/components/analytics/primitives/DeepDiveSection";
 import { QuantLabBridge } from "@/components/analytics/primitives/QuantLabBridge";
@@ -14,8 +13,7 @@ import type { AnalyticsDashboard } from "@/lib/analytics";
 type DrillMetric = "win_rate" | "expectancy_r" | "profit_factor" | "average_r";
 
 /**
- * Performance answers: "How did I perform?"
- * Decision → Evidence → Deep Dive.
+ * Performance: scorecard → equity → monthly → deep dive.
  */
 export function PerformanceTab({
   data,
@@ -29,7 +27,6 @@ export function PerformanceTab({
 
   return (
     <>
-      <AnalyticsTabIntro page="performance" />
       <DisclosureLayer kind="decision">
         <PerformanceLab data={data} onMetricClick={onMetricClick} variant="essential" />
       </DisclosureLayer>
@@ -39,10 +36,7 @@ export function PerformanceTab({
         <PeriodComparisonLab data={data} />
         <CostAnalytics data={data} />
       </DisclosureLayer>
-      <DeepDiveSection
-        title="Deeper performance diagnostics"
-        description="Profit-factor by segment, consistency metrics, and research links — optional when you want to dig in."
-      >
+      <DeepDiveSection title="More detail">
         {wl && data.lab && data.overview.n_trades > 0 ? (
           <ProfitFactorExplorer data={data} wl={wl} currency={currency} onMetricClick={onMetricClick} />
         ) : null}

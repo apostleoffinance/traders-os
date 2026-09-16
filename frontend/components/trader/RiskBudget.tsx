@@ -68,40 +68,14 @@ export function RiskBudget({ data }: { data: AnalyticsDashboard }) {
   const r = data.risk;
   const ccy = data.account.currency;
   const copy = resolveVizCopy("risk_budget");
-
   const dailyPct = r.personal_daily.pct != null ? Number(r.personal_daily.pct) : null;
   const ddPct = r.personal_drawdown.pct != null ? Number(r.personal_drawdown.pct) : null;
   const hottest = Math.max(dailyPct ?? 0, ddPct ?? 0);
 
-  let observation: string;
-  let direction: "positive" | "negative" | "neutral" | "mixed" = "neutral";
-  if (hottest >= 100) {
-    observation = "At least one personal risk limit is fully used — stop or reduce size until the budget resets.";
-    direction = "negative";
-  } else if (hottest >= 70) {
-    observation = `Personal risk budget is ${Math.round(hottest)}% used. Treat remaining room carefully.`;
-    direction = "mixed";
-  } else if (r.status === "ok" || r.status === "clear") {
-    observation = "Personal and firm limits still have room under the stored risk policy.";
-    direction = "positive";
-  } else {
-    observation = `Risk status: ${r.status.replace(/_/g, " ")}. Review the bars and reasons below.`;
-    direction = "mixed";
-  }
-
   return (
     <ChartCard
       title={copy.title}
-      question={copy.question}
       tier="essential"
-      subtitle="From this account’s stored risk policy. The risk engine is authoritative — open Risk Command for live remaining trades."
-      insight={{
-        summary: "Utilization of daily loss and drawdown limits.",
-        observation,
-        takeaway: "Open Risk Command when you need remaining full/half-risk trade counts before the next session.",
-        direction,
-        methodology: "used ÷ limit from account risk policy (personal + firm daily/drawdown).",
-      }}
       actions={
         <Link href="/risk" className="cmd">
           Risk Command →

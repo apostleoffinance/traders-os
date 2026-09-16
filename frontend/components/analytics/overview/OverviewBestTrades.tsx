@@ -126,7 +126,6 @@ export function OverviewBestTrades({ data }: { data: AnalyticsDashboard }) {
   return (
     <section className="section">
       <h2 className="section-title">Best & worst trades</h2>
-      <p className="section-lead">Your largest observed outcomes in this sample.</p>
       <div className="pair">
         <TradeList title="Top trades" rows={bt.winners} currency={currency} timezone={timezone} positive />
         <TradeList title="Worst trades" rows={bt.losers} currency={currency} timezone={timezone} positive={false} />

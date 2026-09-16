@@ -1,28 +1,18 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { Children, type ReactNode } from "react";
 
 export type DisclosureLayerKind = "decision" | "evidence" | "deep_dive";
 
-const COPY: Record<DisclosureLayerKind, { label: string; hint: string }> = {
-  decision: {
-    label: "Decision",
-    hint: "WHAT / SO WHAT — answer first",
-  },
-  evidence: {
-    label: "Evidence",
-    hint: "Essential charts that prove the answer",
-  },
-  deep_dive: {
-    label: "Deep dive",
-    hint: "Optional research — open when you need more",
-  },
-};
+function hasRenderableChildren(children: ReactNode): boolean {
+  return Children.toArray(children).some((child) => {
+    if (child == null) return false;
+    if (typeof child === "boolean") return false;
+    return true;
+  });
+}
 
-/**
- * Progressive disclosure chrome for Analytics tabs.
- * Decision → Evidence → Deep Dive.
- */
+/** Layout wrapper — skips empty sections so null children don't leave gaps. */
 export function DisclosureLayer({
   kind,
   children,
@@ -32,37 +22,13 @@ export function DisclosureLayer({
   children: ReactNode;
   className?: string;
 }) {
-  const copy = COPY[kind];
+  if (!hasRenderableChildren(children)) return null;
   return (
-    <section className={className} data-disclosure={kind} aria-label={copy.label}>
-      <div className="layer-meta">
-        <span className="layer-label">{copy.label}</span>
-        <span className="layer-hint">{copy.hint}</span>
-      </div>
-      <div className="layer-body">{children}</div>
+    <section className={className} data-disclosure={kind}>
+      {children}
       <style jsx>{`
         section {
           margin: 0 0 12px;
-        }
-        .layer-meta {
-          display: flex;
-          flex-wrap: wrap;
-          align-items: baseline;
-          gap: 8px;
-          margin-bottom: 8px;
-        }
-        .layer-label {
-          font-size: 10px;
-          font-weight: 700;
-          letter-spacing: 0.06em;
-          text-transform: uppercase;
-          color: var(--accent);
-        }
-        .layer-hint {
-          font-size: 12px;
-          color: var(--text-muted);
-        }
-        .layer-body {
           min-width: 0;
         }
       `}</style>
