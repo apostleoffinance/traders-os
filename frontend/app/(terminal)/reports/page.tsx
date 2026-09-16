@@ -102,7 +102,10 @@ export default function ReportsPage() {
 
   return (
     <div className="reports-page">
-      <h1>Reports</h1>
+      <header className="rp-head">
+        <h1>Reports</h1>
+        <p className="lede muted">Professional period reports using the same analytics engine as the terminal.</p>
+      </header>
 
       {!getActiveAccountId() && (
         <Alert kind="info">
@@ -134,6 +137,14 @@ export default function ReportsPage() {
       )}
 
       <style jsx>{`
+        .rp-head {
+          margin-bottom: 12px;
+        }
+        .lede {
+          margin: 0;
+          font-size: 13px;
+          max-width: 56ch;
+        }
         .intro {
           max-width: 640px;
           color: var(--muted);
@@ -151,6 +162,7 @@ export default function ReportsPage() {
         @media print {
           .intro,
           .ai-toggle,
+          .rp-head .lede,
           :global(.generator) {
             display: none;
           }

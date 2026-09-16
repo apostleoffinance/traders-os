@@ -50,16 +50,16 @@ type ChartColors = {
 };
 
 const DARK_CHART: ChartColors = {
-  pos: "#18B981",
-  neg: "#E56B6F",
-  long: "#18B981",
-  short: "#4A90C4",
-  ink: "#F1F5F3",
-  muted: "#66736C",
-  line: "#25312B",
-  blue: "#6EA8FE",
-  amber: "#D6A84F",
-  bg: "#111714",
+  pos: "#2DD4A8",
+  neg: "#F07178",
+  long: "#2DD4A8",
+  short: "#22B8F0",
+  ink: "#E8EEF6",
+  muted: "#7A8FA8",
+  line: "rgba(255,255,255,0.07)",
+  blue: "#22B8F0",
+  amber: "#E0B35A",
+  bg: "#0A1A2B",
 };
 
 export function chartTheme(): ChartColors {

@@ -65,7 +65,7 @@ export function OverviewScorecard({
       evidenceLabel={o.evidence.label}
       insight={insight}
     >
-      <div className="primary-kpis">
+      <div className="tos-kpi-grid primary-kpis">
         <MetricCard
           label="Net P&L"
           value={money(o.net_pnl, currency)}
@@ -78,12 +78,7 @@ export function OverviewScorecard({
           value={o.win_rate ? `${num(o.win_rate, 1)}%` : "—"}
           delta={periodDelta("win")}
           onClick={onMetricClick ? () => onMetricClick("win_rate") : undefined}
-        />
-        <MetricCard
-          label="Profit factor"
-          value={o.profit_factor ? num(o.profit_factor) : "—"}
-          delta={periodDelta("profit")}
-          onClick={onMetricClick ? () => onMetricClick("profit_factor") : undefined}
+          spark={<MiniSparkline values={equitySpark} />}
         />
         <MetricCard
           label="Expectancy"
@@ -92,8 +87,21 @@ export function OverviewScorecard({
           delta={periodDelta("expectancy")}
           onClick={onMetricClick ? () => onMetricClick("expectancy_r") : undefined}
         />
+        <MetricCard
+          label="Max drawdown"
+          value={money(o.max_drawdown, currency)}
+          tone="neg"
+        />
+      </div>
+
+      <div className="secondary-row">
+        <MetricCard
+          label="Profit factor"
+          value={o.profit_factor ? num(o.profit_factor) : "—"}
+          delta={periodDelta("profit")}
+          onClick={onMetricClick ? () => onMetricClick("profit_factor") : undefined}
+        />
         <MetricCard label="Total R" value={signed(o.total_r, "R")} tone={tone(o.total_r)} />
-        <MetricCard label="Max drawdown" value={money(o.max_drawdown, currency)} tone="neg" />
         <MetricCard label="Trades" value={String(n)} />
       </div>
 
@@ -118,8 +126,11 @@ export function OverviewScorecard({
 
       <style jsx>{`
         .primary-kpis {
+          margin-bottom: 12px;
+        }
+        .secondary-row {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+          grid-template-columns: repeat(3, minmax(0, 1fr));
           gap: 12px;
         }
         .secondary-kpis {
@@ -144,6 +155,11 @@ export function OverviewScorecard({
           margin: 12px 0 0;
           font-size: 13px;
           color: var(--text-muted);
+        }
+        @media (max-width: 720px) {
+          .secondary-row {
+            grid-template-columns: 1fr;
+          }
         }
       `}</style>
     </ChartCard>

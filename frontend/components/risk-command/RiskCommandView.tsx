@@ -438,7 +438,7 @@ export function RiskCommandView({ data }: { data: RiskCommand }) {
       <div className="head">
         <div>
           <h1>Risk Command</h1>
-          <p className="muted">Personal limits override firm limits.</p>
+          <p className="muted">How much danger are you carrying right now?</p>
         </div>
         <div className="head-right">
           <Badge status={data.status} />

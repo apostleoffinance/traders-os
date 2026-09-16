@@ -1,15 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState, type ComponentType } from "react";
 import {
+  Activity,
   BrainCircuit,
   Calculator,
+  CalendarDays,
   ChartNoAxesCombined,
   FileText,
   FlaskConical,
   CandlestickChart,
+  Crosshair,
   History,
   LayoutDashboard,
   ChevronLeft,
@@ -17,6 +20,8 @@ import {
   PlusCircle,
   Settings,
   ShieldAlert,
+  Target,
+  TrendingUp,
   WalletCards,
   type LucideProps,
 } from "lucide-react";
@@ -33,45 +38,67 @@ const SIDEBAR_KEY = "trader-os-sidebar-collapsed";
 
 type NavIcon = ComponentType<LucideProps>;
 
-type NavGroup = "command" | "trading" | "intelligence" | "risk" | "account";
+type NavGroup = "command" | "trading" | "labs" | "system";
 
 type NavItem = {
   href: string;
   label: string;
   icon: NavIcon;
   group: NavGroup;
+  match?: "exact" | "prefix" | "analytics-tab";
+  tab?: string;
 };
 
 const GROUP_LABELS: Record<NavGroup, string> = {
   command: "Command",
   trading: "Trading",
-  intelligence: "Insights",
-  risk: "Risk",
-  account: "Account",
+  labs: "Labs",
+  system: "System",
 };
 
 const NAV: NavItem[] = [
-  { href: "/dashboard", label: "Command Center", icon: LayoutDashboard, group: "command" },
-  { href: "/trades/new", label: "New trade", icon: PlusCircle, group: "trading" },
-  { href: "/trades", label: "Trade journal", icon: History, group: "trading" },
-  { href: "/calculator", label: "Calculator", icon: Calculator, group: "trading" },
-  { href: "/analytics", label: "Analytics Lab", icon: ChartNoAxesCombined, group: "intelligence" },
-  { href: "/intelligence", label: "Intelligence Feed", icon: BrainCircuit, group: "intelligence" },
-  { href: "/quant-lab", label: "Quant Lab", icon: FlaskConical, group: "intelligence" },
-  { href: "/labs/vela", label: "Market Lab", icon: CandlestickChart, group: "intelligence" },
-  { href: "/reports", label: "Reports", icon: FileText, group: "intelligence" },
-  { href: "/risk", label: "Risk Command", icon: ShieldAlert, group: "risk" },
-  { href: "/accounts", label: "Accounts", icon: WalletCards, group: "account" },
-  { href: "/settings", label: "Settings", icon: Settings, group: "account" },
+  { href: "/dashboard", label: "Home", icon: LayoutDashboard, group: "command", match: "exact" },
+  { href: "/trades", label: "Trade Journal", icon: History, group: "trading", match: "prefix" },
+  { href: "/trades/new", label: "New trade", icon: PlusCircle, group: "trading", match: "exact" },
+  { href: "/calculator", label: "Calculator", icon: Calculator, group: "trading", match: "exact" },
+  { href: "/analytics", label: "Analytics", icon: ChartNoAxesCombined, group: "labs", match: "exact" },
+  { href: "/analytics?tab=performance", label: "Performance", icon: TrendingUp, group: "labs", match: "analytics-tab", tab: "performance" },
+  { href: "/analytics?tab=edge", label: "Edge Lab", icon: Target, group: "labs", match: "analytics-tab", tab: "edge" },
+  { href: "/analytics?tab=behaviour", label: "Behaviour Lab", icon: Activity, group: "labs", match: "analytics-tab", tab: "behaviour" },
+  { href: "/analytics?tab=execution", label: "Execution Lab", icon: Crosshair, group: "labs", match: "analytics-tab", tab: "execution" },
+  { href: "/analytics?tab=calendar", label: "Calendar", icon: CalendarDays, group: "labs", match: "analytics-tab", tab: "calendar" },
+  { href: "/intelligence", label: "Intelligence", icon: BrainCircuit, group: "labs", match: "prefix" },
+  { href: "/quant-lab", label: "Quant Lab", icon: FlaskConical, group: "labs", match: "prefix" },
+  { href: "/risk", label: "Risk", icon: ShieldAlert, group: "labs", match: "prefix" },
+  { href: "/reports", label: "Reports", icon: FileText, group: "labs", match: "prefix" },
+  { href: "/labs/vela", label: "Market Lab", icon: CandlestickChart, group: "labs", match: "prefix" },
+  { href: "/accounts", label: "Accounts", icon: WalletCards, group: "system", match: "prefix" },
+  { href: "/settings", label: "Settings", icon: Settings, group: "system", match: "prefix" },
 ];
 
-function navActive(href: string, pathname: string): boolean {
-  if (href === "/trades") {
+function navActive(item: NavItem, pathname: string, search: string): boolean {
+  const params = new URLSearchParams(search.startsWith("?") ? search.slice(1) : search);
+  const tab = params.get("tab");
+
+  if (item.match === "analytics-tab") {
+    return pathname === "/analytics" && tab === item.tab;
+  }
+  if (item.href === "/analytics" || item.match === "exact") {
+    if (item.href === "/analytics") {
+      return pathname === "/analytics" && (!tab || tab === "overview");
+    }
+    if (item.href === "/trades") {
+      return pathname === "/trades" || (pathname.startsWith("/trades/") && !pathname.startsWith("/trades/new"));
+    }
+    return pathname === item.href;
+  }
+  if (item.href === "/trades") {
     return pathname === "/trades" || (pathname.startsWith("/trades/") && !pathname.startsWith("/trades/new"));
   }
-  if (href === "/dashboard") return pathname === "/dashboard";
-  if (href === "/accounts") return pathname === "/accounts" || pathname.startsWith("/accounts/");
-  return pathname === href || pathname.startsWith(`${href}/`);
+  if (item.href === "/dashboard") return pathname === "/dashboard";
+  if (item.href === "/accounts") return pathname === "/accounts" || pathname.startsWith("/accounts/");
+  const base = item.href.split("?")[0];
+  return pathname === base || pathname.startsWith(`${base}/`);
 }
 
 function readCollapsed(): boolean {
@@ -85,6 +112,7 @@ function readCollapsed(): boolean {
 
 export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const router = useRouter();
   const { filters, setFilters } = useGlobalFilters();
   const [user, setUser] = useState<User | null>(null);
@@ -172,7 +200,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const active = useMemo(() => accounts.find((a) => a.id === accountId) ?? null, [accounts, accountId]);
   const pnl = active ? Number(active.current_equity) - Number(active.starting_balance) : 0;
 
-  const navGroups: NavGroup[] = ["command", "trading", "intelligence", "risk", "account"];
+  const navGroups: NavGroup[] = ["command", "trading", "labs", "system"];
+  const search = searchParams.toString();
 
   function renderNav(opts: { collapsedMode: boolean; showToggle?: boolean; onNavigate?: () => void }) {
     const { collapsedMode, showToggle = false, onNavigate } = opts;
@@ -185,11 +214,11 @@ export function Shell({ children }: { children: React.ReactNode }) {
               href="/dashboard"
               className={collapsedMode ? "brand brand-collapsed" : "brand"}
               onClick={onNavigate}
-              title={collapsedMode ? "Trader OS" : undefined}
-              aria-label="Trader OS"
+              title={collapsedMode ? "TraderOS" : undefined}
+              aria-label="TraderOS"
             >
               <BrandMark size={collapsedMode ? 28 : 26} />
-              {!collapsedMode && <span className="brand-name">Trader OS</span>}
+              {!collapsedMode && <span className="brand-name">TraderOS</span>}
             </Link>
             {showToggle && (
               <button
@@ -207,6 +236,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
               </button>
             )}
           </div>
+          {!collapsedMode && <p className="brand-tag">Better data. Smarter trades.</p>}
         </div>
         <nav aria-label="Main">
           {navGroups.map((group, gi) => {
@@ -217,7 +247,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
                 {collapsedMode && gi > 0 && <div className="nav-divider" aria-hidden />}
                 {items.map((item) => {
                   const Icon = item.icon;
-                  const isActive = navActive(item.href, pathname);
+                  const isActive = navActive(item, pathname, search);
                   return (
                     <Link
                       key={item.href}
@@ -228,7 +258,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
                       aria-label={item.label}
                       aria-current={isActive ? "page" : undefined}
                     >
-                      <Icon size={20} strokeWidth={1.75} aria-hidden />
+                      <Icon size={16} strokeWidth={1.75} aria-hidden />
                       {!collapsedMode && <span className="nav-label">{item.label}</span>}
                     </Link>
                   );
@@ -401,6 +431,12 @@ export function Shell({ children }: { children: React.ReactNode }) {
           letter-spacing: 0.06em;
           font-size: 14px;
           white-space: nowrap;
+        }
+        .brand-tag {
+          margin: 6px 6px 0;
+          font-size: 11px;
+          color: var(--rail-muted);
+          line-height: 1.35;
         }
         nav {
           display: flex;

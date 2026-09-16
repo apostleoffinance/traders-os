@@ -120,7 +120,12 @@ function QuantLab() {
 
   return (
     <div className="quant-lab">
-      <h1>Quant Lab</h1>
+      <header className="ql-head">
+        <div>
+          <h1>Quant Lab</h1>
+          <p className="lede muted">Advanced analysis, better decisions — statistical research on your journal.</p>
+        </div>
+      </header>
 
       {accountId && (
         <AnalyticsFilters
@@ -208,35 +213,40 @@ function QuantLab() {
           min-width: 0;
           overflow-x: hidden;
         }
-        .head-row {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          gap: 16px;
+        .ql-head {
           margin-bottom: 8px;
+        }
+        .lede {
+          margin: 0;
+          font-size: 13px;
+          max-width: 56ch;
         }
         .tab-nav {
           display: flex;
           flex-wrap: wrap;
-          gap: 8px;
-          margin: 20px 0;
-          border-bottom: 1px solid var(--border);
-          padding-bottom: 8px;
+          gap: 4px;
+          margin: 16px 0;
+          padding: 4px;
+          border-radius: 999px;
+          background: var(--surface-2);
+          border: 1px solid var(--border);
+          width: fit-content;
+          max-width: 100%;
         }
         .tab-nav button {
           border: none;
           background: transparent;
-          padding: 8px 14px;
-          border-radius: 8px;
-          font-size: 14px;
+          padding: 7px 14px;
+          border-radius: 999px;
+          font-size: 13px;
+          font-weight: 600;
           cursor: pointer;
-          color: var(--muted);
-          min-height: 40px;
+          color: var(--text-muted);
+          min-height: 36px;
         }
         .tab-nav button.active {
-          background: var(--surface-2);
-          color: var(--text);
-          font-weight: 600;
+          background: var(--research-soft);
+          color: var(--research);
         }
         .tab-panel {
           min-width: 0;
@@ -257,9 +267,8 @@ function QuantLab() {
           .two-col {
             grid-template-columns: 1fr;
           }
-          .tab-nav button {
-            font-size: 13px;
-            padding: 8px 12px;
+          .tab-nav {
+            width: 100%;
           }
         }
       `}</style>

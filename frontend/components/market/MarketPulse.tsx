@@ -82,7 +82,8 @@ export function MarketPulse() {
           display: inline-flex;
           align-items: center;
           flex-shrink: 0;
-          padding: 0 26px;
+          gap: 0;
+          padding: 0 28px;
           height: 100%;
           white-space: nowrap;
           text-decoration: none;
@@ -91,27 +92,32 @@ export function MarketPulse() {
           border-right: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
         }
         .market-pulse__item:hover {
-          background: color-mix(in srgb, var(--accent) 4%, transparent);
+          background: color-mix(in srgb, var(--accent) 6%, transparent);
         }
         .market-pulse__symbol {
           font-size: 11px;
-          font-weight: 600;
-          color: var(--text-primary);
-          margin-right: 8px;
+          font-weight: 700;
+          letter-spacing: 0.04em;
+          color: var(--text-secondary);
+          margin-right: 14px;
+          min-width: 4.5ch;
         }
         .market-pulse__price {
-          font-size: 11px;
+          font-family: var(--font-mono), ui-monospace, Menlo, monospace;
+          font-size: 12px;
           font-weight: 500;
           font-variant-numeric: tabular-nums;
           color: var(--text-primary);
-          margin-right: 7px;
+          margin-right: 14px;
         }
         .market-pulse__change {
           display: inline-flex;
           align-items: center;
-          gap: 3px;
-          font-size: 10px;
+          gap: 4px;
+          font-family: var(--font-mono), ui-monospace, Menlo, monospace;
+          font-size: 11px;
           font-weight: 600;
+          font-variant-numeric: tabular-nums;
           line-height: 1;
         }
         .market-pulse__change--up {

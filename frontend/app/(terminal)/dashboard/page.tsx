@@ -10,7 +10,7 @@ import { firstName, greeting } from "@/lib/theme";
 
 export default function DashboardPage() {
   const [data, setData] = useState<Dashboard | null>(null);
-  const [openTrades, setOpenTrades] = useState<Trade[]>([]);
+  const [trades, setTrades] = useState<Trade[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [hello, setHello] = useState("Good afternoon");
   const [name, setName] = useState("Trader");
@@ -20,7 +20,7 @@ export default function DashboardPage() {
     if (!id) {
       setError("Create an account to begin.");
       setData(null);
-      setOpenTrades([]);
+      setTrades([]);
       return;
     }
     setError(null);
@@ -33,10 +33,10 @@ export default function DashboardPage() {
       return;
     }
     try {
-      const trades = await api<Trade[]>(`/api/trades?account_id=${id}`);
-      setOpenTrades(trades.filter((t) => t.status === "open"));
+      const list = await api<Trade[]>(`/api/trades?account_id=${id}`);
+      setTrades(list);
     } catch {
-      setOpenTrades([]);
+      setTrades([]);
     }
   }, []);
 
@@ -53,7 +53,7 @@ export default function DashboardPage() {
   if (error && !data) {
     return (
       <div>
-        <h1>Command Center</h1>
+        <h1>Home</h1>
         <Alert kind="warn">
           {error} <Link href="/accounts">Open accounts</Link>
         </Alert>
@@ -62,19 +62,22 @@ export default function DashboardPage() {
   }
   if (!data) return <p className="muted">Loading…</p>;
 
+  const openTrades = trades.filter((t) => t.status === "open");
+
   return (
     <div>
       <header className="cc-head">
         <div>
-          <h1 style={{ margin: "4px 0" }}>
+          <h1 style={{ margin: "0 0 4px" }}>
             {hello}, {name}.
           </h1>
+          <p className="lede">Here&apos;s what&apos;s happening with your trading.</p>
         </div>
         <div className="actions">
           <Link href="/trades/new" className="btn primary">
             New trade
           </Link>
-          <Link href="/analytics" className="btn">
+          <Link href="/analytics" className="btn ghost">
             Analytics
           </Link>
         </div>
@@ -82,7 +85,7 @@ export default function DashboardPage() {
 
       {data.n_trades === 0 && (
         <EmptyState
-          title="Start your journal"
+          title="No trades yet"
           action={
             <Link href="/trades/new" className="btn">
               Log first trade
@@ -90,12 +93,12 @@ export default function DashboardPage() {
           }
         >
           <p className="muted" style={{ margin: 0 }}>
-            Or connect MT5 from Accounts to sync trades automatically.
+            Connect MT5 from Accounts to sync trades automatically.
           </p>
         </EmptyState>
       )}
 
-      <CommandCenterView data={data} openTrades={openTrades} />
+      <CommandCenterView data={data} trades={trades} openTrades={openTrades} />
 
       <style jsx>{`
         .cc-head {
@@ -103,12 +106,12 @@ export default function DashboardPage() {
           justify-content: space-between;
           align-items: flex-start;
           gap: 16px;
-          margin-bottom: 20px;
+          margin-bottom: 18px;
         }
         .lede {
           margin: 0;
           color: var(--text-secondary);
-          font-size: 16px;
+          font-size: 14px;
           max-width: 52ch;
         }
         .actions {

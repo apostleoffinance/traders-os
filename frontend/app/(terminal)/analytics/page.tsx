@@ -48,8 +48,8 @@ export default function AnalyticsPage() {
 
 function AnalyticsLab() {
   const searchParams = useSearchParams();
-  const initialTab = (searchParams.get("tab") as TabId) || "overview";
-  const [tab, setTab] = useState<TabId>(TABS.some((t) => t.id === initialTab) ? initialTab : "overview");
+  const urlTab = (searchParams.get("tab") as TabId) || "overview";
+  const [tab, setTab] = useState<TabId>(TABS.some((t) => t.id === urlTab) ? urlTab : "overview");
   const [accountId, setAccountId] = useState<string | null>(null);
   const { filters: globalFilters } = useGlobalFilters();
   const [draft, setDraft] = useState<FilterState>(EMPTY_FILTERS);
@@ -58,6 +58,10 @@ function AnalyticsLab() {
   const [error, setError] = useState<string | null>(null);
   const [drillMetric, setDrillMetric] = useState<"win_rate" | "expectancy_r" | "profit_factor" | "average_r" | null>(null);
   const aiStatus = useAiStatus();
+
+  useEffect(() => {
+    if (TABS.some((t) => t.id === urlTab)) setTab(urlTab);
+  }, [urlTab]);
 
   const load = useCallback(async (id: string, filters: FilterState) => {
     setError(null);
@@ -129,7 +133,12 @@ function AnalyticsLab() {
       onFiltersChange={setApplied}
     >
     <div>
-      <h1>Analytics</h1>
+      <header className="page-head">
+        <div>
+          <h1>Analytics</h1>
+          <p className="lede muted">What happened, where your edge is, and what to investigate next.</p>
+        </div>
+      </header>
 
       <nav className="tabs" aria-label="Analytics sections">
         {TABS.map((t) => (
@@ -186,26 +195,39 @@ function AnalyticsLab() {
       )}
 
       <style jsx>{`
+        .page-head {
+          margin-bottom: 4px;
+        }
+        .lede {
+          margin: 0;
+          font-size: 13px;
+          max-width: 56ch;
+        }
         .tabs {
           display: flex;
           flex-wrap: wrap;
-          gap: 6px;
+          gap: 4px;
           margin: 14px 0 12px;
+          padding: 4px;
+          border-radius: 999px;
+          background: var(--surface-2);
+          border: 1px solid var(--border);
+          width: fit-content;
+          max-width: 100%;
         }
         .tabs button {
-          border: 1px solid var(--line);
-          background: var(--surface);
-          color: var(--text-secondary);
-          padding: 8px 14px;
+          border: 0;
+          background: transparent;
+          color: var(--text-muted);
+          padding: 7px 14px;
           border-radius: 999px;
           font-size: 13px;
           font-weight: 600;
           cursor: pointer;
         }
         .tabs button.active {
-          border-color: var(--accent);
           color: var(--accent);
-          background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+          background: var(--accent-soft);
         }
         .stack {
           display: grid;
@@ -220,6 +242,9 @@ function AnalyticsLab() {
         @media (max-width: 900px) {
           .ai {
             grid-template-columns: 1fr;
+          }
+          .tabs {
+            width: 100%;
           }
         }
       `}</style>

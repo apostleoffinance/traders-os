@@ -1,499 +1,533 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import type { Dashboard } from "@/lib/types";
-import { Badge, LimitBar, Panel } from "@/components/ui";
-import { EquitySparkline } from "@/components/EquitySparkline";
-import { money, num, sessionLabel, signed, tone } from "@/lib/format";
+import { api } from "@/lib/api";
+import type { Dashboard, Trade } from "@/lib/types";
+import type { EquityPt } from "@/lib/analytics";
+import type { TradeReplay } from "@/lib/trade-replay";
+import { MetricCard, PeriodStrip, ChartCard } from "@/components/trader";
+import { MiniSparkline } from "@/components/analytics/primitives/MiniSparkline";
+import { EquityCurve } from "@/components/visualizations/performance/EquityCurve";
+import { UnderwaterCurve } from "@/components/visualizations/risk/UnderwaterCurve";
+import { TradeAnatomy } from "@/components/visualizations/trade-anatomy";
+import { LimitBar, Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui";
+import { holdingLabel, money, num, sessionLabel, signed, tone } from "@/lib/format";
 
 type Props = {
   data: Dashboard;
-  openTrades: { id: string; symbol: string; direction: string; session: string; entry_price: string; risk_amount: string }[];
+  trades: Trade[];
+  openTrades: Trade[];
 };
 
-function statusTone(status: string): string {
-  if (status === "STABLE") return "stable";
-  if (status === "CAUTION") return "caution";
-  return "halt";
+type EquityMode = "equity" | "drawdown" | "r";
+
+function sparkValues(series: { balance: string }[]): number[] {
+  return series.map((p) => Number(p.balance)).filter((n) => Number.isFinite(n));
 }
 
-export function CommandCenterView({ data, openTrades }: Props) {
+/** Map dashboard equity series → EquityCurve points (deterministic peak/DD). */
+function mapEquitySeries(series: Dashboard["equity_series"]): EquityPt[] {
+  let peak = 0;
+  return series.map((p) => {
+    const equity = Number(p.balance);
+    peak = Math.max(peak, equity);
+    const dd = peak > 0 ? peak - equity : 0;
+    const ddPct = peak > 0 ? (dd / peak) * 100 : 0;
+    return {
+      at: p.t,
+      equity: p.balance,
+      peak: String(peak),
+      drawdown: String(dd),
+      drawdown_pct: String(ddPct),
+      daily_pnl: "0",
+      cumulative_r: "0",
+    };
+  });
+}
+
+/** Build cumulative R series from closed trades with realized_r. */
+function mapRCurve(trades: Trade[]): EquityPt[] {
+  const closed = [...trades]
+    .filter((t) => t.status === "closed" && t.realized_r != null && t.exit_timestamp)
+    .sort((a, b) => Date.parse(a.exit_timestamp!) - Date.parse(b.exit_timestamp!));
+  let cum = 0;
+  let peak = 0;
+  return closed.map((t) => {
+    cum += Number(t.realized_r);
+    peak = Math.max(peak, cum);
+    const dd = peak - cum;
+    return {
+      at: t.exit_timestamp!,
+      equity: String(cum),
+      peak: String(peak),
+      drawdown: String(Math.max(0, dd)),
+      drawdown_pct: peak !== 0 ? String((Math.max(0, dd) / Math.abs(peak)) * 100) : "0",
+      daily_pnl: t.realized_r ?? "0",
+      cumulative_r: String(cum),
+    };
+  });
+}
+
+function resultClass(result: string): string {
+  if (result === "win") return "win";
+  if (result === "loss") return "loss";
+  return "be";
+}
+
+function formatWhen(iso: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (!Number.isFinite(d.getTime())) return "—";
+  return d.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+export function CommandCenterView({ data, trades, openTrades }: Props) {
   const cc = data.command_center;
-  const pnlPct =
-    Number(data.starting_balance) > 0
-      ? (Number(data.total_pnl) / Number(data.starting_balance)) * 100
-      : null;
+  const currency = data.account.currency;
+  const [mode, setMode] = useState<EquityMode>("equity");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [replay, setReplay] = useState<TradeReplay | null>(null);
+  const [replayError, setReplayError] = useState<string | null>(null);
+  const [replayLoading, setReplayLoading] = useState(false);
+
+  const equityCurve = useMemo(() => mapEquitySeries(data.equity_series ?? []), [data.equity_series]);
+  const rCurve = useMemo(() => mapRCurve(trades), [trades]);
+  const ddPoints = useMemo(
+    () =>
+      equityCurve.map((p) => ({
+        at: p.at,
+        drawdown: p.drawdown,
+        drawdown_pct: p.drawdown_pct,
+        equity: p.equity,
+        peak: p.peak,
+      })),
+    [equityCurve],
+  );
+
+  const spark = useMemo(() => sparkValues(data.equity_series ?? []), [data.equity_series]);
+  const recentClosed = useMemo(
+    () =>
+      [...trades]
+        .filter((t) => t.status === "closed")
+        .sort(
+          (a, b) =>
+            Date.parse(b.exit_timestamp ?? b.trade_timestamp) -
+            Date.parse(a.exit_timestamp ?? a.trade_timestamp),
+        )
+        .slice(0, 12),
+    [trades],
+  );
+
+  const selected = useMemo(
+    () => trades.find((t) => t.id === selectedId) ?? null,
+    [trades, selectedId],
+  );
+
+  useEffect(() => {
+    if (!selectedId) {
+      setReplay(null);
+      setReplayError(null);
+      return;
+    }
+    let cancelled = false;
+    setReplayLoading(true);
+    setReplayError(null);
+    void api<TradeReplay>(`/api/trades/${selectedId}/replay`)
+      .then((r) => {
+        if (!cancelled) setReplay(r);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setReplay(null);
+          setReplayError(err instanceof Error ? err.message : "Could not load trade anatomy.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setReplayLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedId]);
+
+  const wr = data.win_rate != null ? `${num(data.win_rate, 1)}%` : "—";
+  const avgR = data.average_r != null ? `${signed(data.average_r)}R` : data.expectancy_r != null ? `${signed(data.expectancy_r)}R` : "—";
+  const maxDd = money(data.max_drawdown, currency);
 
   return (
     <div className="cc">
-      <section className="hero-grid">
-        <div className="hero-main">
-          <div className="hero-top">
-            <span className="kicker">Account status</span>
-            <span className={`status-pill ${statusTone(cc.account_status)}`}>{cc.account_status}</span>
-          </div>
-          <div className={`hero-equity num ${tone(data.total_pnl)}`}>{money(data.equity)}</div>
-          <p className="hero-sub muted">Equity · {data.account.currency}</p>
-          <div className="hero-metrics">
-            <span className={`num ${tone(data.daily_pnl)}`}>{signed(data.daily_pnl)} today</span>
-            {pnlPct != null && (
-              <span className={`num ${tone(data.total_pnl)}`}>
-                {pnlPct >= 0 ? "+" : ""}
-                {pnlPct.toFixed(1)}% all time
-              </span>
-            )}
-            {!data.health || data.health.status === "insufficient_data" ? (
-              <span className="muted">Health unlocks at {data.health?.trades_needed ?? 30} trades</span>
-            ) : (
-              <span>Trading health {data.health.score}/100</span>
-            )}
-          </div>
-          <EquitySparkline series={data.equity_series ?? []} height={72} />
-        </div>
+      <div className="toolbar">
+        <PeriodStrip />
+        <p className="muted sample">{data.sample_note ?? `${data.n_trades} closed trades`}</p>
+      </div>
 
-        <div className="hero-side">
-          <div className="capacity-block">
-            <span className="kicker">Trading capacity</span>
-            <p className="capacity-line">
-              <strong>{cc.trading_capacity.full_risk_trades_remaining}</strong> full-risk trades
-            </p>
-            <p className="muted small">
-              or <strong>{cc.trading_capacity.half_risk_trades_remaining}</strong> at half risk remaining today
-            </p>
-            <div className="capacity-bar">
-              <div
-                className="fill"
-                style={{ width: `${Math.min(100, cc.trading_capacity.daily_loss_used_pct)}%` }}
-              />
+      <div className="tos-kpi-grid">
+        <MetricCard
+          label="Total P&L"
+          value={signed(data.total_pnl)}
+          tone={tone(data.total_pnl) === "pos" ? "pos" : tone(data.total_pnl) === "neg" ? "neg" : ""}
+          hint={currency}
+          spark={<MiniSparkline values={spark} height={26} />}
+        />
+        <MetricCard
+          label="Win rate"
+          value={wr}
+          tone={data.win_rate != null && Number(data.win_rate) >= 50 ? "pos" : data.win_rate != null ? "neg" : ""}
+          hint={`${data.n_trades} trades`}
+          spark={<MiniSparkline values={spark} height={26} />}
+        />
+        <MetricCard
+          label="Avg R / trade"
+          value={avgR}
+          tone={
+            (data.average_r ?? data.expectancy_r) != null &&
+            Number(data.average_r ?? data.expectancy_r) >= 0
+              ? "pos"
+              : (data.average_r ?? data.expectancy_r) != null
+                ? "neg"
+                : ""
+          }
+          hint="Expectancy"
+          spark={<MiniSparkline values={spark} height={26} />}
+        />
+        <MetricCard
+          label="Max drawdown"
+          value={maxDd}
+          tone="neg"
+          hint={`Current ${money(data.drawdown, currency)}`}
+          spark={spark.length >= 2 ? <MiniSparkline values={spark} height={26} /> : undefined}
+        />
+      </div>
+
+      <div className="main-grid">
+        <section className="hero tos-panel">
+          <div className="hero-head">
+            <h2 className="tos-panel-title" style={{ margin: 0 }}>
+              Equity curve
+            </h2>
+            <div className="mode-tabs" role="tablist" aria-label="Equity view">
+              {(
+                [
+                  ["equity", "Equity"],
+                  ["drawdown", "Drawdown"],
+                  ["r", "R multiple"],
+                ] as const
+              ).map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  aria-selected={mode === id}
+                  className={mode === id ? "active" : ""}
+                  onClick={() => setMode(id)}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
-            <p className="muted small">
-              Daily loss {money(cc.trading_capacity.daily_loss_used)} /{" "}
-              {money(cc.trading_capacity.daily_loss_limit)} used
-            </p>
           </div>
-          <LimitBar
-            label="Personal daily loss"
-            limit={data.personal_daily_loss.limit}
-            remaining={data.personal_daily_loss.remaining}
-          />
-          <LimitBar
-            label="Max drawdown room"
-            limit={data.personal_max_dd.limit}
-            remaining={data.personal_max_dd.remaining}
-          />
-          <div className="risk-row">
-            <Badge status={data.risk_status} />
-            <span className="muted small">{data.trades_today} / {data.max_trades_per_day} trades today</span>
-          </div>
-        </div>
-      </section>
-
-      {data.risk_reasons.slice(0, 2).map((r) => (
-        <div key={r} className={`banner ${data.risk_status}`}>
-          {r}
-        </div>
-      ))}
-
-      <div className="mid-grid">
-        <Panel title="Today's story">
-          <p className="story-head">{cc.today_story.headline}</p>
-          {cc.today_story.discipline_avg != null && (
-            <p className="disc-score">
-              Discipline <strong>{cc.today_story.discipline_avg}</strong>/100 today
-            </p>
-          )}
-          <ul className="bullets">
-            {cc.today_story.bullets.map((b, i) => (
-              <li key={i} className={b.tone}>
-                {b.text}
-              </li>
+          {mode === "equity" &&
+            (equityCurve.length >= 2 ? (
+              <EquityCurve curve={equityCurve} currency={currency} height={280} defaultRange="ALL" />
+            ) : (
+              <p className="empty muted">Close more trades to see equity growth.</p>
             ))}
-            {cc.today_story.bullets.length === 0 && cc.today_story.trade_count === 0 && (
-              <li className="muted">Your day replay will appear when you log or sync trades.</li>
+          {mode === "drawdown" &&
+            (ddPoints.length >= 2 ? (
+              <UnderwaterCurve curve={ddPoints} currency={currency} height={280} />
+            ) : (
+              <p className="empty muted">Not enough equity history for drawdown.</p>
+            ))}
+          {mode === "r" &&
+            (rCurve.length >= 2 ? (
+              <EquityCurve
+                curve={rCurve}
+                currency={currency}
+                height={280}
+                metric="cumulative_r"
+                defaultRange="ALL"
+              />
+            ) : (
+              <p className="empty muted">Need closed trades with realized R for this view.</p>
+            ))}
+        </section>
+
+        <aside className="side">
+          <div className="tos-panel recent">
+            <h2 className="tos-panel-title">Recent trades</h2>
+            {recentClosed.length === 0 ? (
+              <p className="muted empty">No closed trades yet.</p>
+            ) : (
+              <table className="blotter">
+                <thead>
+                  <tr>
+                    <th>Symbol</th>
+                    <th>R</th>
+                    <th>Result</th>
+                    <th>Time</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recentClosed.map((t) => (
+                    <tr key={t.id} onClick={() => setSelectedId(t.id)}>
+                      <td>
+                        <strong>{t.symbol}</strong>
+                        <span className="dir muted"> {t.direction}</span>
+                      </td>
+                      <td className={`num ${tone(t.realized_r)}`}>
+                        {t.realized_r != null ? `${signed(t.realized_r)}R` : "—"}
+                      </td>
+                      <td>
+                        <span className={`tos-result ${resultClass(t.result)}`}>{t.result || "—"}</span>
+                      </td>
+                      <td className="muted">{formatWhen(t.exit_timestamp ?? t.trade_timestamp)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             )}
-          </ul>
-        </Panel>
+          </div>
 
-        <Panel title="Today's timeline">
-          {cc.timeline.length === 0 ? (
-            <p className="muted">No activity logged today.</p>
-          ) : (
-            <ol className="timeline">
-              {cc.timeline.map((ev, i) => (
-                <li key={`${ev.trade_id}-${ev.type}-${i}`}>
-                  <Link href={`/trades/${ev.trade_id}`} className="tl-link">
-                    <time>{new Date(ev.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>
-                    <span className="tl-label">{ev.label}</span>
-                    <span className={`tl-detail ${ev.severity}`}>{ev.detail}</span>
-                  </Link>
-                </li>
-              ))}
-            </ol>
-          )}
-        </Panel>
+          <div className="tos-panel capacity">
+            <h2 className="tos-panel-title">Risk budget</h2>
+            <p className="cap-line">
+              <strong>{cc.trading_capacity.full_risk_trades_remaining}</strong> full-risk left today
+            </p>
+            <LimitBar
+              label="Personal daily loss"
+              limit={data.personal_daily_loss.limit}
+              remaining={data.personal_daily_loss.remaining}
+            />
+            <LimitBar
+              label="Max drawdown room"
+              limit={data.personal_max_dd.limit}
+              remaining={data.personal_max_dd.remaining}
+            />
+            {openTrades.length > 0 && (
+              <p className="muted open-n">
+                {openTrades.length} open ·{" "}
+                <Link href="/trades?status=open">View</Link>
+              </p>
+            )}
+          </div>
+        </aside>
       </div>
 
-      <div className="mid-grid">
-        <Panel title="Active positions">
-          {openTrades.length === 0 ? (
-            <p className="muted">No open trades.</p>
-          ) : (
-            <ul className="positions">
-              {openTrades.map((t) => (
-                <li key={t.id}>
-                  <div>
-                    <strong>
-                      {t.symbol} {t.direction.toUpperCase()}
-                    </strong>
-                    <span className="muted small">
-                      {sessionLabel(t.session)} · entry {t.entry_price} · risk {money(t.risk_amount)}
-                    </span>
-                  </div>
-                  <Link href={`/trades/${t.id}`}>View</Link>
-                </li>
-              ))}
-            </ul>
+      {(cc.edge_snapshot || cc.behaviour_watch || cc.insights.length > 0) && (
+        <div className="insight-row">
+          {cc.edge_snapshot && (
+            <ChartCard title="Edge snapshot">
+              <p className="ins-title">{cc.edge_snapshot.label}</p>
+              <p className={`num ${tone(cc.edge_snapshot.expectancy_r)}`}>
+                {signed(cc.edge_snapshot.expectancy_r)}R · n={cc.edge_snapshot.n}
+              </p>
+              <p className="muted">{cc.edge_snapshot.insight}</p>
+            </ChartCard>
           )}
-        </Panel>
+          {cc.behaviour_watch && (
+            <ChartCard title="Behaviour watch">
+              <p className="ins-title">{cc.behaviour_watch.title}</p>
+              <p className="muted">{cc.behaviour_watch.summary}</p>
+            </ChartCard>
+          )}
+          {cc.insights.slice(0, 2).map((ins) => (
+            <ChartCard key={ins.title} title={ins.title}>
+              <p className="muted">{ins.summary}</p>
+            </ChartCard>
+          ))}
+        </div>
+      )}
 
-        <Panel title="Your edge right now">
-          {cc.edge_snapshot ? (
-            <>
-              <p className="edge-label">{cc.edge_snapshot.label}</p>
-              <p className="muted small">{cc.edge_snapshot.kind} · n={cc.edge_snapshot.n}</p>
-              <div className="edge-stats">
-                <span>{cc.edge_snapshot.expectancy_r}R expectancy</span>
-                {cc.edge_snapshot.win_rate && <span>{num(Number(cc.edge_snapshot.win_rate), 1)}% win rate</span>}
+      <Sheet open={selectedId != null} onOpenChange={(open) => !open && setSelectedId(null)}>
+        <SheetContent side="right" className="trade-drawer">
+          <SheetHeader>
+            <SheetTitle>
+              {selected ? `${selected.symbol} ${selected.direction.toUpperCase()}` : "Trade"}
+            </SheetTitle>
+            <SheetDescription>
+              {selected
+                ? `${sessionLabel(selected.session)} · ${selected.timeframe} · ${formatWhen(selected.exit_timestamp ?? selected.trade_timestamp)}`
+                : "Trade detail"}
+            </SheetDescription>
+          </SheetHeader>
+          {selected && (
+            <div className="drawer-body">
+              <div className="meta-grid">
+                <div>
+                  <span className="k">Entry</span>
+                  <span className="num">{selected.entry_price}</span>
+                </div>
+                <div>
+                  <span className="k">SL</span>
+                  <span className="num">{selected.stop_loss}</span>
+                </div>
+                <div>
+                  <span className="k">TP</span>
+                  <span className="num">{selected.take_profit ?? "—"}</span>
+                </div>
+                <div>
+                  <span className="k">Exit</span>
+                  <span className="num">{selected.exit_price ?? "—"}</span>
+                </div>
+                <div>
+                  <span className="k">R</span>
+                  <span className={`num ${tone(selected.realized_r)}`}>
+                    {selected.realized_r != null ? `${signed(selected.realized_r)}R` : "—"}
+                  </span>
+                </div>
+                <div>
+                  <span className="k">Hold</span>
+                  <span>{holdingLabel(selected.holding_time_seconds)}</span>
+                </div>
               </div>
-              <p className="muted small">{cc.edge_snapshot.evidence?.label} evidence — {cc.edge_snapshot.evidence?.reason}</p>
-              <Link href="/analytics?tab=edge" className="link">
-                Explore in Analytics Lab →
-              </Link>
-            </>
-          ) : (
-            <p className="muted">Log more closed trades to surface your strongest session or setup.</p>
-          )}
-        </Panel>
-      </div>
-
-      <div className="mid-grid">
-        <Panel title="Behaviour watch">
-          {cc.behaviour_watch ? (
-            <>
-              <p className="watch-title">{cc.behaviour_watch.title}</p>
-              <p>{cc.behaviour_watch.summary}</p>
-              {cc.behaviour_watch.evidence && (
-                <p className="muted small">
-                  {cc.behaviour_watch.evidence.label} · n={cc.behaviour_watch.evidence.n}
-                </p>
+              {replayLoading && <p className="muted">Loading anatomy…</p>}
+              {replayError && <p className="muted">{replayError}</p>}
+              {replay && (
+                <TradeAnatomy
+                  compact
+                  replay={replay}
+                  fallbacks={{
+                    mfeR: selected.mfe_r,
+                    maeR: selected.mae_r,
+                    mfePrice: selected.mfe_price,
+                    maePrice: selected.mae_price,
+                    mfeAt: selected.mfe_at,
+                    maeAt: selected.mae_at,
+                    realizedR: selected.realized_r,
+                    plannedRr: selected.planned_rr,
+                    holdSeconds: selected.holding_time_seconds,
+                  }}
+                />
               )}
-              <Link href="/intelligence" className="link">
-                View full feed →
+              <Link href={`/trades/${selected.id}`} className="btn ghost full">
+                Open full trade →
               </Link>
-            </>
-          ) : (
-            <p className="muted">No behaviour flags right now. Keep following your process.</p>
+            </div>
           )}
-        </Panel>
-
-        <Panel title="Latest insights">
-          {cc.insights.length === 0 ? (
-            <p className="muted">Insights appear as your journal grows.</p>
-          ) : (
-            <ul className="insights">
-              {cc.insights.map((ins, i) => (
-                <li key={i} className={ins.severity}>
-                  <span className="ins-type">{ins.type}</span>
-                  <strong>{ins.title}</strong>
-                  <p className="muted small">{ins.summary}</p>
-                  {ins.evidence && (
-                    <p className="evidence">
-                      Why: {ins.evidence.reason} (n={ins.evidence.n}, {ins.evidence.label})
-                    </p>
-                  )}
-                  <Link href="/intelligence" className="link small">
-                    View evidence →
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Panel>
-      </div>
-
-      <div className="kpi-strip">
-        <div>
-          <span className="kicker">Win rate</span>
-          <span className="num">{data.win_rate ? `${num(data.win_rate, 1)}%` : "—"}</span>
-        </div>
-        <div>
-          <span className="kicker">Expectancy</span>
-          <span className="num">{data.expectancy_r ? `${num(data.expectancy_r)}R` : "—"}</span>
-        </div>
-        <div>
-          <span className="kicker">Profit factor</span>
-          <span className="num">{data.profit_factor ? num(data.profit_factor) : "—"}</span>
-        </div>
-        <div>
-          <span className="kicker">Discipline</span>
-          <span className="num">{data.discipline_score ?? "—"}</span>
-        </div>
-        <div>
-          <span className="kicker">Trades</span>
-          <span className="num">{data.n_trades}</span>
-        </div>
-      </div>
+        </SheetContent>
+      </Sheet>
 
       <style jsx>{`
         .cc {
-          display: flex;
-          flex-direction: column;
-          gap: 16px;
-        }
-        .hero-grid {
           display: grid;
-          grid-template-columns: 1.4fr 1fr;
           gap: 16px;
         }
-        .hero-main,
-        .hero-side {
-          border: 1px solid var(--line);
-          border-radius: 10px;
-          padding: 18px 20px;
-          background: var(--surface);
-        }
-        .hero-top {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 8px;
-        }
-        .kicker {
-          font-size: 11px;
-          letter-spacing: 0.1em;
-          text-transform: uppercase;
-          color: var(--muted);
-        }
-        .status-pill {
-          font-family: var(--font-mono), monospace;
-          font-size: 11px;
-          font-weight: 700;
-          letter-spacing: 0.08em;
-          padding: 4px 8px;
-          border-radius: 4px;
-          border: 1px solid var(--line-strong);
-        }
-        .status-pill.stable {
-          color: var(--accent);
-          border-color: var(--accent);
-        }
-        .status-pill.caution {
-          color: var(--warning);
-          border-color: var(--warning);
-        }
-        .status-pill.halt {
-          color: var(--danger);
-          border-color: var(--danger);
-        }
-        .hero-equity {
-          font-size: 42px;
-          font-weight: 700;
-          line-height: 1.1;
-          margin: 4px 0;
-        }
-        .hero-sub {
-          margin: 0 0 12px;
-          font-size: 14px;
-        }
-        .hero-metrics {
+        .toolbar {
           display: flex;
           flex-wrap: wrap;
-          gap: 14px;
-          margin-bottom: 14px;
-          font-size: 15px;
-        }
-        .capacity-block {
-          margin-bottom: 14px;
-        }
-        .capacity-line {
-          margin: 6px 0 2px;
-          font-size: 18px;
-        }
-        .capacity-bar {
-          height: 6px;
-          background: var(--surface-2);
-          border-radius: 3px;
-          margin: 10px 0 6px;
-          overflow: hidden;
-        }
-        .fill {
-          height: 100%;
-          background: var(--accent);
-          border-radius: 3px;
-        }
-        .small {
-          font-size: 13px;
-        }
-        .risk-row {
-          display: flex;
           align-items: center;
+          justify-content: space-between;
           gap: 10px;
-          margin-top: 10px;
         }
-        .banner {
-          padding: 10px 14px;
-          border-radius: 8px;
-          font-size: 14px;
-          border: 1px solid var(--line);
-        }
-        .banner.red {
-          border-color: var(--danger);
-          background: color-mix(in srgb, var(--danger) 10%, transparent);
-        }
-        .banner.yellow {
-          border-color: var(--warning);
-          background: color-mix(in srgb, var(--warning) 10%, transparent);
-        }
-        .mid-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 16px;
-        }
-        .story-head {
-          font-size: 17px;
-          font-weight: 600;
-          margin: 0 0 8px;
-        }
-        .disc-score {
-          margin: 0 0 10px;
-        }
-        .bullets {
+        .sample {
           margin: 0;
-          padding-left: 1.2rem;
-          line-height: 1.6;
-        }
-        .bullets .positive {
-          color: var(--accent);
-        }
-        .bullets .warn {
-          color: var(--warning);
-        }
-        .timeline {
-          list-style: none;
-          margin: 0;
-          padding: 0;
-          border-left: 2px solid var(--line);
-        }
-        .timeline li {
-          margin-left: 12px;
-          padding: 0 0 12px 12px;
-          position: relative;
-        }
-        .timeline li::before {
-          content: "";
-          position: absolute;
-          left: -17px;
-          top: 6px;
-          width: 8px;
-          height: 8px;
-          border-radius: 50%;
-          background: var(--accent);
-        }
-        .tl-link {
-          display: grid;
-          gap: 2px;
-          color: inherit;
-          text-decoration: none;
-        }
-        .tl-link:hover .tl-label {
-          color: var(--accent);
-        }
-        time {
           font-size: 12px;
-          color: var(--muted);
-          font-family: var(--font-mono), monospace;
         }
-        .tl-detail.warn {
-          color: var(--warning);
+        .main-grid {
+          display: grid;
+          grid-template-columns: minmax(0, 1.7fr) minmax(280px, 0.9fr);
+          gap: 14px;
+          align-items: start;
         }
-        .tl-detail.success {
-          color: var(--accent);
-        }
-        .positions {
-          list-style: none;
-          margin: 0;
-          padding: 0;
-        }
-        .positions li {
+        .hero-head {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          padding: 8px 0;
-          border-bottom: 1px solid var(--line);
+          gap: 12px;
+          margin-bottom: 10px;
+          flex-wrap: wrap;
         }
-        .positions li:last-child {
-          border-bottom: 0;
+        .mode-tabs {
+          display: inline-flex;
+          gap: 4px;
+          padding: 3px;
+          border-radius: 999px;
+          background: var(--surface-2);
+          border: 1px solid var(--border);
         }
-        .edge-label {
-          font-size: 20px;
-          font-weight: 700;
-          margin: 0;
+        .mode-tabs button {
+          border: 0;
+          background: transparent;
+          color: var(--text-muted);
+          padding: 5px 11px;
+          border-radius: 999px;
+          font-size: 12px;
+          font-weight: 600;
         }
-        .edge-stats {
-          display: flex;
-          gap: 16px;
-          margin: 10px 0;
-          font-family: var(--font-mono), monospace;
-        }
-        .link {
-          display: inline-block;
-          margin-top: 8px;
+        .mode-tabs button.active {
+          background: var(--accent-soft);
           color: var(--accent);
+        }
+        .side {
+          display: grid;
+          gap: 14px;
+          min-width: 0;
+        }
+        .dir {
+          font-size: 11px;
+          text-transform: uppercase;
+        }
+        .cap-line {
+          margin: 0 0 10px;
+          font-size: 13px;
+        }
+        .open-n {
+          margin: 10px 0 0;
+          font-size: 12px;
+        }
+        .empty {
+          margin: 12px 0 0;
+          font-size: 13px;
+        }
+        .insight-row {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+          gap: 12px;
+        }
+        .ins-title {
+          margin: 0 0 6px;
+          font-weight: 600;
           font-size: 14px;
         }
-        .watch-title {
-          font-weight: 600;
-          margin: 0 0 6px;
-        }
-        .insights {
-          list-style: none;
-          margin: 0;
-          padding: 0;
+        .drawer-body {
           display: grid;
-          gap: 12px;
+          gap: 14px;
+          padding: 0 4px 16px;
+          overflow: auto;
         }
-        .ins-type {
+        .meta-grid {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 10px;
+        }
+        .meta-grid .k {
+          display: block;
           font-size: 10px;
-          letter-spacing: 0.08em;
-          color: var(--muted);
-          display: block;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          color: var(--text-muted);
+          margin-bottom: 2px;
         }
-        .evidence {
-          font-size: 12px;
-          color: var(--muted);
-          margin: 4px 0 0;
+        .full {
+          display: inline-flex;
+          justify-content: center;
+          width: 100%;
         }
-        .kpi-strip {
-          display: grid;
-          grid-template-columns: repeat(5, 1fr);
-          gap: 12px;
-          padding: 14px 0;
-          border-top: 1px solid var(--line);
+        :global(.trade-drawer) {
+          width: min(440px, 100vw);
+          background: var(--surface);
+          border-left: 1px solid var(--border);
+          overflow-y: auto;
         }
-        .kpi-strip .num {
-          display: block;
-          font-size: 20px;
-          font-weight: 700;
-          margin-top: 4px;
-        }
-        @media (max-width: 900px) {
-          .hero-grid,
-          .mid-grid,
-          .kpi-strip {
+        @media (max-width: 980px) {
+          .main-grid {
             grid-template-columns: 1fr;
-          }
-          .kpi-strip {
-            grid-template-columns: 1fr 1fr;
           }
         }
       `}</style>

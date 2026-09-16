@@ -232,6 +232,16 @@ export function TradeAnatomy({
         )}
       </div>
 
+      {model.story && (
+        <aside className={`story ${model.story.direction}`} aria-label="Trade story">
+          <p className="story-lead">{model.story.soWhat || model.story.what}</p>
+          {model.story.what && model.story.soWhat ? (
+            <p className="story-detail muted">{model.story.what}</p>
+          ) : null}
+          {model.story.warning ? <p className="story-warn">{model.story.warning}</p> : null}
+        </aside>
+      )}
+
       <style jsx>{`
         .trade-anatomy {
           display: grid;
@@ -299,6 +309,34 @@ export function TradeAnatomy({
           letter-spacing: 0.04em;
           text-transform: uppercase;
           color: var(--accent);
+        }
+        .story {
+          padding: 12px 14px;
+          border: 1px solid var(--border);
+          border-radius: var(--radius);
+          background: color-mix(in srgb, var(--surface-2) 55%, var(--surface));
+        }
+        .story.positive {
+          border-left: 3px solid var(--pos);
+        }
+        .story.negative {
+          border-left: 3px solid var(--neg);
+        }
+        .story-lead {
+          margin: 0;
+          font-size: 13px;
+          line-height: 1.45;
+          color: var(--text-primary);
+        }
+        .story-detail {
+          margin: 6px 0 0;
+          font-size: 12px;
+          line-height: 1.4;
+        }
+        .story-warn {
+          margin: 8px 0 0;
+          font-size: 12px;
+          color: var(--warning);
         }
         @media (max-width: 720px) {
           .metrics {

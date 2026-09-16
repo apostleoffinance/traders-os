@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Panel, Stat, KpiGrid } from "@/components/ui";
 import { Empty, useLiveChart } from "@/components/analytics/Charts";
 import { ChartCard } from "@/components/analytics/primitives/ChartCard";
+import { MetricCard } from "@/components/trader/MetricCard";
 import { InteractiveChart } from "@/components/analytics/primitives/InteractiveChart";
 import { UnderwaterCurve } from "@/components/visualizations/risk/UnderwaterCurve";
 import { RollingExpectancy } from "@/components/visualizations/quant/RollingExpectancy";
@@ -89,47 +90,37 @@ export function QuantOverviewPanel({ data }: { data: QuantLabPayload }) {
   }
 
   const mc = monteCarloLabel(es.monte_carlo_status);
-  const evidenceLevel = ov.sample_policy.evidence_level as keyof typeof EVIDENCE_SHORT_LABELS;
+  const pf = data.edge.payoff.payoff_ratio_r;
+  const wr = exp.win_rate;
 
   return (
-    <Panel title="Edge overview" right={<EvidenceBadge sample={ov.sample_policy} />}>
-      <KpiGrid>
-        <Stat
-          label="Observed expectancy"
+    <div className="qos">
+      <div className="tos-kpi-grid">
+        <MetricCard label="Total trades" value={String(n)} hint={EVIDENCE_SHORT_LABELS[ov.sample_policy.evidence_level as keyof typeof EVIDENCE_SHORT_LABELS] ?? "Sample"} />
+        <MetricCard
+          label="Win rate"
+          value={wr != null ? `${num(wr, 1)}%` : "—"}
+          tone={wr != null && Number(wr) >= 50 ? "pos" : wr != null ? "neg" : ""}
+        />
+        <MetricCard
+          label="Payoff ratio"
+          value={pf != null ? num(pf) : "—"}
+          tone={pf != null && Number(pf) >= 1 ? "pos" : pf != null ? "neg" : ""}
+          hint="Avg win ÷ avg loss (R)"
+        />
+        <MetricCard
+          label="Expectancy"
           value={es.observed_expectancy_r ? `${signed(es.observed_expectancy_r)}R` : exp.expectancy_currency ?? "—"}
           tone={tone(es.observed_expectancy_r ?? exp.expectancy_currency ?? "0")}
-          hint="OBSERVED"
+          hint={`Monte Carlo ${mc.value}`}
         />
-        <Stat
-          label="Recent expectancy"
-          value={es.recent_expectancy_r ? `${signed(es.recent_expectancy_r)}R` : "—"}
-          tone={tone(es.recent_expectancy_r ?? "0")}
-          hint="Last 30 trades"
-        />
-        <Stat label="Sample size" value={String(n)} size="compact" hint={`${n} trade${n === 1 ? "" : "s"}`} />
-        <Stat
-          label="Evidence level"
-          size="label"
-          value={EVIDENCE_SHORT_LABELS[evidenceLevel] ?? evidenceLevel}
-          hint={EVIDENCE_LABELS[evidenceLevel]}
-        />
-        <Stat label="Max drawdown" value={es.max_drawdown_r ? `${num(es.max_drawdown_r)}R` : es.max_drawdown_currency ?? "—"} tone="neg" />
-        <Stat
-          label="Outlier dependency"
-          value={es.outlier_dependency_pct ? `${num(es.outlier_dependency_pct, 1)}%` : "—"}
-          hint={es.outlier_dependency_level ?? undefined}
-        />
-        <Stat label="Monte Carlo" size="label" value={mc.value} hint={mc.hint} />
-      </KpiGrid>
-      <p className="muted">{ov.sample_policy.message}</p>
+      </div>
       <style jsx>{`
-        .muted {
-          margin-top: 12px;
-          font-size: 13px;
-          color: var(--muted);
+        .qos {
+          margin-bottom: 4px;
         }
       `}</style>
-    </Panel>
+    </div>
   );
 }
 

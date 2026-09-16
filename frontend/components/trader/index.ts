@@ -1,6 +1,7 @@
 export { MetricCard } from "./MetricCard";
 export { ChartCard } from "./ChartCard";
 export { InsightCard, InsightLayer } from "./InsightCard";
+export { PeriodStrip } from "./PeriodStrip";
 export { RankList, sortEdgeRows, type RankListRow } from "./RankList";
 export { RiskBudget, RiskBudgetPanel } from "./RiskBudget";
 export { InvestigationQueue, InvestigationCard } from "./InvestigationQueue";
