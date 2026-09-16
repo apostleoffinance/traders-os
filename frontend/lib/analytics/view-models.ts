@@ -91,7 +91,7 @@ export function getInstrumentPerformance(data: AnalyticsDashboard): GroupPerform
       profitFactor: toNum(r.profit_factor),
       expectancy: toNum(r.expectancy_r),
       averageR: toNum(r.average_r),
-    })) ?? data.setups.map((r) => mapGroupRow(r));
+    })) ?? [];
 
   return rows.filter((r) => r.trades > 0).sort((a, b) => (b.expectancy ?? -Infinity) - (a.expectancy ?? -Infinity));
 }

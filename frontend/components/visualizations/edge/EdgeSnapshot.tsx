@@ -1,17 +1,17 @@
 "use client";
 
 import { useMemo } from "react";
-import { RankList, type RankListRow } from "@/components/trader";
 import { useOptionalAnalyticsDrilldown } from "@/components/analytics/AnalyticsDrilldownContext";
 import type { AnalyticsDashboard } from "@/lib/analytics";
 import {
   getInstrumentPerformance,
   getSessionPerformance,
   getSetupPerformance,
+  type GroupPerformanceRow,
 } from "@/lib/analytics/view-models";
-import { sessionLabel } from "@/lib/format";
+import { EdgeCategoryPanel } from "./EdgeCategoryPanel";
 
-/** Overview edge ranks — top 3 only (full boards live in Edge Explorer). */
+/** Overview Edge Snapshot — instruments / setups / sessions as one decision surface. */
 export function EdgeSnapshot({ data }: { data: AnalyticsDashboard }) {
   const drill = useOptionalAnalyticsDrilldown();
   const setupIdForName = (name: string) => data.filters.options?.setups.find((s) => s.name === name)?.id;
@@ -20,104 +20,106 @@ export function EdgeSnapshot({ data }: { data: AnalyticsDashboard }) {
   const setups = useMemo(() => getSetupPerformance(data), [data]);
   const sessions = useMemo(() => getSessionPerformance(data), [data]);
 
-  const instrumentRows: RankListRow[] = useMemo(
-    () =>
-      [...instruments]
-        .sort((a, b) => (b.expectancy ?? -Infinity) - (a.expectancy ?? -Infinity))
-        .map((r) => ({
-          key: r.key,
-          label: r.label,
-          expectancy: r.expectancy,
-          winRate: r.winRate,
-          trades: r.trades,
-          netPnl: r.netPnl,
-        })),
-    [instruments],
-  );
+  function selectInstrument(row: GroupPerformanceRow) {
+    if (!drill) return;
+    drill.applyPatch({ symbol: row.key }, row.label);
+    drill.openTrades(`Instruments: ${row.label}`);
+  }
 
-  const setupRows: RankListRow[] = useMemo(
-    () =>
-      [...setups]
-        .sort((a, b) => (b.expectancy ?? -Infinity) - (a.expectancy ?? -Infinity))
-        .map((r) => ({
-          key: r.key,
-          label: r.label,
-          expectancy: r.expectancy,
-          winRate: r.winRate,
-          trades: r.trades,
-          netPnl: r.netPnl,
-        })),
-    [setups],
-  );
+  function selectSetup(row: GroupPerformanceRow) {
+    if (!drill) return;
+    const id = setupIdForName(row.key);
+    if (id) drill.applyPatch({ setup_id: id }, row.label);
+    drill.openTrades(`Setups: ${row.label}`);
+  }
 
-  const sessionRows: RankListRow[] = useMemo(
-    () =>
-      [...sessions]
-        .sort((a, b) => (b.expectancy ?? -Infinity) - (a.expectancy ?? -Infinity))
-        .map((r) => ({
-          key: r.key,
-          label: sessionLabel(r.key),
-          expectancy: r.expectancy,
-          winRate: r.winRate,
-          trades: r.trades,
-          netPnl: r.netPnl,
-        })),
-    [sessions],
-  );
+  function selectSession(row: GroupPerformanceRow) {
+    if (!drill) return;
+    drill.applyPatch({ session: row.key }, row.label);
+    drill.openTrades(`Sessions: ${row.label}`);
+  }
 
   return (
-    <section className="section">
+    <section className="edge-snap" aria-labelledby="edge-snap-title">
+      <header className="intro">
+        <h2 id="edge-snap-title" className="title">
+          Edge Snapshot
+        </h2>
+        <p className="lede">Where your trading is currently performing best.</p>
+      </header>
+
       <div className="grid">
-        <RankList
+        <EdgeCategoryPanel
           title="Instruments"
-          variant="card"
-          rows={instrumentRows}
-          onSelect={
-            drill
-              ? (row) => {
-                  drill.applyPatch({ symbol: row.key }, row.label);
-                  drill.openTrades(`Instruments: ${row.label}`);
-                }
-              : undefined
-          }
+          subtitle="Most traded instruments"
+          entitySingular="instrument"
+          entityPlural="instruments"
+          rows={instruments}
+          mode="share"
+          emptyHint="No instrument data yet. Close trades with a symbol to see which markets are working."
+          onSelect={drill ? selectInstrument : undefined}
         />
-        <RankList
+        <EdgeCategoryPanel
           title="Setups"
-          variant="card"
-          rows={setupRows}
-          onSelect={
-            drill
-              ? (row) => {
-                  const id = setupIdForName(row.key);
-                  if (id) drill.applyPatch({ setup_id: id }, row.label);
-                  drill.openTrades(`Setups: ${row.label}`);
-                }
-              : undefined
-          }
+          subtitle="Your setup performance"
+          entitySingular="setup"
+          entityPlural="setups"
+          rows={setups}
+          mode="expectancy"
+          emptyHint="No setup data yet. Tag trades with a setup to see which conditions are working best."
+          onSelect={drill ? selectSetup : undefined}
         />
-        <RankList
+        <EdgeCategoryPanel
           title="Sessions"
-          variant="card"
-          rows={sessionRows}
-          onSelect={
-            drill
-              ? (row) => {
-                  drill.applyPatch({ session: row.key }, row.label);
-                  drill.openTrades(`Sessions: ${row.label}`);
-                }
-              : undefined
-          }
+          subtitle="Performance by trading session"
+          entitySingular="session"
+          entityPlural="sessions"
+          rows={sessions}
+          mode="expectancy"
+          emptyHint="No session data yet. Session tags appear once closed trades include session metadata."
+          onSelect={drill ? selectSession : undefined}
         />
       </div>
+
       <style jsx>{`
-        .section {
-          margin-bottom: 8px;
+        .edge-snap {
+          display: grid;
+          gap: 12px;
+          min-width: 0;
+        }
+        .intro {
+          display: grid;
+          gap: 2px;
+        }
+        .title {
+          margin: 0;
+          font-size: 15px;
+          font-weight: 700;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+          color: var(--text-secondary);
+        }
+        .lede {
+          margin: 0;
+          font-size: 13px;
+          color: var(--text-muted);
+          max-width: 48ch;
         }
         .grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+          grid-template-columns: repeat(3, minmax(0, 1fr));
           gap: 10px;
           align-items: start;
+        }
+        @media (max-width: 1100px) {
+          .grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+        }
+        @media (max-width: 720px) {
+          .grid {
+            grid-template-columns: 1fr;
+          }
         }
       `}</style>
     </section>

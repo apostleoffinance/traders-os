@@ -50,7 +50,7 @@ export function RankList({
             <button type="button" className="row" onClick={() => onSelect?.(row)} disabled={!onSelect}>
               <span className="pos">{i + 1}</span>
               <span className="label">{row.label}</span>
-              <span className={`exp ${(row.expectancy ?? 0) >= 0 ? "pos" : "neg"}`}>
+              <span className={`exp ${(row.expectancy ?? 0) > 0 ? "pos" : (row.expectancy ?? 0) < 0 ? "neg" : ""}`}>
                 {row.expectancy != null ? formatR(row.expectancy) : "—"}
               </span>
               <span className="meta">
