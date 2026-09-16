@@ -97,8 +97,7 @@ export function SessionSetupPsych({ data }: { data: AnalyticsDashboard }) {
           display: grid;
           grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
           gap: 10px;
-          align-items: stretch;
-          grid-auto-rows: 1fr;
+          align-items: start;
         }
       `}</style>
     </div>
@@ -316,6 +315,7 @@ export function Scatters({
           display: grid;
           grid-template-columns: 1fr 1fr;
           gap: 14px;
+          align-items: start;
         }
         @media (max-width: 900px) {
           .two {
@@ -463,6 +463,7 @@ export function MonthlyRolling({ data }: { data: AnalyticsDashboard }) {
           display: grid;
           grid-template-columns: 1fr 1fr;
           gap: 14px;
+          align-items: start;
         }
         @media (max-width: 900px) {
           .two {
@@ -516,12 +517,14 @@ export function StreaksConsistency({ data }: { data: AnalyticsDashboard }) {
           display: grid;
           grid-template-columns: 1fr 1fr;
           gap: 14px;
+          align-items: start;
         }
         .kpis {
           display: grid;
           grid-template-columns: 1fr 1fr;
           gap: 10px;
           margin-bottom: 10px;
+          align-items: start;
         }
         @media (max-width: 900px) {
           .two {
@@ -605,6 +608,7 @@ export function RiskAndObservations({ data }: { data: AnalyticsDashboard }) {
           display: grid;
           grid-template-columns: 1fr 1fr;
           gap: 14px;
+          align-items: start;
         }
         ul {
           list-style: none;

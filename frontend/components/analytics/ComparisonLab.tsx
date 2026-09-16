@@ -256,6 +256,7 @@ export function ComparisonLab({ accountId, data }: { accountId: string; data: An
           grid-template-columns: 1fr 1fr;
           gap: 24px;
           margin-bottom: 16px;
+          align-items: start;
         }
         .compare-btn {
           margin-bottom: 14px;

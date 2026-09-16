@@ -49,7 +49,7 @@ export function PerformanceLab({
   );
 
   return (
-    <>
+    <div className="lab">
       <Panel title="KPI scorecard" right={<EvidenceTag label={lab.performance.evidence.label} n={n} />}>
         {n === 0 ? (
           <Empty>{wl.sample_note ?? "No closed trades match the selected filters."}</Empty>
@@ -106,6 +106,13 @@ export function PerformanceLab({
       {n > 0 && <RankedTradesPanel bt={bt} currency={currency} timezone={lab.metadata.timezone} />}
 
       <style jsx>{`
+        .lab {
+          display: grid;
+          gap: 10px;
+        }
+        .lab :global(section) {
+          margin-bottom: 0;
+        }
         .hero-kpis {
           display: grid;
           grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
@@ -122,7 +129,7 @@ export function PerformanceLab({
           font-size: 13px;
         }
       `}</style>
-    </>
+    </div>
   );
 }
 
@@ -674,6 +681,7 @@ function RankedTradesPanel({
           display: grid;
           grid-template-columns: 1fr 1fr;
           gap: 14px;
+          align-items: start;
         }
         @media (max-width: 900px) {
           .ranked-pair {

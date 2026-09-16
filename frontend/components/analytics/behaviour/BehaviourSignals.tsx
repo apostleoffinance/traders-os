@@ -120,8 +120,7 @@ export function BehaviourSignals({
           display: grid;
           grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
           gap: 10px;
-          align-items: stretch;
-          grid-auto-rows: 1fr;
+          align-items: start;
         }
         .mini {
           display: grid;

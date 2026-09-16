@@ -34,7 +34,7 @@ export function CalendarTab({ data }: { data: AnalyticsDashboard }) {
             .cal-grid {
               display: grid;
               grid-template-columns: minmax(0, 1.7fr) minmax(260px, 0.9fr);
-              gap: 14px;
+              gap: 10px;
               align-items: start;
             }
             .cal-main {

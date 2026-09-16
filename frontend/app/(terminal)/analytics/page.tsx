@@ -231,7 +231,7 @@ function AnalyticsLab() {
         }
         .stack {
           display: grid;
-          gap: 14px;
+          gap: 10px;
         }
         .ai {
           display: grid;

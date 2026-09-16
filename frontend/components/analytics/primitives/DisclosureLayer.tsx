@@ -28,7 +28,9 @@ export function DisclosureLayer({
       {children}
       <style jsx>{`
         section {
-          margin: 0 0 12px;
+          display: grid;
+          gap: 10px;
+          margin: 0 0 10px;
           min-width: 0;
         }
       `}</style>

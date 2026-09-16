@@ -72,7 +72,12 @@ export function DeepDiveSection({
           overflow: hidden;
         }
         .inner {
+          display: grid;
+          gap: 10px;
           padding: 4px 0 8px;
+        }
+        .inner :global(section) {
+          margin-bottom: 0;
         }
         .inner :global(.chart-card:last-child) {
           margin-bottom: 0;

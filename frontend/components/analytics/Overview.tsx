@@ -37,7 +37,7 @@ export function AnalyticsOverview({
       <style jsx>{`
         .overview {
           display: grid;
-          gap: 12px;
+          gap: 10px;
         }
       `}</style>
     </div>

@@ -147,6 +147,7 @@ export function OverviewBestTrades({ data }: { data: AnalyticsDashboard }) {
           display: grid;
           grid-template-columns: 1fr 1fr;
           gap: 14px;
+          align-items: start;
         }
         @media (max-width: 900px) {
           .pair {

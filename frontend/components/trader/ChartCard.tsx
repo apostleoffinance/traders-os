@@ -8,6 +8,7 @@ import type { AnalyticsInsight, AnalyticsTier } from "@/lib/analytics/types";
 /**
  * Chart-first panel — title + optional sample tag + children.
  * Subtitles, questions, insights, and drill hints are accepted but not rendered.
+ * Content-sized by default so short charts do not leave dead space under the plot.
  */
 export function ChartCard({
   title,
@@ -50,22 +51,15 @@ export function ChartCard({
       </Panel>
       <style jsx>{`
         .chart-card {
-          display: flex;
-          height: 100%;
+          display: block;
+          width: 100%;
           min-width: 0;
           max-width: 100%;
           overflow-x: hidden;
         }
         .chart-card :global(.chart-panel) {
-          display: flex;
-          flex: 1 1 auto;
-          flex-direction: column;
           width: 100%;
-          height: 100%;
           margin-bottom: 0;
-        }
-        .chart-card :global(.chart-panel) > :last-child {
-          flex: 1 1 auto;
         }
         .chart-card :global(.kpi-grid) {
           margin-bottom: 4px;
