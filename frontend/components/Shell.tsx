@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState, type ComponentType } from "react";
 import {
-  Activity,
   BrainCircuit,
   Calculator,
   CalendarDays,
@@ -12,7 +11,6 @@ import {
   FileText,
   FlaskConical,
   CandlestickChart,
-  Crosshair,
   History,
   LayoutDashboard,
   ChevronLeft,
@@ -20,8 +18,6 @@ import {
   PlusCircle,
   Settings,
   ShieldAlert,
-  Target,
-  TrendingUp,
   WalletCards,
   type LucideProps,
 } from "lucide-react";
@@ -61,11 +57,7 @@ const NAV: NavItem[] = [
   { href: "/trades", label: "Trade Journal", icon: History, group: "trading", match: "prefix" },
   { href: "/trades/new", label: "New trade", icon: PlusCircle, group: "trading", match: "exact" },
   { href: "/calculator", label: "Calculator", icon: Calculator, group: "trading", match: "exact" },
-  { href: "/analytics", label: "Analytics", icon: ChartNoAxesCombined, group: "labs", match: "exact" },
-  { href: "/analytics?tab=performance", label: "Performance", icon: TrendingUp, group: "labs", match: "analytics-tab", tab: "performance" },
-  { href: "/analytics?tab=edge", label: "Edge Lab", icon: Target, group: "labs", match: "analytics-tab", tab: "edge" },
-  { href: "/analytics?tab=behaviour", label: "Behaviour Lab", icon: Activity, group: "labs", match: "analytics-tab", tab: "behaviour" },
-  { href: "/analytics?tab=execution", label: "Execution Lab", icon: Crosshair, group: "labs", match: "analytics-tab", tab: "execution" },
+  { href: "/analytics", label: "Analytics", icon: ChartNoAxesCombined, group: "labs", match: "prefix" },
   { href: "/analytics?tab=calendar", label: "Calendar", icon: CalendarDays, group: "labs", match: "analytics-tab", tab: "calendar" },
   { href: "/intelligence", label: "Intelligence", icon: BrainCircuit, group: "labs", match: "prefix" },
   { href: "/quant-lab", label: "Quant Lab", icon: FlaskConical, group: "labs", match: "prefix" },
@@ -83,10 +75,11 @@ function navActive(item: NavItem, pathname: string, search: string): boolean {
   if (item.match === "analytics-tab") {
     return pathname === "/analytics" && tab === item.tab;
   }
-  if (item.href === "/analytics" || item.match === "exact") {
-    if (item.href === "/analytics") {
-      return pathname === "/analytics" && (!tab || tab === "overview");
-    }
+  // Analytics is active for all analytics tabs except Calendar (separate nav item).
+  if (item.href === "/analytics") {
+    return pathname === "/analytics" && tab !== "calendar";
+  }
+  if (item.match === "exact") {
     if (item.href === "/trades") {
       return pathname === "/trades" || (pathname.startsWith("/trades/") && !pathname.startsWith("/trades/new"));
     }
