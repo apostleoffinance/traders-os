@@ -9,7 +9,7 @@ export function breakpointFromWidth(width: number): Breakpoint {
 /** Default chart heights by surface density. */
 export function chartHeight(kind: "hero" | "standard" | "compact" | "spark", bp: Breakpoint = "desktop"): number {
   if (kind === "spark") return 28;
-  if (kind === "compact") return bp === "mobile" ? 160 : 180;
+  if (kind === "compact") return bp === "mobile" ? 200 : bp === "tablet" ? 220 : 232;
   if (kind === "hero") return bp === "mobile" ? 240 : bp === "tablet" ? 280 : 320;
   return bp === "mobile" ? 200 : 260;
 }

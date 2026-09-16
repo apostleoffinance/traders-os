@@ -380,7 +380,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
         .brand-block {
           display: flex;
           flex-direction: column;
-          margin-bottom: 18px;
+          margin-bottom: 20px;
           width: 100%;
         }
         .brand-block-collapsed {
@@ -439,7 +439,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           width: 100%;
         }
         .nav-kicker {
-          margin: 4px 0 6px;
+          margin: 0 0 6px;
           padding: 0 12px;
           font-size: 11px;
           font-weight: 600;

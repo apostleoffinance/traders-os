@@ -3,6 +3,7 @@ from __future__ import annotations
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.ai.context import build_account_analytics_context, period_preview
@@ -15,6 +16,22 @@ from app.services import auth_service
 
 router = APIRouter(prefix="/ai", tags=["intelligence"])
 
+
+class FindingExplanationBody(BaseModel):
+    """Structured finding evidence — quantitative fields are authoritative."""
+
+    finding_id: str = Field(min_length=1, max_length=200)
+    title: str = Field(min_length=1, max_length=400)
+    summary: str = Field(default="", max_length=2000)
+    domain: str = Field(default="general", max_length=64)
+    severity: str = Field(default="INFO", max_length=32)
+    confidence: str = Field(min_length=1, max_length=80)
+    sample_size: int = Field(ge=0, le=1_000_000)
+    fact_lines: list[str] = Field(default_factory=list, max_length=40)
+    why_it_matters: str = Field(default="", max_length=2000)
+    why_surfaced: str = Field(default="", max_length=2000)
+    investigation_hint: str = Field(default="", max_length=400)
+    period_label: str | None = Field(default=None, max_length=80)
 
 def _user(db: Session, user_id: UUID):
     return auth_service.get_user(db, user_id)
@@ -208,6 +225,27 @@ def coach(
     user_id=Depends(get_current_user_id),
 ):
     return _run(ai_services.coach, db, user_id, account_id=account_id, force=force)
+
+
+@router.post("/accounts/{account_id}/finding-explanation")
+def finding_explanation(
+    account_id: UUID,
+    body: FindingExplanationBody,
+    force: bool = Query(False),
+    db: Session = Depends(get_db),
+    user_id=Depends(get_current_user_id),
+):
+    """Explain a deterministic Intelligence finding. Numbers in the body are authoritative."""
+    finding = body.model_dump()
+    finding["fact_lines"] = [line[:500] for line in finding.get("fact_lines") or []][:40]
+    return _run(
+        ai_services.finding_explanation,
+        db,
+        user_id,
+        account_id=account_id,
+        finding=finding,
+        force=force,
+    )
 
 
 @router.post("/accounts/{account_id}/quant-research")

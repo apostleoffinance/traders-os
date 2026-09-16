@@ -41,12 +41,11 @@ function rangeStartMs(preset: EquityRangePreset, latestMs: number): number | nul
 }
 
 function sliceByRange(curve: DdPt[], preset: EquityRangePreset): DdPt[] {
-  if (curve.length < 2 || preset === "ALL") return curve;
+  if (curve.length === 0 || preset === "ALL") return curve;
   const latest = parseMs(curve[curve.length - 1].at);
   const start = rangeStartMs(preset, latest);
   if (start == null) return curve;
-  const filtered = curve.filter((p) => parseMs(p.at) >= start);
-  return filtered.length >= 2 ? filtered : curve.slice(-2);
+  return curve.filter((p) => parseMs(p.at) >= start);
 }
 
 /** uPlot underwater / drawdown depth curve for Risk tab. */
@@ -258,7 +257,7 @@ export function UnderwaterCurve({
         }
         .plot {
           width: 100%;
-          min-height: 180px;
+          min-height: 0;
         }
         .plot :global(.uplot) {
           margin: 0;

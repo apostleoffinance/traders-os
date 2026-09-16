@@ -4,8 +4,15 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import type { Dashboard, Trade } from "@/lib/types";
-import type { EquityPt } from "@/lib/analytics";
 import type { TradeReplay } from "@/lib/trade-replay";
+import { useGlobalFilters } from "@/lib/filters";
+import { homeConfidenceLine } from "@/lib/command-center/copy";
+import { periodLabelShort } from "@/lib/command-center/period";
+import {
+  buildEquityFromTrades,
+  buildRCurveFromTrades,
+  closedTradesInPeriod,
+} from "@/lib/command-center/equity";
 import { MetricCard, PeriodStrip, ChartCard } from "@/components/trader";
 import { MiniSparkline } from "@/components/analytics/primitives/MiniSparkline";
 import { EquityCurve } from "@/components/visualizations/performance/EquityCurve";
@@ -22,51 +29,8 @@ type Props = {
 
 type EquityMode = "equity" | "drawdown" | "r";
 
-function sparkValues(series: { balance: string }[]): number[] {
-  return series.map((p) => Number(p.balance)).filter((n) => Number.isFinite(n));
-}
-
-/** Map dashboard equity series → EquityCurve points (deterministic peak/DD). */
-function mapEquitySeries(series: Dashboard["equity_series"]): EquityPt[] {
-  let peak = 0;
-  return series.map((p) => {
-    const equity = Number(p.balance);
-    peak = Math.max(peak, equity);
-    const dd = peak > 0 ? peak - equity : 0;
-    const ddPct = peak > 0 ? (dd / peak) * 100 : 0;
-    return {
-      at: p.t,
-      equity: p.balance,
-      peak: String(peak),
-      drawdown: String(dd),
-      drawdown_pct: String(ddPct),
-      daily_pnl: "0",
-      cumulative_r: "0",
-    };
-  });
-}
-
-/** Build cumulative R series from closed trades with realized_r. */
-function mapRCurve(trades: Trade[]): EquityPt[] {
-  const closed = [...trades]
-    .filter((t) => t.status === "closed" && t.realized_r != null && t.exit_timestamp)
-    .sort((a, b) => Date.parse(a.exit_timestamp!) - Date.parse(b.exit_timestamp!));
-  let cum = 0;
-  let peak = 0;
-  return closed.map((t) => {
-    cum += Number(t.realized_r);
-    peak = Math.max(peak, cum);
-    const dd = peak - cum;
-    return {
-      at: t.exit_timestamp!,
-      equity: String(cum),
-      peak: String(peak),
-      drawdown: String(Math.max(0, dd)),
-      drawdown_pct: peak !== 0 ? String((Math.max(0, dd) / Math.abs(peak)) * 100) : "0",
-      daily_pnl: t.realized_r ?? "0",
-      cumulative_r: String(cum),
-    };
-  });
+function sparkValues(points: { equity: string }[]): number[] {
+  return points.map((p) => Number(p.equity)).filter((n) => Number.isFinite(n));
 }
 
 function resultClass(result: string): string {
@@ -87,17 +51,45 @@ function formatWhen(iso: string | null): string {
   });
 }
 
+function periodStats(trades: Trade[]) {
+  const n = trades.length;
+  const wins = trades.filter((t) => t.result === "win").length;
+  const losses = trades.filter((t) => t.result === "loss").length;
+  let pnl = 0;
+  let rSum = 0;
+  let rN = 0;
+  for (const t of trades) {
+    if (t.realized_pnl != null) pnl += Number(t.realized_pnl);
+    if (t.realized_r != null) {
+      rSum += Number(t.realized_r);
+      rN += 1;
+    }
+  }
+  const winRate = n > 0 ? (wins / n) * 100 : null;
+  const avgR = rN > 0 ? rSum / rN : null;
+  return { n, wins, losses, pnl, winRate, avgR };
+}
+
 export function CommandCenterView({ data, trades, openTrades }: Props) {
   const cc = data.command_center;
   const currency = data.account.currency;
+  const { filters } = useGlobalFilters();
+  const period = filters.period;
   const [mode, setMode] = useState<EquityMode>("equity");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [replay, setReplay] = useState<TradeReplay | null>(null);
   const [replayError, setReplayError] = useState<string | null>(null);
   const [replayLoading, setReplayLoading] = useState(false);
 
-  const equityCurve = useMemo(() => mapEquitySeries(data.equity_series ?? []), [data.equity_series]);
-  const rCurve = useMemo(() => mapRCurve(trades), [trades]);
+  const periodTrades = useMemo(() => closedTradesInPeriod(trades, period), [trades, period]);
+  const starting = Number(data.starting_balance) || 0;
+
+  const equityCurve = useMemo(
+    () => buildEquityFromTrades(periodTrades, starting),
+    [periodTrades, starting],
+  );
+
+  const rCurve = useMemo(() => buildRCurveFromTrades(periodTrades), [periodTrades]);
   const ddPoints = useMemo(
     () =>
       equityCurve.map((p) => ({
@@ -110,18 +102,19 @@ export function CommandCenterView({ data, trades, openTrades }: Props) {
     [equityCurve],
   );
 
-  const spark = useMemo(() => sparkValues(data.equity_series ?? []), [data.equity_series]);
+  const stats = useMemo(() => periodStats(periodTrades), [periodTrades]);
+  const spark = useMemo(() => sparkValues(equityCurve), [equityCurve]);
+
   const recentClosed = useMemo(
     () =>
-      [...trades]
-        .filter((t) => t.status === "closed")
+      [...periodTrades]
         .sort(
           (a, b) =>
             Date.parse(b.exit_timestamp ?? b.trade_timestamp) -
             Date.parse(a.exit_timestamp ?? a.trade_timestamp),
         )
         .slice(0, 12),
-    [trades],
+    [periodTrades],
   );
 
   const selected = useMemo(
@@ -156,45 +149,46 @@ export function CommandCenterView({ data, trades, openTrades }: Props) {
     };
   }, [selectedId]);
 
-  const wr = data.win_rate != null ? `${num(data.win_rate, 1)}%` : "—";
-  const avgR = data.average_r != null ? `${signed(data.average_r)}R` : data.expectancy_r != null ? `${signed(data.expectancy_r)}R` : "—";
+  const wr = stats.winRate != null ? `${num(stats.winRate, 1)}%` : "—";
+  const avgR = stats.avgR != null ? `${signed(stats.avgR)}R` : "—";
   const maxDd = money(data.max_drawdown, currency);
+  const confidence = homeConfidenceLine(stats.n, data.sample_note);
 
   return (
     <div className="cc">
       <div className="toolbar">
         <PeriodStrip />
-        <p className="muted sample">{data.sample_note ?? `${data.n_trades} closed trades`}</p>
+        <p className="muted sample" role="status">
+          {confidence}
+          <span className="period-hint"> · {periodLabelShort(period)}</span>
+        </p>
       </div>
 
       <div className="tos-kpi-grid">
         <MetricCard
           label="Total P&L"
-          value={signed(data.total_pnl)}
-          tone={tone(data.total_pnl) === "pos" ? "pos" : tone(data.total_pnl) === "neg" ? "neg" : ""}
-          hint={currency}
-          spark={<MiniSparkline values={spark} height={26} />}
+          value={signed(stats.pnl)}
+          tone={tone(stats.pnl) === "pos" ? "pos" : tone(stats.pnl) === "neg" ? "neg" : ""}
+          hint={periodLabelShort(period)}
+          spark={spark.length >= 2 ? <MiniSparkline values={spark} height={26} /> : undefined}
         />
         <MetricCard
           label="Win rate"
           value={wr}
-          tone={data.win_rate != null && Number(data.win_rate) >= 50 ? "pos" : data.win_rate != null ? "neg" : ""}
-          hint={`${data.n_trades} trades`}
-          spark={<MiniSparkline values={spark} height={26} />}
+          tone={stats.winRate != null && stats.winRate >= 50 ? "pos" : stats.winRate != null ? "neg" : ""}
+          hint={
+            stats.n > 0
+              ? `${stats.wins} win${stats.wins === 1 ? "" : "s"} / ${stats.n} trade${stats.n === 1 ? "" : "s"}`
+              : "No trades"
+          }
+          spark={spark.length >= 2 ? <MiniSparkline values={spark} height={26} /> : undefined}
         />
         <MetricCard
           label="Avg R / trade"
           value={avgR}
-          tone={
-            (data.average_r ?? data.expectancy_r) != null &&
-            Number(data.average_r ?? data.expectancy_r) >= 0
-              ? "pos"
-              : (data.average_r ?? data.expectancy_r) != null
-                ? "neg"
-                : ""
-          }
-          hint="Expectancy"
-          spark={<MiniSparkline values={spark} height={26} />}
+          tone={stats.avgR != null && stats.avgR >= 0 ? "pos" : stats.avgR != null ? "neg" : ""}
+          hint="Average result"
+          spark={spark.length >= 2 ? <MiniSparkline values={spark} height={26} /> : undefined}
         />
         <MetricCard
           label="Max drawdown"
@@ -216,7 +210,7 @@ export function CommandCenterView({ data, trades, openTrades }: Props) {
                 [
                   ["equity", "Equity"],
                   ["drawdown", "Drawdown"],
-                  ["r", "R multiple"],
+                  ["r", "R"],
                 ] as const
               ).map(([id, label]) => (
                 <button
@@ -234,27 +228,44 @@ export function CommandCenterView({ data, trades, openTrades }: Props) {
           </div>
           {mode === "equity" &&
             (equityCurve.length >= 2 ? (
-              <EquityCurve curve={equityCurve} currency={currency} height={280} defaultRange="ALL" />
+              <EquityCurve
+                curve={equityCurve}
+                currency={currency}
+                compact
+                showRangeControls={false}
+                defaultRange="ALL"
+              />
             ) : (
-              <p className="empty muted">Close more trades to see equity growth.</p>
+              <p className="empty muted">
+                {stats.n === 0
+                  ? "No closed trades in this period yet."
+                  : "Need at least two closed trades in this period to draw equity."}
+              </p>
             ))}
           {mode === "drawdown" &&
             (ddPoints.length >= 2 ? (
-              <UnderwaterCurve curve={ddPoints} currency={currency} height={280} />
+              <UnderwaterCurve
+                curve={ddPoints}
+                currency={currency}
+                showRangeControls={false}
+                defaultRange="ALL"
+                height={232}
+              />
             ) : (
-              <p className="empty muted">Not enough equity history for drawdown.</p>
+              <p className="empty muted">Not enough equity history for drawdown in this period.</p>
             ))}
           {mode === "r" &&
             (rCurve.length >= 2 ? (
               <EquityCurve
                 curve={rCurve}
                 currency={currency}
-                height={280}
-                metric="cumulative_r"
+                compact
+                showRangeControls={false}
                 defaultRange="ALL"
+                metric="cumulative_r"
               />
             ) : (
-              <p className="empty muted">Need closed trades with realized R for this view.</p>
+              <p className="empty muted">Need closed trades with R results in this period.</p>
             ))}
         </section>
 
@@ -262,31 +273,34 @@ export function CommandCenterView({ data, trades, openTrades }: Props) {
           <div className="tos-panel recent">
             <h2 className="tos-panel-title">Recent trades</h2>
             {recentClosed.length === 0 ? (
-              <p className="muted empty">No closed trades yet.</p>
+              <p className="muted empty">No closed trades in this period.</p>
             ) : (
               <table className="blotter">
                 <thead>
                   <tr>
-                    <th>Symbol</th>
+                    <th>Trade</th>
                     <th>R</th>
                     <th>Result</th>
-                    <th>Time</th>
+                    <th>When</th>
                   </tr>
                 </thead>
                 <tbody>
                   {recentClosed.map((t) => (
                     <tr key={t.id} onClick={() => setSelectedId(t.id)}>
                       <td>
-                        <strong>{t.symbol}</strong>
-                        <span className="dir muted"> {t.direction}</span>
+                        <strong>
+                          {t.symbol} {t.direction.toUpperCase()}
+                        </strong>
                       </td>
                       <td className={`num ${tone(t.realized_r)}`}>
                         {t.realized_r != null ? `${signed(t.realized_r)}R` : "—"}
                       </td>
                       <td>
-                        <span className={`tos-result ${resultClass(t.result)}`}>{t.result || "—"}</span>
+                        <span className={`tos-result ${resultClass(t.result)}`}>
+                          {(t.result || "—").toUpperCase()}
+                        </span>
                       </td>
-                      <td className="muted">{formatWhen(t.exit_timestamp ?? t.trade_timestamp)}</td>
+                      <td className="muted when">{formatWhen(t.exit_timestamp ?? t.trade_timestamp)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -297,22 +311,24 @@ export function CommandCenterView({ data, trades, openTrades }: Props) {
           <div className="tos-panel capacity">
             <h2 className="tos-panel-title">Risk budget</h2>
             <p className="cap-line">
-              <strong>{cc.trading_capacity.full_risk_trades_remaining}</strong> full-risk left today
+              <strong>{cc.trading_capacity.full_risk_trades_remaining}</strong>{" "}
+              {cc.trading_capacity.full_risk_trades_remaining === 1
+                ? "full-risk trade left today"
+                : "full-risk trades left today"}
             </p>
             <LimitBar
-              label="Personal daily loss"
+              label="Today's risk"
               limit={data.personal_daily_loss.limit}
               remaining={data.personal_daily_loss.remaining}
             />
             <LimitBar
-              label="Max drawdown room"
+              label="Drawdown used"
               limit={data.personal_max_dd.limit}
               remaining={data.personal_max_dd.remaining}
             />
             {openTrades.length > 0 && (
               <p className="muted open-n">
-                {openTrades.length} open ·{" "}
-                <Link href="/trades?status=open">View</Link>
+                {openTrades.length} open · <Link href="/trades?status=open">View</Link>
               </p>
             )}
           </div>
@@ -322,10 +338,10 @@ export function CommandCenterView({ data, trades, openTrades }: Props) {
       {(cc.edge_snapshot || cc.behaviour_watch || cc.insights.length > 0) && (
         <div className="insight-row">
           {cc.edge_snapshot && (
-            <ChartCard title="Edge snapshot">
+            <ChartCard title="Worth a look">
               <p className="ins-title">{cc.edge_snapshot.label}</p>
               <p className={`num ${tone(cc.edge_snapshot.expectancy_r)}`}>
-                {signed(cc.edge_snapshot.expectancy_r)}R · n={cc.edge_snapshot.n}
+                {signed(cc.edge_snapshot.expectancy_r)}R · {cc.edge_snapshot.n} trades
               </p>
               <p className="muted">{cc.edge_snapshot.insight}</p>
             </ChartCard>
@@ -416,7 +432,7 @@ export function CommandCenterView({ data, trades, openTrades }: Props) {
       <style jsx>{`
         .cc {
           display: grid;
-          gap: 16px;
+          gap: 14px;
         }
         .toolbar {
           display: flex;
@@ -427,11 +443,15 @@ export function CommandCenterView({ data, trades, openTrades }: Props) {
         }
         .sample {
           margin: 0;
-          font-size: 12px;
+          font-size: 13px;
+          max-width: 42ch;
+        }
+        .period-hint {
+          opacity: 0.75;
         }
         .main-grid {
           display: grid;
-          grid-template-columns: minmax(0, 1.7fr) minmax(280px, 0.9fr);
+          grid-template-columns: minmax(0, 1.65fr) minmax(260px, 0.95fr);
           gap: 14px;
           align-items: start;
         }
@@ -440,14 +460,14 @@ export function CommandCenterView({ data, trades, openTrades }: Props) {
           justify-content: space-between;
           align-items: center;
           gap: 12px;
-          margin-bottom: 10px;
+          margin-bottom: 8px;
           flex-wrap: wrap;
         }
         .mode-tabs {
           display: inline-flex;
           gap: 4px;
           padding: 3px;
-          border-radius: 999px;
+          border-radius: 8px;
           background: var(--surface-2);
           border: 1px solid var(--border);
         }
@@ -456,22 +476,23 @@ export function CommandCenterView({ data, trades, openTrades }: Props) {
           background: transparent;
           color: var(--text-muted);
           padding: 5px 11px;
-          border-radius: 999px;
+          border-radius: 6px;
           font-size: 12px;
           font-weight: 600;
+          cursor: pointer;
         }
         .mode-tabs button.active {
           background: var(--accent-soft);
           color: var(--accent);
         }
+        .mode-tabs button:focus-visible {
+          outline: 2px solid var(--accent);
+          outline-offset: 1px;
+        }
         .side {
           display: grid;
           gap: 14px;
           min-width: 0;
-        }
-        .dir {
-          font-size: 11px;
-          text-transform: uppercase;
         }
         .cap-line {
           margin: 0 0 10px;
@@ -482,8 +503,36 @@ export function CommandCenterView({ data, trades, openTrades }: Props) {
           font-size: 12px;
         }
         .empty {
-          margin: 12px 0 0;
+          margin: 8px 0 0;
           font-size: 13px;
+        }
+        .blotter {
+          width: 100%;
+          border-collapse: collapse;
+          font-size: 12px;
+        }
+        .blotter th {
+          text-align: left;
+          font-size: 10px;
+          letter-spacing: 0.05em;
+          text-transform: uppercase;
+          color: var(--text-muted);
+          font-weight: 600;
+          padding: 0 6px 8px 0;
+        }
+        .blotter td {
+          padding: 8px 6px 8px 0;
+          border-top: 1px solid var(--border);
+          vertical-align: middle;
+        }
+        .blotter tr {
+          cursor: pointer;
+        }
+        .blotter tr:hover td {
+          background: color-mix(in srgb, var(--accent-soft) 35%, transparent);
+        }
+        .blotter .when {
+          white-space: nowrap;
         }
         .insight-row {
           display: grid;
@@ -528,6 +577,14 @@ export function CommandCenterView({ data, trades, openTrades }: Props) {
         @media (max-width: 980px) {
           .main-grid {
             grid-template-columns: 1fr;
+          }
+        }
+        @media (max-width: 560px) {
+          .meta-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+          .blotter .when {
+            white-space: normal;
           }
         }
       `}</style>

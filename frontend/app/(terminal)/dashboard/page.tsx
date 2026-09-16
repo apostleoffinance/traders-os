@@ -83,23 +83,22 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      {data.n_trades === 0 && (
+      {data.n_trades === 0 ? (
         <EmptyState
-          title="No trades yet"
+          title="Start building your trading picture"
           action={
-            <Link href="/trades/new" className="btn">
-              Log first trade
+            <Link href="/trades/new" className="btn primary">
+              Log a trade
             </Link>
           }
         >
           <p className="muted" style={{ margin: 0 }}>
-            Connect MT5 from Accounts to sync trades automatically.
+            Journal completed trades — or connect MT5 from Accounts to sync automatically.
           </p>
         </EmptyState>
+      ) : (
+        <CommandCenterView data={data} trades={trades} openTrades={openTrades} />
       )}
-
-      <CommandCenterView data={data} trades={trades} openTrades={openTrades} />
-
       <style jsx>{`
         .cc-head {
           display: flex;

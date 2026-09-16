@@ -1,3 +1,5 @@
+/** Feed API response types (unchanged contract from /api/intelligence/feed). */
+
 export type InsightEvidence = {
   n: number;
   level: string;

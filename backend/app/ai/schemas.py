@@ -162,6 +162,17 @@ class ReportIntelligenceResponse(BaseModel):
     confidence: EvidenceConfidence
 
 
+class FindingExplanationResponse(BaseModel):
+    """Explain a single deterministic finding — never invent metrics."""
+
+    what_this_means: str
+    possible_interpretation: str
+    what_to_investigate: list[str] = Field(default_factory=list)
+    caveats: list[str] = Field(default_factory=list)
+    evidence_quality_restated: str = Field(
+        description="Restate context.confidence and sample_size verbatim — do not invent a new score.",
+    )
+
 SCHEMA_BY_TYPE: dict[str, type[BaseModel]] = {
     "trade_review": TradeReviewResponse,
     "journal_summary": JournalSummaryResponse,
@@ -174,4 +185,5 @@ SCHEMA_BY_TYPE: dict[str, type[BaseModel]] = {
     "challenge_trade": ChallengeTradeResponse,
     "quant_research": QuantResearchResponse,
     "report_intelligence": ReportIntelligenceResponse,
+    "finding_explanation": FindingExplanationResponse,
 }

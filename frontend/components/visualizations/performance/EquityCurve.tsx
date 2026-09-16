@@ -10,6 +10,7 @@ import { filterForSingleDay } from "@/lib/analytics-drilldown";
 import type { EquityMarker, EquityPt } from "@/lib/analytics";
 import {
   areaColor,
+  breakpointFromWidth,
   chartHeight,
   equityTooltipLine,
   formatAxisMoney,
@@ -42,12 +43,12 @@ function rangeStartMs(preset: EquityRangePreset, latestMs: number): number | nul
 }
 
 function sliceByRange(curve: EquityPt[], preset: EquityRangePreset): EquityPt[] {
-  if (curve.length < 2 || preset === "ALL") return curve;
+  if (curve.length === 0 || preset === "ALL") return curve;
   const latest = parseMs(curve[curve.length - 1].at);
   const start = rangeStartMs(preset, latest);
   if (start == null) return curve;
-  const filtered = curve.filter((p) => parseMs(p.at) >= start);
-  return filtered.length >= 2 ? filtered : curve.slice(-2);
+  // Do not fall back to unrelated last-N points — that fakes the selected window.
+  return curve.filter((p) => parseMs(p.at) >= start);
 }
 
 export function EquityCurve({
@@ -58,6 +59,7 @@ export function EquityCurve({
   defaultRange = "ALL",
   showRangeControls = true,
   metric = "equity",
+  compact = false,
 }: {
   curve: EquityPt[];
   markers?: EquityMarker[];
@@ -67,6 +69,8 @@ export function EquityCurve({
   showRangeControls?: boolean;
   /** Net equity ($) or cumulative R — Performance tab uses both. */
   metric?: "equity" | "cumulative_r";
+  /** Tighter plot padding / hover chrome for Command Center. */
+  compact?: boolean;
 }) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const plotRef = useRef<uPlot | null>(null);
@@ -75,8 +79,22 @@ export function EquityCurve({
   const router = useRouter();
   const [range, setRange] = useState<EquityRangePreset>(defaultRange);
   const [hover, setHover] = useState<string | null>(null);
+  const [vpWidth, setVpWidth] = useState(1024);
 
-  const chartH = height ?? chartHeight("hero");
+  useEffect(() => {
+    setRange(defaultRange);
+  }, [defaultRange]);
+
+  useEffect(() => {
+    const sync = () => setVpWidth(window.innerWidth);
+    sync();
+    window.addEventListener("resize", sync);
+    return () => window.removeEventListener("resize", sync);
+  }, []);
+
+  const chartH =
+    height ??
+    chartHeight(compact ? "compact" : "hero", breakpointFromWidth(vpWidth));
   const sliced = useMemo(() => sliceByRange(curve, range), [curve, range]);
 
   const seriesData = useMemo(() => {
@@ -110,12 +128,22 @@ export function EquityCurve({
     const opts: Options = {
       width,
       height: chartH,
+      padding: compact ? [6, 8, 0, 0] : [10, 10, 0, 0],
       cursor: {
         drag: { x: true, y: false },
-        points: { show: false },
+        points: { show: seriesData.xs.length <= 12 },
       },
       scales: {
         x: { time: true },
+        y: {
+          range: (_u, dataMin, dataMax) => {
+            const lo = Number.isFinite(dataMin) ? dataMin : 0;
+            const hi = Number.isFinite(dataMax) ? dataMax : 1;
+            const span = hi - lo;
+            const pad = span === 0 ? Math.max(Math.abs(hi) * 0.02, 1) : span * (compact ? 0.04 : 0.06);
+            return [lo - pad, hi + pad];
+          },
+        },
       },
       axes: [
         {
@@ -123,6 +151,7 @@ export function EquityCurve({
           grid: { show: true, stroke: C.line, width: 1 },
           ticks: { stroke: C.line },
           font: "11px sans-serif",
+          size: compact ? 36 : 44,
           values: (_u, splits) =>
             splits.map((s) => {
               const d = new Date(s * 1000);
@@ -134,7 +163,7 @@ export function EquityCurve({
           grid: { show: true, stroke: C.line, width: 1 },
           ticks: { stroke: C.line },
           font: "11px sans-serif",
-          size: 56,
+          size: compact ? 48 : 56,
           values: (_u, splits) =>
             splits.map((v) =>
               metric === "cumulative_r"
@@ -150,7 +179,7 @@ export function EquityCurve({
           stroke: C.pos,
           width: 2,
           fill: areaColor("pos", 0.16),
-          points: { show: false },
+          points: { show: seriesData.xs.length <= 12, size: 3, fill: C.pos },
         },
       ],
       hooks: {
@@ -163,12 +192,13 @@ export function EquityCurve({
             }
             const p = seriesData.sliced[idx];
             setHover(
-              equityTooltipLine({
-                date: p.at,
-                equity: Number(p.equity),
-                currency,
-                cumulativeR: Number(p.cumulative_r),
-              }),
+              metric === "cumulative_r"
+                ? `${formatDateShort(p.at)} · ${Number(p.cumulative_r) >= 0 ? "+" : ""}${Number(p.cumulative_r).toFixed(2)}R`
+                : equityTooltipLine({
+                    date: p.at,
+                    equity: Number(p.equity),
+                    currency,
+                  }),
             );
           },
         ],
@@ -211,9 +241,16 @@ export function EquityCurve({
       plot.destroy();
       plotRef.current = null;
     };
-  }, [seriesData, chartH, currency, resolved, drill, router, markerIndex, metric]);
+  }, [seriesData, chartH, currency, resolved, drill, router, markerIndex, metric, compact]);
 
   if (curve.length < 2) return null;
+  if (sliced.length < 2) {
+    return (
+      <p className="muted" style={{ margin: "8px 0 0", fontSize: 13 }}>
+        Not enough observations in this period for a curve.
+      </p>
+    );
+  }
 
   return (
     <div className="equity-curve" role="img" aria-label={metric === "cumulative_r" ? "Cumulative R equity curve" : "Equity curve"}>
@@ -238,7 +275,9 @@ export function EquityCurve({
           {hover}
         </p>
       ) : (
-        <p className="hover muted">Hover for equity · click a day to inspect trades</p>
+        <p className="hover muted">
+          {compact ? "Hover a point for details" : "Hover for equity · click a day to inspect trades"}
+        </p>
       )}
       {markerIndex.length > 0 ? (
         <p className="hint muted">
@@ -275,17 +314,17 @@ export function EquityCurve({
         }
         .plot {
           width: 100%;
-          min-height: 200px;
+          min-height: 0;
         }
         .plot :global(.uplot) {
           margin: 0;
           font-family: inherit;
         }
         .hover {
-          margin: 8px 0 0;
+          margin: 6px 0 0;
           font-size: 12px;
           color: var(--text-primary);
-          min-height: 1.2em;
+          min-height: 1.15em;
         }
         .hover.muted,
         .hint {

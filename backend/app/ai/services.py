@@ -15,6 +15,7 @@ from app.ai.prompts import (
     BEHAVIORAL_PROMPT,
     CHALLENGE_PROMPT,
     COACH_PROMPT,
+    FINDING_EXPLANATION_PROMPT,
     PATTERN_PROMPT,
     PERIOD_PROMPT,
     QUANT_RESEARCH_PROMPT,
@@ -187,6 +188,35 @@ def report_intelligence(
         account_id=account_id,
         analysis_type="report_intelligence",
         task_prompt=REPORT_INTELLIGENCE_PROMPT,
+        context=ctx,
+        force=force,
+    )
+
+
+def finding_explanation(
+    db: Session,
+    user: User,
+    account_id: UUID,
+    finding: dict,
+    *,
+    force: bool = False,
+) -> dict:
+    """Explain a single Intelligence finding from structured evidence only."""
+    get_owned_account(db, user.id, account_id)
+    ctx = {
+        "finding": finding,
+        "guardrails": {
+            "numbers_authoritative": True,
+            "no_trade_signals": True,
+            "no_invented_metrics": True,
+        },
+    }
+    return run_analysis(
+        db,
+        user_id=user.id,
+        account_id=account_id,
+        analysis_type="finding_explanation",
+        task_prompt=FINDING_EXPLANATION_PROMPT,
         context=ctx,
         force=force,
     )

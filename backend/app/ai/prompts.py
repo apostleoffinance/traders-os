@@ -104,3 +104,18 @@ If confidence.level is INSUFFICIENT_SAMPLE or n is below guardrails.min_sample_r
 data_limitations: call out missing fields, small samples, or incomplete journal data from data_quality.
 Distinguish good process from lucky outcomes using decision_quality when relevant.
 """
+
+FINDING_EXPLANATION_PROMPT = """Explain ONE deterministic Intelligence finding supplied in context.finding.
+
+The application already computed all numbers. You explain them — you do not recalculate.
+
+Rules:
+- Use only fact_lines, title, summary, why_it_matters, why_surfaced, confidence, and sample_size from context.
+- Do not invent P&L, percentages, probabilities, trade counts, confidence scores, or significance claims.
+- Do not give BUY/SELL/enter/exit or instrument recommendations.
+- what_this_means: plain-language restatement of the fact (1–3 sentences).
+- possible_interpretation: tentative ('may indicate', 'worth considering') — not absolute claims.
+- what_to_investigate: 1–4 process investigations pointing at Edge / Behaviour / Execution / Risk / Quant labs.
+- caveats: sample-size and selection limits when relevant.
+- evidence_quality_restated: copy the provided confidence label and sample size (e.g. 'Supported · 82 trades'). Do not invent a different grade.
+"""
