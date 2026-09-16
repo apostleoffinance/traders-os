@@ -6,14 +6,36 @@ import { EvidenceStrip, findingTypeLabel } from "./EvidenceStrip";
 import { InvestigateButton } from "./InvestigateButton";
 
 /** Compact worth-watching cards — metric + mini evidence, not essay cards. */
-export function AttentionCard({ finding }: { finding: Finding }) {
+export function AttentionCard({
+  finding,
+  selected = false,
+  onSelect,
+}: {
+  finding: Finding;
+  selected?: boolean;
+  onSelect?: (finding: Finding) => void;
+}) {
   const metric = finding.metric;
   const state = confidenceText(finding.confidence, finding.sampleSize);
 
   return (
     <article
-      className={`card sev-${finding.severity.toLowerCase()}`}
+      className={`card sev-${finding.severity.toLowerCase()} ${selected ? "selected" : ""} ${onSelect ? "selectable" : ""}`}
       aria-label={`${findingTypeLabel(finding.type)}: ${finding.title}`}
+      aria-pressed={onSelect ? selected : undefined}
+      tabIndex={onSelect ? 0 : undefined}
+      role={onSelect ? "button" : undefined}
+      onClick={onSelect ? () => onSelect(finding) : undefined}
+      onKeyDown={
+        onSelect
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onSelect(finding);
+              }
+            }
+          : undefined
+      }
     >
       <header className="head">
         <span className="type">{findingTypeLabel(finding.type)}</span>
@@ -61,6 +83,16 @@ export function AttentionCard({ finding }: { finding: Finding }) {
         }
         .sev-info {
           border-left-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+        }
+        .selectable {
+          cursor: pointer;
+        }
+        .selectable:focus-visible {
+          outline: 2px solid var(--accent);
+          outline-offset: 2px;
+        }
+        .selected {
+          box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent);
         }
         .head {
           display: flex;
@@ -154,7 +186,15 @@ export function AttentionCard({ finding }: { finding: Finding }) {
   );
 }
 
-export function AttentionGrid({ findings }: { findings: Finding[] }) {
+export function AttentionGrid({
+  findings,
+  selectedId,
+  onSelect,
+}: {
+  findings: Finding[];
+  selectedId?: string | null;
+  onSelect?: (finding: Finding) => void;
+}) {
   if (!findings.length) return null;
 
   return (
@@ -165,7 +205,12 @@ export function AttentionGrid({ findings }: { findings: Finding[] }) {
       </header>
       <div className="grid">
         {findings.map((finding) => (
-          <AttentionCard key={finding.id} finding={finding} />
+          <AttentionCard
+            key={finding.id}
+            finding={finding}
+            selected={selectedId === finding.id}
+            onSelect={onSelect}
+          />
         ))}
       </div>
       <style jsx>{`

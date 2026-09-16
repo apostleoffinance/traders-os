@@ -1,98 +1,190 @@
 "use client";
 
-import { DisclosureLayer } from "@/components/analytics/primitives/DisclosureLayer";
-import { DeepDiveSection } from "@/components/analytics/primitives/DeepDiveSection";
-import { TemporalLab } from "@/components/analytics/Phase2Lab";
-import { CalendarAnswerStrip } from "@/components/trader";
-import { PerformanceCalendar } from "@/components/analytics/calendar/PerformanceCalendar";
-import { MonthlyReturnsHeatmap } from "@/components/analytics/calendar/MonthlyReturnsHeatmap";
-import { DailyPerformanceBars } from "@/components/analytics/calendar/DailyPerformanceBars";
-import { MonthlyBreakdown } from "@/components/analytics/calendar/MonthlyBreakdown";
-import type { AnalyticsDashboard } from "@/lib/analytics";
+import Link from "next/link";
+import { useMemo } from "react";
+import type { AnalyticsDashboard, FilterState } from "@/lib/analytics";
+import { buildCalendarViewModel } from "@/lib/analytics/calendarViewModel";
+import { PerformanceSnapshot } from "@/components/analytics/calendar/PerformanceSnapshot";
+import { PerformanceCalendar, jumpCalendarToDay } from "@/components/analytics/calendar/PerformanceCalendar";
+import { TradingRhythm } from "@/components/analytics/calendar/TradingRhythm";
+import { MonthlyPerformanceMatrix } from "@/components/analytics/calendar/MonthlyPerformanceMatrix";
+import { AdvancedTimePatterns } from "@/components/analytics/calendar/AdvancedTimePatterns";
 
-/** Temporal intelligence — snapshot + interactive calendar, then monthly context. */
-export function CalendarTab({ data }: { data: AnalyticsDashboard }) {
-  const hasTemporal = Boolean(data.lab?.temporal);
+/**
+ * Temporal trading investigation workspace.
+ * Hierarchy: Snapshot → Calendar → Rhythm → Monthly → Advanced
+ */
+export function CalendarTab({
+  data,
+  filters,
+}: {
+  data: AnalyticsDashboard;
+  filters: FilterState;
+}) {
+  const model = useMemo(() => buildCalendarViewModel(data), [data]);
   const tradeCount = data.overview.n_trades;
 
+  if (tradeCount <= 0) {
+    return (
+      <section className="empty-wrap" aria-labelledby="cal-empty-title">
+        <header className="intro">
+          <h2 className="title">Calendar</h2>
+          <p className="lede">See when your trading works — and when it doesn&apos;t.</p>
+        </header>
+        <div className="empty">
+          <h3 id="cal-empty-title">Your trading calendar starts here</h3>
+          <p>
+            Connect an account or record your first trade to start seeing your performance by day,
+            session and month.
+          </p>
+          <div className="actions">
+            <Link href="/trades/new" className="btn primary">
+              New trade
+            </Link>
+            <Link href="/accounts" className="btn">
+              Connect account
+            </Link>
+          </div>
+        </div>
+        <style jsx>{emptyStyles}</style>
+      </section>
+    );
+  }
+
+  if (!model || model.tradingDays === 0) {
+    return (
+      <section className="empty-wrap" aria-labelledby="cal-filter-empty">
+        <header className="intro">
+          <h2 className="title">Calendar</h2>
+          <p className="lede">See when your trading works — and when it doesn&apos;t.</p>
+        </header>
+        <div className="empty">
+          <h3 id="cal-filter-empty">No trading days in this filter</h3>
+          <p>Try widening the period or clearing instrument filters to see your calendar.</p>
+        </div>
+        <style jsx>{emptyStyles}</style>
+      </section>
+    );
+  }
+
   return (
-    <>
+    <div className="workspace">
       <header className="intro">
         <h2 className="title">Calendar</h2>
-        <p className="lede">See how your trading performs across time.</p>
+        <p className="lede">See when your trading works — and when it doesn&apos;t.</p>
+        <p className="support">Your trading performance across days, weeks and months.</p>
       </header>
 
-      <DisclosureLayer kind="decision">
-        <CalendarAnswerStrip data={data} />
-      </DisclosureLayer>
+      <PerformanceSnapshot
+        model={model}
+        currency={data.account.currency}
+        onOpenDay={(date) => jumpCalendarToDay(date)}
+      />
 
-      {hasTemporal ? (
-        <DisclosureLayer kind="evidence">
-          <PerformanceCalendar data={data} />
-          <div className="cal-grid">
-            <div className="cal-main">
-              <MonthlyReturnsHeatmap data={data} />
-              <DailyPerformanceBars data={data} />
-            </div>
-            <aside className="cal-side">
-              <MonthlyBreakdown data={data} />
-            </aside>
-          </div>
-        </DisclosureLayer>
-      ) : tradeCount === 0 ? (
-        <p className="empty muted">No closed trades yet — the calendar appears after your first close.</p>
-      ) : null}
+      <PerformanceCalendar data={data} filters={filters} />
 
-      <DeepDiveSection title="More detail">
-        <TemporalLab data={data} variant="deep" />
-      </DeepDiveSection>
+      <TradingRhythm weekday={model.weekdayRhythm} session={model.sessionRhythm} />
+
+      <MonthlyPerformanceMatrix model={model} />
+
+      <AdvancedTimePatterns model={model} />
 
       <style jsx>{`
+        .workspace {
+          display: grid;
+          gap: 16px;
+          align-content: start;
+        }
         .intro {
           display: grid;
           gap: 2px;
-          margin-bottom: 4px;
+          max-width: 520px;
         }
         .title {
           margin: 0;
-          font-size: 15px;
+          font-size: 1.25rem;
           font-weight: 700;
-          letter-spacing: 0.04em;
-          text-transform: uppercase;
-          color: var(--text-secondary);
+          letter-spacing: -0.02em;
+          color: var(--text-primary);
+          text-transform: none;
         }
         .lede {
           margin: 0;
-          font-size: 13px;
-          color: var(--text-muted);
+          font-size: 14px;
+          font-weight: 550;
+          color: var(--text-primary);
         }
-        .empty {
+        .support {
           margin: 0;
           font-size: 13px;
-        }
-        .muted {
           color: var(--text-muted);
         }
-        .cal-grid {
-          display: grid;
-          grid-template-columns: minmax(0, 1.7fr) minmax(260px, 0.9fr);
-          gap: 10px;
-          align-items: start;
-        }
-        .cal-main {
-          display: grid;
-          gap: 14px;
-          min-width: 0;
-        }
-        .cal-side {
-          min-width: 0;
-        }
-        @media (max-width: 980px) {
-          .cal-grid {
-            grid-template-columns: 1fr;
-          }
-        }
       `}</style>
-    </>
+    </div>
   );
 }
+
+const emptyStyles = `
+  .empty-wrap {
+    display: grid;
+    gap: 14px;
+  }
+  .intro {
+    display: grid;
+    gap: 2px;
+  }
+  .title {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  .lede {
+    margin: 0;
+    font-size: 14px;
+    color: var(--text-muted);
+  }
+  .empty {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface);
+    padding: 22px 20px;
+    display: grid;
+    gap: 10px;
+    max-width: 480px;
+  }
+  h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 650;
+  }
+  p {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.45;
+    color: var(--text-secondary);
+  }
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 4px;
+  }
+  .empty-wrap :global(.btn) {
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 650;
+    text-decoration: none;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    color: var(--text-primary);
+  }
+  .empty-wrap :global(.btn.primary) {
+    background: var(--accent);
+    border-color: transparent;
+    color: var(--accent-contrast);
+  }
+`;

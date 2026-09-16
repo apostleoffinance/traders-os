@@ -30,6 +30,7 @@ type AIEnvelope = {
 
 /**
  * AI explains a deterministic finding. Numbers come only from the finding payload.
+ * Progressive disclosure — sits after Evidence / Investigate in the drawer.
  */
 export function FindingExplanation({
   finding,
@@ -78,73 +79,75 @@ export function FindingExplanation({
   const facts = confidenceText(finding.confidence, finding.sampleSize);
 
   return (
-    <section className="explain" aria-labelledby="ai-explain-title">
-      <h3 id="ai-explain-title">AI explanation</h3>
-      <p className="note">
-        Optional. Explains the facts above — it cannot invent P&L, sample sizes, or confidence.
-      </p>
-      <p className="facts-lock" title="Authoritative facts sent to the model">
-        Facts locked: {facts}
-        {finding.metric ? ` · ${finding.metric.label} ${finding.metric.value}` : ""}
-      </p>
+    <details className="explain">
+      <summary id="ai-explain-title">What does this mean? (optional AI)</summary>
+      <div className="panel" role="region" aria-labelledby="ai-explain-title">
+        <p className="note">
+          Explains the locked facts above. It cannot invent P&L, trade counts, or confidence.
+        </p>
+        <p className="facts-lock" title="Authoritative facts sent to the model">
+          Facts locked: {facts}
+          {finding.metric ? ` · ${finding.metric.label} ${finding.metric.value}` : ""}
+        </p>
 
-      <div className="actions">
-        <Button type="button" onClick={() => void run(false)} disabled={busy || !available}>
-          {busy ? "Explaining…" : data ? "Refresh explanation" : "Explain this finding"}
-        </Button>
-        {data && available ? (
-          <Button type="button" kind="ghost" onClick={() => void run(true)} disabled={busy}>
-            Regenerate
+        <div className="actions">
+          <Button type="button" onClick={() => void run(false)} disabled={busy || !available}>
+            {busy ? "Explaining…" : data ? "Refresh explanation" : "Explain this signal"}
           </Button>
-        ) : null}
-      </div>
-
-      {!available && !data ? <Alert kind="warn">{AI_UNAVAILABLE_MESSAGE}</Alert> : null}
-      {error ? <Alert kind="warn">{error}</Alert> : null}
-
-      {result ? (
-        <div className="result">
-          <p className="meta muted">
-            {data?.provider}
-            {data?.cached ? " · cached" : ""} · interpretation only
-          </p>
-          {result.what_this_means ? (
-            <div className="block">
-              <h4>What this means</h4>
-              <p>{result.what_this_means}</p>
-            </div>
-          ) : null}
-          {result.possible_interpretation ? (
-            <div className="block">
-              <h4>Possible interpretation</h4>
-              <p>{result.possible_interpretation}</p>
-            </div>
-          ) : null}
-          {result.what_to_investigate?.length ? (
-            <div className="block">
-              <h4>What to investigate</h4>
-              <ul>
-                {result.what_to_investigate.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-          {result.caveats?.length ? (
-            <div className="block">
-              <h4>Caveats</h4>
-              <ul>
-                {result.caveats.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-          {result.evidence_quality_restated ? (
-            <p className="restated">Evidence quality: {result.evidence_quality_restated}</p>
+          {data && available ? (
+            <Button type="button" kind="ghost" onClick={() => void run(true)} disabled={busy}>
+              Regenerate
+            </Button>
           ) : null}
         </div>
-      ) : null}
+
+        {!available && !data ? <Alert kind="warn">{AI_UNAVAILABLE_MESSAGE}</Alert> : null}
+        {error ? <Alert kind="warn">{error}</Alert> : null}
+
+        {result ? (
+          <div className="result">
+            <p className="meta muted">
+              {data?.provider}
+              {data?.cached ? " · cached" : ""} · interpretation only — not a new calculation
+            </p>
+            {result.what_this_means ? (
+              <div className="block">
+                <h4>What this means</h4>
+                <p>{result.what_this_means}</p>
+              </div>
+            ) : null}
+            {result.possible_interpretation ? (
+              <div className="block">
+                <h4>Possible interpretation</h4>
+                <p>{result.possible_interpretation}</p>
+              </div>
+            ) : null}
+            {result.what_to_investigate?.length ? (
+              <div className="block">
+                <h4>What to investigate</h4>
+                <ul>
+                  {result.what_to_investigate.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            {result.caveats?.length ? (
+              <div className="block">
+                <h4>Caveats</h4>
+                <ul>
+                  {result.caveats.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            {result.evidence_quality_restated ? (
+              <p className="restated">Evidence quality: {result.evidence_quality_restated}</p>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
 
       <style jsx>{`
         .explain {
@@ -153,13 +156,31 @@ export function FindingExplanation({
           padding-top: 4px;
           border-top: 1px solid var(--border);
         }
-        h3 {
-          margin: 0;
-          font-size: 10px;
-          font-weight: 700;
-          letter-spacing: 0.07em;
-          text-transform: uppercase;
+        summary {
+          cursor: pointer;
+          font-size: 12px;
+          font-weight: 650;
+          color: var(--text-secondary);
+          list-style: none;
+        }
+        summary::-webkit-details-marker {
+          display: none;
+        }
+        summary::before {
+          content: "▸ ";
           color: var(--text-muted);
+        }
+        .explain[open] summary::before {
+          content: "▾ ";
+        }
+        summary:focus-visible {
+          outline: 2px solid var(--accent);
+          outline-offset: 2px;
+        }
+        .panel {
+          display: grid;
+          gap: 8px;
+          margin-top: 8px;
         }
         .note {
           margin: 0;
@@ -219,6 +240,6 @@ export function FindingExplanation({
           color: var(--text-muted);
         }
       `}</style>
-    </section>
+    </details>
   );
 }

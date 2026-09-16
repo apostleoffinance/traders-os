@@ -3,11 +3,15 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import type { Finding } from "@/lib/intelligence";
-import { confidenceText, filterPatchFromFinding } from "@/lib/intelligence";
+import {
+  confidenceText,
+  filterPatchFromFinding,
+  friendlyConfidenceLabel,
+  toSignalViewModel,
+} from "@/lib/intelligence";
 import { useOptionalAnalyticsDrilldown } from "@/components/analytics/AnalyticsDrilldownContext";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui";
-import { EvidenceStrip, findingTypeLabel } from "./EvidenceStrip";
-import { SeverityBadge } from "./SeverityBadge";
+import { EvidenceStrip } from "./EvidenceStrip";
 import { useFindingDetail } from "./FindingDetailContext";
 
 const FindingExplanation = dynamic(
@@ -61,7 +65,8 @@ function FindingDetailBody({
   drill: ReturnType<typeof useOptionalAnalyticsDrilldown>;
   accountId: string;
 }) {
-  const confidence = confidenceText(finding.confidence, finding.sampleSize);
+  const vm = toSignalViewModel(finding);
+  const confidence = friendlyConfidenceLabel(finding.confidence);
   const href = finding.action.href || finding.destination.href;
   const labLabel = finding.destination.label || "Related analysis";
 
@@ -80,8 +85,8 @@ function FindingDetailBody({
     <div className="body">
       <SheetHeader className="pr-8">
         <p className="eyebrow">
-          <span className="type">{findingTypeLabel(finding.type)}</span>
-          <SeverityBadge severity={finding.severity} />
+          <span className={`status status-${vm.status}`}>{vm.statusLabel}</span>
+          <span className="type">{vm.categoryLabel}</span>
         </p>
         <SheetTitle className="title">{finding.title}</SheetTitle>
         <SheetDescription className="summary">{finding.summary}</SheetDescription>
@@ -99,22 +104,17 @@ function FindingDetailBody({
       </section>
 
       <section className="block" aria-labelledby="finding-why">
-        <h3 id="finding-why">Why this matters</h3>
+        <h3 id="finding-why">Why it matters</h3>
         <p>{finding.whyItMatters}</p>
       </section>
 
-      <section className="block" aria-labelledby="finding-surfaced">
-        <h3 id="finding-surfaced">Why this was surfaced</h3>
-        <p>{finding.whySurfaced}</p>
-      </section>
-
-      <section className="block meta-grid" aria-label="Evidence quality">
+      <section className="block meta-grid" aria-label="Trades analyzed">
         <div>
-          <span className="k">Evidence quality</span>
+          <span className="k">Pattern strength</span>
           <span className="v">{confidence}</span>
         </div>
         <div>
-          <span className="k">Sample</span>
+          <span className="k">Trades analyzed</span>
           <span className="v">
             {finding.sampleSize} trade{finding.sampleSize === 1 ? "" : "s"}
           </span>
@@ -126,47 +126,36 @@ function FindingDetailBody({
           </div>
         ) : null}
         <div>
-          <span className="k">Domain</span>
-          <span className="v">{finding.domain}</span>
+          <span className="k">Category</span>
+          <span className="v">{vm.categoryLabel}</span>
         </div>
       </section>
 
-      <section className="block" aria-labelledby="finding-fact">
-        <h3 id="finding-fact">Fact · interpretation · action</h3>
-        <dl className="fia">
-          <div>
-            <dt>Fact</dt>
-            <dd>
-              {finding.metric
-                ? `${finding.metric.label}: ${finding.metric.value}`
-                : finding.evidence[0]
-                  ? `${finding.evidence[0].label}: ${finding.evidence[0].value}`
-                  : finding.summary}
-            </dd>
-          </div>
-          <div>
-            <dt>Interpretation</dt>
-            <dd>{finding.whyItMatters}</dd>
-          </div>
-          <div>
-            <dt>Action</dt>
-            <dd>Review this pattern in {labLabel}. This is not a trade signal.</dd>
-          </div>
-        </dl>
+      <section className="block" aria-labelledby="finding-investigate">
+        <h3 id="finding-investigate">Investigate</h3>
+        <div className="actions">
+          {drill ? (
+            <button type="button" className="btn primary" onClick={openRelatedTrades}>
+              {finding.sampleSize > 0
+                ? `View ${finding.sampleSize} related trade${finding.sampleSize === 1 ? "" : "s"}`
+                : "View related trades"}
+            </button>
+          ) : null}
+          {href ? (
+            <Link href={href} className="btn">
+              Open {labLabel} →
+            </Link>
+          ) : null}
+        </div>
       </section>
 
-      <div className="actions">
-        {drill ? (
-          <button type="button" className="btn primary" onClick={openRelatedTrades}>
-            {finding.sampleSize > 0 ? `View ${finding.sampleSize} related trades` : "View related trades"}
-          </button>
-        ) : null}
-        {href ? (
-          <Link href={href} className="btn">
-            Open {labLabel} →
-          </Link>
-        ) : null}
-      </div>
+      <details className="method">
+        <summary>How this signal was generated</summary>
+        <p>{finding.whySurfaced}</p>
+        <p className="tech" title="Research detail">
+          {confidenceText(finding.confidence, finding.sampleSize)} · source {finding.source}
+        </p>
+      </details>
 
       <FindingExplanation finding={finding} accountId={accountId} periodLabel={periodLabel} />
 
@@ -184,12 +173,25 @@ function FindingDetailBody({
           gap: 8px;
           align-items: center;
         }
-        .type {
+        .status {
           font-size: 10px;
           font-weight: 700;
           letter-spacing: 0.07em;
           text-transform: uppercase;
           color: var(--accent-text, var(--accent));
+        }
+        .status-positive {
+          color: var(--pos);
+        }
+        .status-risk {
+          color: var(--neg);
+        }
+        .type {
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 0.07em;
+          text-transform: uppercase;
+          color: var(--text-muted);
         }
         :global(.finding-drawer .title) {
           font-size: 1.15rem !important;
@@ -257,26 +259,6 @@ function FindingDetailBody({
           font-size: 13px;
           font-weight: 600;
           color: var(--text-primary);
-          text-transform: capitalize;
-        }
-        .fia {
-          margin: 0;
-          display: grid;
-          gap: 10px;
-        }
-        .fia dt {
-          font-size: 10px;
-          font-weight: 700;
-          letter-spacing: 0.06em;
-          text-transform: uppercase;
-          color: var(--accent-text, var(--accent));
-          margin: 0 0 2px;
-        }
-        .fia dd {
-          margin: 0;
-          font-size: 13px;
-          line-height: 1.45;
-          color: var(--text-secondary);
         }
         .actions {
           display: grid;
@@ -297,6 +279,7 @@ function FindingDetailBody({
           background: var(--surface-2);
           color: var(--text-primary);
           cursor: pointer;
+          font-family: inherit;
         }
         .actions :global(.btn.primary),
         .actions .btn.primary {
@@ -308,6 +291,41 @@ function FindingDetailBody({
         .actions .btn:focus-visible {
           outline: 2px solid var(--accent);
           outline-offset: 2px;
+        }
+        .method {
+          border-top: 1px solid var(--border);
+          padding-top: 10px;
+        }
+        .method summary {
+          cursor: pointer;
+          font-size: 12px;
+          font-weight: 650;
+          color: var(--text-secondary);
+          list-style: none;
+        }
+        .method summary::-webkit-details-marker {
+          display: none;
+        }
+        .method summary::before {
+          content: "▸ ";
+          color: var(--text-muted);
+        }
+        .method[open] summary::before {
+          content: "▾ ";
+        }
+        .method summary:focus-visible {
+          outline: 2px solid var(--accent);
+          outline-offset: 2px;
+        }
+        .method p {
+          margin: 8px 0 0;
+          font-size: 12px;
+          line-height: 1.45;
+          color: var(--text-muted);
+        }
+        .tech {
+          font-family: var(--font-mono), ui-monospace, Menlo, monospace;
+          font-size: 11px !important;
         }
       `}</style>
     </div>

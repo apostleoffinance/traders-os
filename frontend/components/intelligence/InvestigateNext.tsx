@@ -1,49 +1,53 @@
 "use client";
 
 import type { Finding } from "@/lib/intelligence";
-import { findingTypeLabel } from "./EvidenceStrip";
+import { toSignalViewModel } from "@/lib/intelligence/signal-ui";
 import { InvestigateButton } from "./InvestigateButton";
-import { SeverityBadge } from "./SeverityBadge";
 
 function investigateLabel(finding: Finding): string {
   const dest = finding.destination.label;
-  if (dest && dest !== "Analytics") return `Investigate ${dest.replace(/ Lab$/, "")} →`;
-  return finding.action.label || "Investigate →";
+  if (dest && dest !== "Analytics") return `Inspect ${dest.replace(/ Lab$/, "")} →`;
+  return finding.action.label || "Inspect →";
 }
 
+/** Worth Investigating queue — generated from engine.queue only. */
 export function InvestigateNext({ findings }: { findings: Finding[] }) {
   if (!findings.length) return null;
 
   return (
     <section className="next" aria-labelledby="investigate-next-title">
       <header className="section-head">
-        <h2 id="investigate-next-title">Investigate next</h2>
-        <p className="sub">Prioritized follow-ups from deterministic findings — not trade signals.</p>
+        <h2 id="investigate-next-title">Worth investigating</h2>
+        <p className="sub">Where to look next — from your own closed trades.</p>
       </header>
 
       <ol className="list">
-        {findings.map((finding, index) => (
-          <li key={finding.id} className={`row sev-${finding.severity.toLowerCase()}`}>
-            <span className="num" aria-hidden>
-              {String(index + 1).padStart(2, "0")}
-            </span>
-            <div className="body">
-              <div className="meta">
-                <span className="type">{findingTypeLabel(finding.type)}</span>
-                <SeverityBadge severity={finding.severity} compact />
-              </div>
-              <strong className="title">{finding.title}</strong>
-              {finding.summary ? <p className="summary">{finding.summary}</p> : null}
-              {finding.sampleSize > 0 ? (
+        {findings.map((finding, index) => {
+          const vm = toSignalViewModel(finding);
+          return (
+            <li key={finding.id} className={`row status-${vm.status}`}>
+              <span className="num" aria-hidden>
+                {String(index + 1).padStart(2, "0")}
+              </span>
+              <div className="body">
+                <div className="meta">
+                  <span className="status">{vm.statusLabel}</span>
+                  <span className="cat">{vm.categoryLabel}</span>
+                </div>
+                <strong className="title">{finding.title}</strong>
                 <p className="sample">
-                  {finding.sampleSize} trade{finding.sampleSize === 1 ? "" : "s"}
-                  {finding.metric ? ` · ${finding.metric.value}` : ""}
+                  {finding.metric ? `${finding.metric.value}` : ""}
+                  {finding.metric && finding.sampleSize > 0 ? " · " : ""}
+                  {finding.sampleSize > 0
+                    ? `${finding.sampleSize} trade${finding.sampleSize === 1 ? "" : "s"}`
+                    : ""}
                 </p>
-              ) : null}
-            </div>
-            <InvestigateButton finding={finding} label={investigateLabel(finding)} className="action" />
-          </li>
-        ))}
+                {finding.summary ? <p className="summary">{finding.summary}</p> : null}
+              </div>
+              <InvestigateButton finding={finding} label={investigateLabel(finding)} className="action" />
+            </li>
+          );
+        })}
       </ol>
 
       <style jsx>{`
@@ -86,17 +90,20 @@ export function InvestigateNext({ findings }: { findings: Finding[] }) {
           background: var(--surface);
           border-left: 3px solid var(--border);
         }
-        .sev-watch {
-          border-left-color: color-mix(in srgb, var(--warning, var(--accent)) 70%, var(--border));
+        .status-positive {
+          border-left-color: var(--pos);
         }
-        .sev-important {
+        .status-watch {
           border-left-color: color-mix(in srgb, var(--warning, #e8a838) 80%, var(--border));
         }
-        .sev-critical {
+        .status-observe {
+          border-left-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+        }
+        .status-risk {
           border-left-color: var(--neg);
         }
-        .sev-info {
-          border-left-color: color-mix(in srgb, var(--accent) 50%, var(--border));
+        .status-info {
+          border-left-color: color-mix(in srgb, var(--accent) 40%, var(--border));
         }
         .num {
           font-size: 13px;
@@ -116,12 +123,25 @@ export function InvestigateNext({ findings }: { findings: Finding[] }) {
           align-items: center;
           gap: 8px;
         }
-        .type {
+        .status {
           font-size: 10px;
           font-weight: 700;
           letter-spacing: 0.06em;
           text-transform: uppercase;
           color: var(--accent-text, var(--accent));
+        }
+        .status-risk .status {
+          color: var(--neg);
+        }
+        .status-positive .status {
+          color: var(--pos);
+        }
+        .cat {
+          font-size: 10px;
+          font-weight: 600;
+          letter-spacing: 0.05em;
+          text-transform: uppercase;
+          color: var(--text-muted);
         }
         .title {
           font-size: 13px;
@@ -139,10 +159,11 @@ export function InvestigateNext({ findings }: { findings: Finding[] }) {
         }
         .sample {
           margin: 0;
-          font-size: 11px;
-          font-weight: 600;
+          font-size: 12px;
+          font-weight: 650;
           color: var(--text-secondary);
           font-variant-numeric: tabular-nums;
+          font-family: var(--font-mono), ui-monospace, Menlo, monospace;
         }
         .next :global(.action) {
           font-size: 12px;

@@ -107,7 +107,7 @@ function AnalyticsLab() {
       case "risk":
         return <RiskTab data={data} />;
       case "calendar":
-        return <CalendarTab data={data} />;
+        return <CalendarTab data={data} filters={applied} />;
       default:
         return null;
     }
@@ -128,7 +128,7 @@ function AnalyticsLab() {
     <AnalyticsDrilldownProvider
       accountId={accountId}
       currency={data?.account.currency ?? "USD"}
-      timezone={data?.lab?.metadata?.timezone}
+      timezone={data?.lab?.temporal?.calendar?.timezone ?? data?.lab?.metadata?.timezone}
       filters={applied}
       onFiltersChange={setApplied}
     >

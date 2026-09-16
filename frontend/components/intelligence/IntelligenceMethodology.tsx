@@ -1,14 +1,20 @@
 "use client";
 
 /** Low-priority methodology — how Intelligence generates findings. */
-export function IntelligenceMethodology() {
+export function IntelligenceMethodology({ tradeCount }: { tradeCount?: number }) {
+  const sampleLine =
+    tradeCount != null && tradeCount > 0
+      ? `TraderOS currently has ${tradeCount} completed trade${tradeCount === 1 ? "" : "s"} in this view. That is enough to describe what happened${tradeCount < 20 ? ", but not enough to establish a reliable long-term pattern" : ""}.`
+      : null;
+
   return (
     <details className="method">
       <summary>How TraderOS finds patterns</summary>
       <div className="body">
+        {sampleLine ? <p>{sampleLine}</p> : null}
         <p>
-          TraderOS Intelligence is a decision layer on top of deterministic analytics — not a second
-          chart wall and not a signal feed.
+          TraderOS Intelligence sits above Analytics: it connects your performance, behaviour,
+          execution and risk to surface what deserves attention — not a second dashboard.
         </p>
         <ol>
           <li>
@@ -16,12 +22,13 @@ export function IntelligenceMethodology() {
             (performance, edge, behaviour, execution, risk).
           </li>
           <li>
-            <strong>Findings</strong> are ranked by severity, sample size, and magnitude — thin samples
-            cannot outrank well-supported patterns.
+            <strong>Signals</strong> are ranked by severity, trades analyzed, and magnitude — thin
+            history cannot outrank well-supported patterns.
           </li>
           <li>
-            <strong>Confidence</strong> is sample-aware (Early → Emerging → Supported → Stronger
-            history). It is not an AI score and not statistical significance unless Quant Lab says so.
+            <strong>Pattern strength</strong> is sample-aware (Early observation → Pattern we&apos;re
+            seeing → Repeated → Stronger history). It is not an AI score and not statistical
+            significance unless Quant Lab says so.
           </li>
           <li>
             <strong>Investigate</strong> opens evidence and the related lab. Optional AI explains the

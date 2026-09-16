@@ -5,10 +5,10 @@ import Link from "next/link";
 export function IntelligenceEmptyState({ tradeCount = 0 }: { tradeCount?: number }) {
   return (
     <section className="empty" aria-labelledby="intel-empty-title">
-      <h2 id="intel-empty-title">Nothing to analyze yet</h2>
+      <h2 id="intel-empty-title">No trading data yet</h2>
       <p>
-        Once you close a few trades, TraderOS will start surfacing patterns in your performance,
-        behaviour and risk.
+        Once you close trades, TraderOS will start looking for patterns in your performance,
+        behaviour and execution.
       </p>
       {tradeCount > 0 ? (
         <p className="count">
@@ -17,7 +17,7 @@ export function IntelligenceEmptyState({ tradeCount = 0 }: { tradeCount?: number
       ) : null}
       <div className="actions">
         <Link href="/trades/new" className="btn primary">
-          Log a trade
+          Log a trade →
         </Link>
         <Link href="/accounts" className="btn">
           Connect MT5
@@ -86,13 +86,55 @@ export function IntelligenceEmptyState({ tradeCount = 0 }: { tradeCount?: number
   );
 }
 
+export function IntelligenceEarlyDataState({ tradeCount }: { tradeCount: number }) {
+  return (
+    <section className="none" aria-labelledby="intel-early-title">
+      <h2 id="intel-early-title">Early data</h2>
+      <p>
+        TraderOS has started finding observations from {tradeCount} trade
+        {tradeCount === 1 ? "" : "s"}. Keep trading and the picture will become clearer.
+      </p>
+      <p className="hint">Observations below describe what happened — not a proven long-term edge.</p>
+      <style jsx>{`
+        .none {
+          border: 1px solid var(--border);
+          border-radius: 12px;
+          background: var(--surface);
+          padding: 14px 16px;
+          display: grid;
+          gap: 6px;
+          max-width: 560px;
+        }
+        h2 {
+          margin: 0;
+          font-size: 0.95rem;
+          font-weight: 650;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+          color: var(--accent-text, var(--accent));
+        }
+        p {
+          margin: 0;
+          font-size: 13px;
+          line-height: 1.45;
+          color: var(--text-secondary);
+        }
+        .hint {
+          font-size: 12px;
+          color: var(--text-muted);
+        }
+      `}</style>
+    </section>
+  );
+}
+
 export function IntelligenceNoFindingState({ tradeCount }: { tradeCount: number }) {
   return (
     <section className="none" aria-labelledby="intel-none-title">
       <h2 id="intel-none-title">No clear pattern yet</h2>
       <p>
         {tradeCount} trade{tradeCount === 1 ? "" : "s"} analyzed — nothing stands out enough to surface
-        as a primary finding right now.
+        right now.
       </p>
       <p className="hint">Keep journaling. Patterns become clearer as your history grows.</p>
       <style jsx>{`

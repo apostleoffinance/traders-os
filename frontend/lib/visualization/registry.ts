@@ -114,7 +114,7 @@ const ENRICHMENT: Record<string, Enrichment> = {
     complexity: "low",
     primary: true,
     purpose: "Year × month temporal performance matrix",
-    component: "MonthlyReturnsHeatmap",
+    component: "MonthlyPerformanceMatrix",
     interaction: ["click-drilldown"],
   },
   performance_calendar: {

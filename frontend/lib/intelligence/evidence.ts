@@ -49,10 +49,16 @@ export function confidenceText(label: FindingConfidenceLabel, sampleSize: number
   // Trader-facing display — keep internal labels; soften harsh wording on primary UI.
   const friendly =
     label === "Insufficient evidence"
-      ? "Early signal"
+      ? "Early observation"
       : label === "Strong evidence"
         ? "Stronger history"
-        : label;
+        : label === "Early signal"
+          ? "Early observation"
+          : label === "Emerging pattern"
+            ? "Pattern we're seeing"
+            : label === "Supported"
+              ? "Repeated pattern"
+              : label;
   return `${friendly} · ${sampleSize} ${unit}`;
 }
 

@@ -16,18 +16,22 @@ import {
 import {
   buildIntelligenceFindings,
   intelligenceActivityStatus,
+  type Finding,
   type IntelligenceFeedResponse,
   type IntelligenceEngineResult,
 } from "@/lib/intelligence";
-import { PrimaryFinding, PrimaryFindingSkeleton } from "@/components/intelligence/PrimaryFinding";
-import { AttentionGrid, AttentionGridSkeleton } from "@/components/intelligence/AttentionGrid";
-import { FindingDetailProvider } from "@/components/intelligence/FindingDetailContext";
+import { FindingDetailProvider, useFindingDetail } from "@/components/intelligence/FindingDetailContext";
 import { IntelligenceMethodology } from "@/components/intelligence/IntelligenceMethodology";
 import {
+  IntelligenceEarlyDataState,
   IntelligenceEmptyState,
   IntelligenceErrorState,
   IntelligenceNoFindingState,
 } from "@/components/intelligence/IntelligenceStates";
+import { InvestigateNext, InvestigateNextSkeleton } from "@/components/intelligence/InvestigateNext";
+import { TradingPulse, TradingPulseSkeleton } from "@/components/intelligence/TradingPulse";
+import { SelectedEvidence } from "@/components/intelligence/signals/SelectedEvidence";
+import { SignalSection, SignalSectionSkeleton } from "@/components/intelligence/signals/SignalSection";
 import { AnalyticsDrilldownProvider } from "@/components/analytics/AnalyticsDrilldownContext";
 import { AnalyticsFilters } from "@/components/analytics/Filters";
 import { DrilldownFilterBar } from "@/components/analytics/primitives/DrilldownFilterBar";
@@ -38,8 +42,44 @@ const FindingDetailDrawer = dynamic(
   { ssr: false },
 );
 
+const BehaviourSignals = dynamic(
+  () =>
+    import("@/components/intelligence/behaviour/BehaviourSignals").then((m) => m.BehaviourSignals),
+  { ssr: false },
+);
+
+const TradeStories = dynamic(
+  () => import("@/components/intelligence/trades/TradeStories").then((m) => m.TradeStories),
+  { ssr: false },
+);
+
 function periodLabel(preset: string): string {
   return PERIOD_LABELS[preset as PeriodPreset] ?? preset;
+}
+
+/** Sync selected evidence with drawer opens so Signal → Evidence stays aligned. */
+function SelectedFindingBridge({
+  selectedId,
+  onSelect,
+  findings,
+}: {
+  selectedId: string | null;
+  onSelect: (f: Finding | null) => void;
+  findings: Finding[];
+}) {
+  const { finding } = useFindingDetail();
+  useEffect(() => {
+    if (!finding) return;
+    if (finding.id !== selectedId) onSelect(finding);
+  }, [finding, selectedId, onSelect]);
+
+  // Keep selection valid when engine refreshes
+  useEffect(() => {
+    if (!selectedId) return;
+    if (!findings.some((f) => f.id === selectedId)) onSelect(null);
+  }, [findings, selectedId, onSelect]);
+
+  return null;
 }
 
 export default function IntelligencePage() {
@@ -53,6 +93,7 @@ export default function IntelligencePage() {
   const { filters: globalFilters, ready: filtersReady } = useGlobalFilters();
   const [draft, setDraft] = useState<FilterState>(filtersWithGlobalPeriod(globalFilters.period));
   const [applied, setApplied] = useState<FilterState>(filtersWithGlobalPeriod(globalFilters.period));
+  const [selectedFinding, setSelectedFinding] = useState<Finding | null>(null);
   const status = useAiStatus();
   const loadSeq = useRef(0);
 
@@ -136,10 +177,28 @@ export default function IntelligencePage() {
     });
   }, [dash, feed, intel, activePeriodLabel]);
 
+  // Default evidence to primary when engine arrives
+  useEffect(() => {
+    if (!engine?.primary) return;
+    setSelectedFinding((prev) => prev ?? engine.primary);
+  }, [engine?.primary?.id]);
+
   const showSkeletons = accountId && loading && !engine;
   const showCenter = accountId && !error && engine;
   const activity =
     engine != null ? intelligenceActivityStatus(engine.tradeCount, engine.maturity) : null;
+
+  const behaviourFindings = useMemo(
+    () =>
+      engine?.findings.filter(
+        (f) => f.domain === "behaviour" || f.type === "BEHAVIOUR" || f.domain === "execution",
+      ) ?? [],
+    [engine],
+  );
+
+  const onSelectFinding = useCallback((f: Finding | null) => {
+    setSelectedFinding(f);
+  }, []);
 
   const body = (
     <>
@@ -154,8 +213,9 @@ export default function IntelligencePage() {
 
       {showSkeletons ? (
         <div className="center" aria-busy="true" aria-live="polite">
-          <PrimaryFindingSkeleton />
-          <AttentionGridSkeleton />
+          <TradingPulseSkeleton />
+          <SignalSectionSkeleton />
+          <InvestigateNextSkeleton />
         </div>
       ) : null}
 
@@ -172,15 +232,48 @@ export default function IntelligencePage() {
                 </p>
               ) : null}
 
-              {engine.primary ? (
-                <PrimaryFinding finding={engine.primary} />
+              {dash ? <TradingPulse data={dash} maturity={engine.maturity} /> : null}
+
+              {engine.maturity === "early" ? (
+                <IntelligenceEarlyDataState tradeCount={engine.tradeCount} />
+              ) : null}
+
+              {/* LAYER 1 — Signals */}
+              {engine.primary || engine.attention.length ? (
+                <SignalSection
+                  primary={engine.primary}
+                  attention={engine.attention}
+                  selectedId={selectedFinding?.id}
+                  onSelect={onSelectFinding}
+                />
               ) : (
                 <IntelligenceNoFindingState tradeCount={engine.tradeCount} />
               )}
 
-              <AttentionGrid findings={engine.attention} />
+              {/* LAYER 2 — Evidence */}
+              <SelectedEvidence
+                finding={selectedFinding}
+                dashboard={dash}
+                onClear={() => onSelectFinding(null)}
+              />
 
-              <IntelligenceMethodology />
+              {/* LAYER 3 — Investigation */}
+              <InvestigateNext findings={engine.queue} />
+
+              {/* Behaviour */}
+              {dash ? (
+                <BehaviourSignals
+                  dashboard={dash}
+                  lab={intel}
+                  behaviourFindings={behaviourFindings}
+                />
+              ) : null}
+
+              {/* Trade stories — lazy anatomy */}
+              {accountId ? <TradeStories accountId={accountId} /> : null}
+
+              {/* LAYER 4 — Methodology */}
+              <IntelligenceMethodology tradeCount={engine.tradeCount} />
             </>
           )}
         </div>
@@ -191,13 +284,16 @@ export default function IntelligencePage() {
   return (
     <div className="page">
       <a href="#intel-main" className="skip">
-        Skip to findings
+        Skip to intelligence
       </a>
 
       <header className="hero">
         <h1>Intelligence</h1>
         <p className="tagline">Your trading, interpreted.</p>
-        <p className="support">TraderOS surfaces patterns, behaviours and risks worth your attention.</p>
+        <p className="support">
+          TraderOS connects your performance, behaviour, execution and risk to surface what deserves
+          your attention.
+        </p>
       </header>
 
       {accountId ? (
@@ -209,6 +305,11 @@ export default function IntelligencePage() {
           onFiltersChange={setApplied}
         >
           <FindingDetailProvider>
+            <SelectedFindingBridge
+              selectedId={selectedFinding?.id ?? null}
+              onSelect={onSelectFinding}
+              findings={engine?.findings ?? []}
+            />
             <div className="filters" aria-label="Intelligence filters">
               <AnalyticsFilters
                 draft={draft}
@@ -285,7 +386,7 @@ export default function IntelligencePage() {
         }
         .center {
           display: grid;
-          gap: 14px;
+          gap: 16px;
         }
         .status {
           margin: 0;

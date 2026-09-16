@@ -125,20 +125,30 @@ export function shiftYearMonth(year: number, month: number, delta: number): { ye
   return { year: Math.floor(idx / 12), month: (idx % 12) + 1 };
 }
 
-/** Prefer latest month that has trades; else latest month in range; else UTC now. */
+/** @deprecated Prefer preferredCalendarMonth from calendarViewModel (opens to today, not latest trade). */
 export function initialCalendarMonth(days: CalendarDay[]): { year: number; month: number } {
-  const traded = days.filter((d) => d.n > 0).sort((a, b) => b.date.localeCompare(a.date));
-  if (traded[0]) {
-    const [y, m] = traded[0].date.split("-").map(Number);
-    return { year: y, month: m };
-  }
-  if (days.length) {
-    const sorted = [...days].sort((a, b) => b.date.localeCompare(a.date));
-    const [y, m] = sorted[0].date.split("-").map(Number);
-    return { year: y, month: m };
-  }
+  // Keep export for older callers — behavior aligned with preferred: use UTC today when possible.
   const now = new Date();
-  return { year: now.getUTCFullYear(), month: now.getUTCMonth() + 1 };
+  const today = { year: now.getUTCFullYear(), month: now.getUTCMonth() + 1 };
+  const traded = days.filter((d) => d.n > 0).sort((a, b) => a.date.localeCompare(b.date));
+  if (!traded.length) {
+    if (days.length) {
+      const sorted = [...days].sort((a, b) => b.date.localeCompare(a.date));
+      const [y, m] = sorted[0].date.split("-").map(Number);
+      return { year: y, month: m };
+    }
+    return today;
+  }
+  const [y0, m0] = traded[0].date.split("-").map(Number);
+  const [y1, m1] = traded[traded.length - 1].date.split("-").map(Number);
+  const last = { year: y1, month: m1 };
+  const max =
+    last.year * 12 + last.month >= today.year * 12 + today.month ? last : today;
+  const min = { year: y0, month: m0 };
+  const t = today.year * 12 + today.month;
+  if (t >= min.year * 12 + min.month && t <= max.year * 12 + max.month) return today;
+  if (t > max.year * 12 + max.month) return max;
+  return min;
 }
 
 export function dayPerformanceValue(day: CalendarDay | null | undefined): number | null {

@@ -60,6 +60,22 @@ export {
 export { buildExplanationContext, buildExplanationPrompt, buildExplanationRequest } from "./explanations";
 export type { FindingExplanationContext, FindingExplanationRequest } from "./explanations";
 export {
+  signalStatusFromFinding,
+  signalStatusLabel,
+  confidenceStateFromFinding,
+  friendlyConfidenceLabel,
+  toSignalViewModel,
+  buildSignalList,
+} from "./signal-ui";
+export type { SignalUiStatus, SignalConfidenceState, SignalViewModel } from "./signal-ui";
+export {
+  observedResultCopy,
+  earlyObservationCopy,
+  repeatedPatternCopy,
+  moreTradesNeededCopy,
+  whySurfacedShort,
+} from "./copy";
+export {
   MIN_GROUP_TRADES,
   MIN_MATURE_TRADES,
   ATTENTION_LIMIT,
