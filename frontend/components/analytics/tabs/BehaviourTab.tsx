@@ -1,7 +1,6 @@
 "use client";
 
 import { DisclosureLayer } from "@/components/analytics/primitives/DisclosureLayer";
-import { DeepDiveSection } from "@/components/analytics/primitives/DeepDiveSection";
 import { QuantLabBridge } from "@/components/analytics/primitives/QuantLabBridge";
 import { BehaviourLab } from "@/components/analytics/BehaviourLab";
 import { DecisionQualitySummary } from "@/components/analytics/behaviour/DecisionQualitySummary";
@@ -14,7 +13,7 @@ import {
 } from "@/components/intelligence/IntelligenceViz";
 import type { AnalyticsDashboard } from "@/lib/analytics";
 
-/** Behaviour: Decision (process) → Evidence (signals) → Deep dive. */
+/** Behaviour: process → signals → charts (no deep-dive accordion). */
 export function BehaviourTab({ data }: { data: AnalyticsDashboard }) {
   const intel = data.lab?.intelligence;
   const currency = data.account.currency;
@@ -27,15 +26,13 @@ export function BehaviourTab({ data }: { data: AnalyticsDashboard }) {
       <DisclosureLayer kind="evidence">
         <BehaviourSignals data={data} intel={intel} />
         <BehaviourLab data={data} />
-      </DisclosureLayer>
-      <DeepDiveSection title="More detail">
         {intel && <DecisionQualityChart intel={intel} />}
         {intel && <PsychologyBubbleMatrix intel={intel} currency={currency} />}
         {intel && <DisciplineScatterPanel intel={intel} currency={currency} />}
         {intel && <BehaviourIntelligenceLab intel={intel} />}
         {intel && <ChecklistItemPanel intel={intel} />}
         <QuantLabBridge variant="behaviour" />
-      </DeepDiveSection>
+      </DisclosureLayer>
     </>
   );
 }

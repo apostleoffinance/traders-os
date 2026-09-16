@@ -8,11 +8,10 @@ import { PerformanceSnapshot } from "@/components/analytics/calendar/Performance
 import { PerformanceCalendar, jumpCalendarToDay } from "@/components/analytics/calendar/PerformanceCalendar";
 import { TradingRhythm } from "@/components/analytics/calendar/TradingRhythm";
 import { MonthlyPerformanceMatrix } from "@/components/analytics/calendar/MonthlyPerformanceMatrix";
-import { AdvancedTimePatterns } from "@/components/analytics/calendar/AdvancedTimePatterns";
 
 /**
  * Temporal trading investigation workspace.
- * Hierarchy: Snapshot → Calendar → Rhythm → Monthly → Advanced
+ * Hierarchy: Snapshot → Calendar → Rhythm → Monthly
  */
 export function CalendarTab({
   data,
@@ -86,8 +85,6 @@ export function CalendarTab({
       <TradingRhythm weekday={model.weekdayRhythm} session={model.sessionRhythm} />
 
       <MonthlyPerformanceMatrix model={model} />
-
-      <AdvancedTimePatterns model={model} />
 
       <style jsx>{`
         .workspace {

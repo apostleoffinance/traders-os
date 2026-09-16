@@ -1,13 +1,12 @@
 "use client";
 
 import { DisclosureLayer } from "@/components/analytics/primitives/DisclosureLayer";
-import { DeepDiveSection } from "@/components/analytics/primitives/DeepDiveSection";
 import { ExecutionLab } from "@/components/analytics/ExecutionLab";
 import { ExecutionAnswerStrip } from "@/components/trader";
 import { Scatters } from "@/components/analytics/Sections";
 import type { AnalyticsDashboard } from "@/lib/analytics";
 
-/** Execution: Decision strip → Evidence buckets → Deep dive scatters. */
+/** Execution: strip → buckets → scatters (no deep-dive accordion). */
 export function ExecutionTab({ data }: { data: AnalyticsDashboard }) {
   return (
     <>
@@ -16,11 +15,9 @@ export function ExecutionTab({ data }: { data: AnalyticsDashboard }) {
       </DisclosureLayer>
       <DisclosureLayer kind="evidence">
         <ExecutionLab data={data} variant="essential" />
-      </DisclosureLayer>
-      <DeepDiveSection title="More detail">
         <ExecutionLab data={data} variant="advanced" />
         <Scatters data={data} mode="hold_only" />
-      </DeepDiveSection>
+      </DisclosureLayer>
     </>
   );
 }

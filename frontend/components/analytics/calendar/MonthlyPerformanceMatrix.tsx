@@ -1,271 +1,197 @@
 "use client";
 
 import { useMemo } from "react";
-import { useLiveChart } from "@/components/analytics/Charts";
-import { useOptionalAnalyticsDrilldown } from "@/components/analytics/AnalyticsDrilldownContext";
-import { filterForDateRange, formatDrillMonthLabel } from "@/lib/analytics-drilldown";
+import { formatDrillMonthLabel } from "@/lib/analytics-drilldown";
+import { MONTH_LABELS, type MonthCell } from "@/lib/analytics/calendar-view";
 import {
-  MONTH_LABELS,
-  heatColor,
-  monthRangeBounds,
-  type MonthCell,
-} from "@/lib/analytics/calendar-view";
-import type { CalendarViewModel } from "@/lib/analytics/calendarViewModel";
+  todayYearMonth,
+  type CalendarViewModel,
+} from "@/lib/analytics/calendarViewModel";
 import { signed } from "@/lib/format";
 
-/** Compact year × month matrix — primary monthly visualization. */
+/**
+ * Compact monthly performance — active months as ranked bars + year strip.
+ * No period hijacking: the trader’s global filters stay in control.
+ */
 export function MonthlyPerformanceMatrix({ model }: { model: CalendarViewModel }) {
-  const drill = useOptionalAnalyticsDrilldown();
-  const { resolved } = useLiveChart();
-  const { monthlyMatrix: matrix, monthlyCells } = model;
+  const today = todayYearMonth(model.timezone);
 
-  const posRgb = resolved === "dark" ? "45,212,168" : "13,159,110";
-  const negRgb = resolved === "dark" ? "240,113,120" : "212,83,90";
+  const active = useMemo(() => {
+    return [...model.monthlyCells]
+      .filter((c) => {
+        if (c.n <= 0) return false;
+        // Never show months after the current calendar month
+        if (c.year > today.year) return false;
+        if (c.year === today.year && c.month > today.month) return false;
+        return true;
+      })
+      .sort((a, b) => b.key.localeCompare(a.key));
+  }, [model.monthlyCells, today.year, today.month]);
 
-  const activeCount = useMemo(() => monthlyCells.filter((c) => c.n > 0).length, [monthlyCells]);
+  const maxAbs = useMemo(() => {
+    let m = 0;
+    for (const c of active) {
+      const v = c.r ?? c.netPnl;
+      if (Number.isFinite(v)) m = Math.max(m, Math.abs(v));
+    }
+    return m > 0 ? m : 1;
+  }, [active]);
 
-  if (activeCount === 0) {
+  const year = active[0]?.year ?? today.year;
+  const byMonth = useMemo(() => {
+    const map = new Map(active.filter((c) => c.year === year).map((c) => [c.month, c]));
+    return map;
+  }, [active, year]);
+
+  if (!active.length) {
     return (
-      <section className="matrix-wrap" aria-labelledby="matrix-title">
+      <section className="monthly" aria-labelledby="matrix-title">
         <h2 id="matrix-title">Monthly performance</h2>
         <p className="empty">No monthly results in this period.</p>
-        <style jsx>{wrapStyles}</style>
+        <style jsx>{styles}</style>
       </section>
     );
   }
 
   return (
-    <section className="matrix-wrap" aria-labelledby="matrix-title">
+    <section className="monthly" aria-labelledby="matrix-title">
       <header>
         <h2 id="matrix-title">Monthly performance</h2>
-        <p className="sub">Net R by month — click a month to investigate.</p>
+        <p className="sub">Net R by month in your current filter.</p>
       </header>
 
-      <div className="scroll">
-        <div className="matrix" role="grid" aria-label="Monthly performance by year">
-          <div className="corner" />
-          {MONTH_LABELS.map((label) => (
-            <div key={label} className="col-h">
-              {label}
+      {/* Compact year strip — only months in the primary year */}
+      <div className="strip" role="list" aria-label={`${year} monthly net R`}>
+        <span className="year">{year}</span>
+        {MONTH_LABELS.map((label, i) => {
+          const month = i + 1;
+          const cell = byMonth.get(month);
+          const future = year > today.year || (year === today.year && month > today.month);
+          if (future) {
+            return <div key={label} className="slot muted" aria-hidden />;
+          }
+          if (!cell || cell.n === 0) {
+            return (
+              <div key={label} className="slot empty" role="listitem" title={`${label} — no trades`}>
+                <span className="m">{label}</span>
+              </div>
+            );
+          }
+          const value = cell.r ?? cell.netPnl;
+          const tone = value > 0 ? "pos" : value < 0 ? "neg" : "flat";
+          const height = Math.max(8, Math.round((Math.abs(value) / maxAbs) * 36));
+          return (
+            <div
+              key={label}
+              className={`slot filled ${tone}`}
+              role="listitem"
+              title={`${formatDrillMonthLabel(cell.key)} · ${cell.r != null ? signed(cell.r) + "R" : signed(cell.netPnl)} · ${cell.n} trades`}
+            >
+              <span className="bar" style={{ height }} />
+              <span className="m">{label}</span>
+              <span className="v">{cell.r != null ? signed(cell.r, "") : "·"}</span>
             </div>
-          ))}
-          {matrix.years.map((year) => (
-            <div key={year} className="year-row" role="row">
-              <div className="row-h">{year}</div>
-              {Array.from({ length: 12 }, (_, i) => {
-                const month = i + 1;
-                const key = `${year}-${String(month).padStart(2, "0")}`;
-                const cell = matrix.byKey.get(key);
-                if (!cell || cell.n === 0) {
-                  return <div key={key} className="cell empty" role="gridcell" />;
-                }
-                return (
-                  <MonthCellButton
-                    key={key}
-                    cell={cell}
-                    maxAbs={matrix.maxAbsR}
-                    posRgb={posRgb}
-                    negRgb={negRgb}
-                    onOpen={() => {
-                      if (!drill) return;
-                      const { from, to } = monthRangeBounds(key);
-                      const label = formatDrillMonthLabel(key);
-                      drill.applyPatch(filterForDateRange(from, to), label);
-                      drill.openTrades(`Trades in ${label}`);
-                    }}
-                    canOpen={Boolean(drill)}
-                  />
-                );
-              })}
-            </div>
-          ))}
-        </div>
+          );
+        })}
       </div>
 
-      <MonthDetailList cells={monthlyCells} onOpenMonth={(key) => {
-        if (!drill) return;
-        const { from, to } = monthRangeBounds(key);
-        const label = formatDrillMonthLabel(key);
-        drill.applyPatch(filterForDateRange(from, to), label);
-        drill.openTrades(`Trades in ${label}`);
-      }} canOpen={Boolean(drill)} />
+      {/* Ranked list of active months */}
+      <ul className="list">
+        {active.map((c) => (
+          <MonthRow key={c.key} cell={c} maxAbs={maxAbs} />
+        ))}
+      </ul>
 
-      <style jsx>{wrapStyles}</style>
+      <style jsx>{styles}</style>
     </section>
   );
 }
 
-function MonthCellButton({
-  cell,
-  maxAbs,
-  posRgb,
-  negRgb,
-  onOpen,
-  canOpen,
-}: {
-  cell: MonthCell;
-  maxAbs: number;
-  posRgb: string;
-  negRgb: string;
-  onOpen: () => void;
-  canOpen: boolean;
-}) {
+function MonthRow({ cell, maxAbs }: { cell: MonthCell; maxAbs: number }) {
   const value = cell.r ?? cell.netPnl;
-  const label = cell.r != null ? `${signed(cell.r)}R` : signed(cell.netPnl);
-  return (
-    <button
-      type="button"
-      className="cell"
-      role="gridcell"
-      style={{ background: heatColor(value, maxAbs, posRgb, negRgb) }}
-      title={`${formatDrillMonthLabel(cell.key)} · ${label} · ${cell.n} trades`}
-      aria-label={`${formatDrillMonthLabel(cell.key)}. ${label}. ${cell.n} trades.${canOpen ? " Activate to view trades." : ""}`}
-      onClick={canOpen ? onOpen : undefined}
-      disabled={!canOpen}
-    >
-      <span className="r">{cell.r != null ? signed(cell.r) : "·"}</span>
-      <span className="n">{cell.n}</span>
-      <style jsx>{`
-        .cell {
-          min-height: 44px;
-          border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
-          border-radius: 6px;
-          padding: 4px;
-          display: grid;
-          gap: 1px;
-          align-content: center;
-          justify-items: center;
-          cursor: pointer;
-          font: inherit;
-          color: var(--text-primary);
-        }
-        .cell:disabled {
-          cursor: default;
-        }
-        .cell:not(:disabled):hover {
-          outline: 1px solid var(--accent);
-        }
-        .cell:focus-visible {
-          outline: 2px solid var(--accent);
-          outline-offset: 1px;
-        }
-        .r {
-          font-size: 11px;
-          font-weight: 700;
-          font-variant-numeric: tabular-nums;
-          font-family: var(--font-mono), ui-monospace, Menlo, monospace;
-        }
-        .n {
-          font-size: 9px;
-          color: var(--text-muted);
-          font-weight: 600;
-        }
-      `}</style>
-    </button>
-  );
-}
-
-function MonthDetailList({
-  cells,
-  onOpenMonth,
-  canOpen,
-}: {
-  cells: MonthCell[];
-  onOpenMonth: (key: string) => void;
-  canOpen: boolean;
-}) {
-  const rows = [...cells].filter((c) => c.n > 0).sort((a, b) => b.key.localeCompare(a.key));
-  if (!rows.length) return null;
+  const tone = value > 0 ? "pos" : value < 0 ? "neg" : "flat";
+  const width = Math.max(6, Math.round((Math.abs(value) / maxAbs) * 100));
 
   return (
-    <ul className="detail">
-      {rows.map((c) => (
-        <li key={c.key}>
-          <button
-            type="button"
-            className="row"
-            onClick={() => canOpen && onOpenMonth(c.key)}
-            disabled={!canOpen}
-          >
-            <span className="m">{formatDrillMonthLabel(c.key)}</span>
-            <span className={`r ${(c.r ?? c.netPnl) >= 0 ? "pos" : "neg"}`}>
-              {c.r != null ? `${signed(c.r)}R` : signed(c.netPnl)}
-            </span>
-            <span className="meta">
-              {c.n} trade{c.n === 1 ? "" : "s"}
-              {c.winRate != null ? ` · ${Math.round(c.winRate)}% win` : ""}
-            </span>
-          </button>
-        </li>
-      ))}
+    <li className="row">
+      <div className="meta">
+        <span className="name">{formatDrillMonthLabel(cell.key)}</span>
+        <span className={`val ${tone}`}>
+          {cell.r != null ? `${signed(cell.r)}R` : signed(cell.netPnl)}
+          <span className="n">
+            {" "}
+            · {cell.n} trade{cell.n === 1 ? "" : "s"}
+            {cell.winRate != null ? ` · ${Math.round(cell.winRate)}% win` : ""}
+          </span>
+        </span>
+      </div>
+      <div className="track" role="img" aria-label={`${formatDrillMonthLabel(cell.key)}: ${signed(value)}`}>
+        <div className={`fill ${tone}`} style={{ width: `${width}%` }} />
+      </div>
       <style jsx>{`
-        .detail {
-          list-style: none;
-          margin: 4px 0 0;
-          padding: 0;
-          display: grid;
-          gap: 4px;
-        }
         .row {
-          width: 100%;
           display: grid;
-          grid-template-columns: minmax(90px, 1fr) auto auto;
+          gap: 5px;
+        }
+        .meta {
+          display: flex;
+          justify-content: space-between;
           gap: 10px;
-          align-items: center;
-          padding: 8px 10px;
-          border: 1px solid var(--border);
-          border-radius: 8px;
-          background: var(--surface-2);
-          font: inherit;
-          color: inherit;
-          cursor: pointer;
-          text-align: left;
+          align-items: baseline;
         }
-        .row:disabled {
-          cursor: default;
-        }
-        .row:not(:disabled):hover {
-          border-color: var(--accent);
-        }
-        .row:focus-visible {
-          outline: 2px solid var(--accent);
-          outline-offset: 2px;
-        }
-        .m {
+        .name {
           font-size: 13px;
           font-weight: 650;
+          color: var(--text-primary);
         }
-        .r {
-          font-size: 13px;
+        .val {
+          font-size: 12px;
           font-weight: 700;
           font-variant-numeric: tabular-nums;
           font-family: var(--font-mono), ui-monospace, Menlo, monospace;
         }
-        .r.pos { color: var(--pos); }
-        .r.neg { color: var(--neg); }
-        .meta {
-          font-size: 12px;
-          color: var(--text-muted);
-          font-weight: 600;
-          justify-self: end;
+        .val.pos {
+          color: var(--pos);
         }
-        @media (max-width: 560px) {
-          .row {
-            grid-template-columns: 1fr auto;
-            grid-template-rows: auto auto;
-          }
-          .meta {
-            grid-column: 1 / -1;
-            justify-self: start;
-          }
+        .val.neg {
+          color: var(--neg);
+        }
+        .val.flat {
+          color: var(--text-muted);
+        }
+        .n {
+          font-weight: 600;
+          color: var(--text-muted);
+          font-family: inherit;
+        }
+        .track {
+          height: 8px;
+          border-radius: 4px;
+          background: var(--surface-2);
+          overflow: hidden;
+        }
+        .fill {
+          height: 100%;
+          border-radius: inherit;
+          min-width: 2px;
+        }
+        .fill.pos {
+          background: var(--pos);
+        }
+        .fill.neg {
+          background: var(--neg);
+        }
+        .fill.flat {
+          background: var(--text-muted);
+          opacity: 0.45;
         }
       `}</style>
-    </ul>
+    </li>
   );
 }
 
-const wrapStyles = `
-  .matrix-wrap {
+const styles = `
+  .monthly {
     display: grid;
     gap: 12px;
     padding: 14px 16px;
@@ -287,35 +213,76 @@ const wrapStyles = `
     font-size: 13px;
     color: var(--text-muted);
   }
-  .scroll {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-  .matrix {
+  .strip {
     display: grid;
-    grid-template-columns: 52px repeat(12, minmax(44px, 1fr));
+    grid-template-columns: 40px repeat(12, minmax(28px, 1fr));
     gap: 4px;
-    min-width: 640px;
-    align-items: center;
+    align-items: end;
+    min-height: 64px;
+    width: 100%;
   }
-  .corner { min-height: 1px; }
-  .col-h {
-    text-align: center;
-    font-size: 10px;
-    font-weight: 700;
-    color: var(--text-muted);
-  }
-  .year-row {
-    display: contents;
-  }
-  .row-h {
+  .year {
     font-size: 12px;
     font-weight: 700;
     color: var(--text-secondary);
+    align-self: center;
   }
-  .cell.empty {
-    min-height: 44px;
-    border-radius: 6px;
-    background: color-mix(in srgb, var(--surface-2) 50%, transparent);
+  .slot {
+    display: grid;
+    gap: 2px;
+    justify-items: center;
+    min-height: 52px;
+    align-content: end;
+  }
+  .slot.muted {
+    opacity: 0.2;
+  }
+  .slot.empty {
+    opacity: 0.45;
+  }
+  .slot .bar {
+    width: 70%;
+    max-width: 18px;
+    border-radius: 3px 3px 0 0;
+    background: var(--accent);
+  }
+  .slot.pos .bar {
+    background: var(--pos);
+  }
+  .slot.neg .bar {
+    background: var(--neg);
+  }
+  .slot .m {
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--text-muted);
+  }
+  .slot .v {
+    font-size: 9px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    font-family: var(--font-mono), ui-monospace, Menlo, monospace;
+    color: var(--text-secondary);
+  }
+  .slot.pos .v {
+    color: var(--pos);
+  }
+  .slot.neg .v {
+    color: var(--neg);
+  }
+  .list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 10px;
+  }
+  @media (max-width: 700px) {
+    .strip {
+      overflow-x: auto;
+      min-width: 0;
+      grid-template-columns: 36px repeat(12, 36px);
+      padding-bottom: 4px;
+    }
   }
 `;

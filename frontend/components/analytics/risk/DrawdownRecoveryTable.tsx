@@ -3,7 +3,6 @@
 import { Panel } from "@/components/ui";
 import { ResearchTable } from "@/components/trader/tables/ResearchTable";
 import { useOptionalAnalyticsDrilldown } from "@/components/analytics/AnalyticsDrilldownContext";
-import { filterForDateRange } from "@/lib/analytics-drilldown";
 import type { AnalyticsDashboard } from "@/lib/analytics";
 import { money } from "@/lib/format";
 import { useMemo } from "react";
@@ -49,9 +48,8 @@ export function DrawdownRecoveryTable({ data }: { data: AnalyticsDashboard }) {
     if (!drill || !row.recovery) return;
     const from = row.start.slice(0, 10);
     const to = row.recovery.slice(0, 10);
-    const label = `${from} → ${to}`;
-    drill.applyPatch(filterForDateRange(from, to), label);
-    drill.openTrades(`Drawdown recovery · ${label}`);
+    // Keep the trader’s period filters; only open the trades drawer.
+    drill.openTrades(`Drawdown recovery · ${from} → ${to}`);
   }
 
   return (
