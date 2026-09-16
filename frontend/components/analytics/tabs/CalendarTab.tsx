@@ -82,9 +82,14 @@ export function CalendarTab({
 
       <PerformanceCalendar data={data} filters={filters} />
 
-      <TradingRhythm weekday={model.weekdayRhythm} session={model.sessionRhythm} />
+      <TradingRhythm
+        weekday={model.weekdayRhythm}
+        session={model.sessionRhythm}
+        currency={data.account.currency}
+        earlyNote={model.earlyNote}
+      />
 
-      <MonthlyPerformanceMatrix model={model} />
+      <MonthlyPerformanceMatrix model={model} currency={data.account.currency} />
 
       <style jsx>{`
         .workspace {

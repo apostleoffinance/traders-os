@@ -265,7 +265,9 @@ export function buildCalendarViewModel(data: AnalyticsDashboard): CalendarViewMo
     monthlyMatrix,
     earlyHistory,
     earlyNote: earlyHistory
-      ? `${traded.length} trading day${traded.length === 1 ? "" : "s"} so far. More history will make time patterns clearer.`
+      ? `${totalTrades} trade${totalTrades === 1 ? "" : "s"} across ${traded.length} trading day${
+          traded.length === 1 ? "" : "s"
+        }. Patterns are still forming.`
       : null,
     days,
   };
