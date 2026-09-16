@@ -37,6 +37,7 @@ export function ChartCard({
   return (
     <div className="chart-card">
       <Panel
+        className="chart-panel"
         title={title}
         right={
           <div className="right">
@@ -49,13 +50,22 @@ export function ChartCard({
       </Panel>
       <style jsx>{`
         .chart-card {
-          margin-bottom: 20px;
+          display: flex;
+          height: 100%;
           min-width: 0;
           max-width: 100%;
           overflow-x: hidden;
         }
-        .chart-card :global(.panel) {
+        .chart-card :global(.chart-panel) {
+          display: flex;
+          flex: 1 1 auto;
+          flex-direction: column;
+          width: 100%;
+          height: 100%;
           margin-bottom: 0;
+        }
+        .chart-card :global(.chart-panel) > :last-child {
+          flex: 1 1 auto;
         }
         .chart-card :global(.kpi-grid) {
           margin-bottom: 4px;

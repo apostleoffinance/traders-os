@@ -55,12 +55,15 @@ export function UnderwaterCurve({
   height,
   defaultRange = "ALL",
   showRangeControls = true,
+  fillContainer = false,
 }: {
   curve: DdPt[];
   currency: string;
   height?: number;
   defaultRange?: EquityRangePreset;
   showRangeControls?: boolean;
+  /** Grow with parent panel height instead of a fixed chartHeight. */
+  fillContainer?: boolean;
 }) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const plotRef = useRef<uPlot | null>(null);
@@ -68,8 +71,10 @@ export function UnderwaterCurve({
   const drill = useOptionalAnalyticsDrilldown();
   const [range, setRange] = useState<EquityRangePreset>(defaultRange);
   const [hover, setHover] = useState<string | null>(null);
+  const [measuredH, setMeasuredH] = useState(0);
 
-  const chartH = height ?? chartHeight("standard");
+  const fallbackH = height ?? chartHeight("standard");
+  const chartH = fillContainer && measuredH > 0 ? measuredH : fallbackH;
   const sliced = useMemo(() => sliceByRange(curve, range), [curve, range]);
 
   const seriesData = useMemo(() => {
@@ -80,15 +85,33 @@ export function UnderwaterCurve({
   }, [sliced]);
 
   useEffect(() => {
+    if (!fillContainer) return;
+    const el = hostRef.current;
+    if (!el) return;
+    const measure = () => {
+      const h = Math.floor(el.clientHeight);
+      if (h > 0) setMeasuredH(h);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [fillContainer, sliced.length]);
+
+  useEffect(() => {
     const el = hostRef.current;
     if (!el || seriesData.xs.length < 2) return;
 
     const C = vizPalette();
     const width = el.clientWidth || el.parentElement?.clientWidth || 640;
+    const plotH =
+      fillContainer && el.clientHeight > 0 ? Math.floor(el.clientHeight) : chartH;
 
     const opts: Options = {
       width,
-      height: chartH,
+      height: plotH,
+      padding: fillContainer ? [6, 8, 0, 0] : [10, 10, 0, 0],
+      legend: { show: false },
       cursor: {
         drag: { x: true, y: false },
         points: { show: false },
@@ -102,6 +125,7 @@ export function UnderwaterCurve({
           grid: { show: true, stroke: C.line, width: 1 },
           ticks: { stroke: C.line },
           font: "11px sans-serif",
+          size: fillContainer ? 36 : undefined,
           values: (_u, splits) =>
             splits.map((s) => {
               const d = new Date(s * 1000);
@@ -113,7 +137,7 @@ export function UnderwaterCurve({
           grid: { show: true, stroke: C.line, width: 1 },
           ticks: { stroke: C.line },
           font: "11px sans-serif",
-          size: 56,
+          size: fillContainer ? 48 : 56,
           values: (_u, splits) => splits.map((v) => formatAxisMoney(v, currency).replace(/\s/g, "")),
         },
       ],
@@ -188,7 +212,8 @@ export function UnderwaterCurve({
 
     const ro = new ResizeObserver(() => {
       const w = el.clientWidth;
-      if (w > 0 && plotRef.current) plotRef.current.setSize({ width: w, height: chartH });
+      const h = fillContainer ? Math.floor(el.clientHeight) : chartH;
+      if (w > 0 && h > 0 && plotRef.current) plotRef.current.setSize({ width: w, height: h });
     });
     ro.observe(el);
 
@@ -198,12 +223,16 @@ export function UnderwaterCurve({
       plot.destroy();
       plotRef.current = null;
     };
-  }, [seriesData, chartH, currency, resolved, drill]);
+  }, [seriesData, chartH, currency, resolved, drill, fillContainer]);
 
   if (curve.length < 2) return null;
 
   return (
-    <div className="underwater-curve" role="img" aria-label="Underwater equity drawdown curve">
+    <div
+      className={`underwater-curve${fillContainer ? " fill" : ""}`}
+      role="img"
+      aria-label="Underwater equity drawdown curve"
+    >
       {showRangeControls ? (
         <div className="ranges" role="group" aria-label="Underwater time range">
           {RANGE_OPTIONS.map((r) => (
@@ -219,26 +248,42 @@ export function UnderwaterCurve({
           ))}
         </div>
       ) : null}
-      <div ref={hostRef} className="plot" style={{ height: chartH }} />
+      <div
+        ref={hostRef}
+        className="plot"
+        style={fillContainer ? undefined : { height: chartH }}
+      />
       {hover ? (
         <p className="hover" aria-live="polite">
           {hover}
         </p>
       ) : (
-        <p className="hover muted">Hover for drawdown · drag to select a window · click a day</p>
+        <p className="hover muted">
+          {fillContainer
+            ? "Hover a point for details"
+            : "Hover for drawdown · drag to select a window · click a day"}
+        </p>
       )}
       <style jsx>{`
         .underwater-curve {
+          display: flex;
+          flex-direction: column;
           width: 100%;
           max-width: 100%;
           min-width: 0;
+          min-height: 0;
           overflow-x: hidden;
+        }
+        .underwater-curve.fill {
+          height: 100%;
+          flex: 1 1 auto;
         }
         .ranges {
           display: flex;
           flex-wrap: wrap;
           gap: 4px;
           margin-bottom: 8px;
+          flex-shrink: 0;
         }
         .ranges button {
           border: 1px solid var(--border);
@@ -259,15 +304,20 @@ export function UnderwaterCurve({
           width: 100%;
           min-height: 0;
         }
+        .underwater-curve.fill .plot {
+          flex: 1 1 auto;
+          height: auto;
+        }
         .plot :global(.uplot) {
           margin: 0;
           font-family: inherit;
         }
         .hover {
-          margin: 8px 0 0;
+          margin: 6px 0 0;
           font-size: 12px;
           color: var(--text-primary);
-          min-height: 1.2em;
+          min-height: 1.15em;
+          flex-shrink: 0;
         }
         .hover.muted {
           color: var(--text-muted);

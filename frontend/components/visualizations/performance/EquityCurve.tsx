@@ -60,6 +60,7 @@ export function EquityCurve({
   showRangeControls = true,
   metric = "equity",
   compact = false,
+  fillContainer = false,
 }: {
   curve: EquityPt[];
   markers?: EquityMarker[];
@@ -71,6 +72,8 @@ export function EquityCurve({
   metric?: "equity" | "cumulative_r";
   /** Tighter plot padding / hover chrome for Command Center. */
   compact?: boolean;
+  /** Grow with parent panel height instead of a fixed chartHeight. */
+  fillContainer?: boolean;
 }) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const plotRef = useRef<uPlot | null>(null);
@@ -80,6 +83,7 @@ export function EquityCurve({
   const [range, setRange] = useState<EquityRangePreset>(defaultRange);
   const [hover, setHover] = useState<string | null>(null);
   const [vpWidth, setVpWidth] = useState(1024);
+  const [measuredH, setMeasuredH] = useState(0);
 
   useEffect(() => {
     setRange(defaultRange);
@@ -92,9 +96,10 @@ export function EquityCurve({
     return () => window.removeEventListener("resize", sync);
   }, []);
 
-  const chartH =
+  const fallbackH =
     height ??
     chartHeight(compact ? "compact" : "hero", breakpointFromWidth(vpWidth));
+  const chartH = fillContainer && measuredH > 0 ? measuredH : fallbackH;
   const sliced = useMemo(() => sliceByRange(curve, range), [curve, range]);
 
   const seriesData = useMemo(() => {
@@ -118,17 +123,35 @@ export function EquityCurve({
       .filter((m): m is EquityMarker & { index: number; y: number } => m != null);
   }, [markers, sliced, metric]);
 
+  // Measure the flex-grown host so uPlot can fill the panel (not a fixed compact height).
+  useEffect(() => {
+    if (!fillContainer) return;
+    const el = hostRef.current;
+    if (!el) return;
+    const measure = () => {
+      const h = Math.floor(el.clientHeight);
+      if (h > 0) setMeasuredH(h);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [fillContainer, sliced.length]);
+
   useEffect(() => {
     const el = hostRef.current;
     if (!el || seriesData.xs.length < 2) return;
 
     const C = vizPalette();
     const width = el.clientWidth || el.parentElement?.clientWidth || 640;
+    const plotH =
+      fillContainer && el.clientHeight > 0 ? Math.floor(el.clientHeight) : chartH;
 
     const opts: Options = {
       width,
-      height: chartH,
+      height: plotH,
       padding: compact ? [6, 8, 0, 0] : [10, 10, 0, 0],
+      legend: { show: false },
       cursor: {
         drag: { x: true, y: false },
         points: { show: seriesData.xs.length <= 12 },
@@ -234,7 +257,8 @@ export function EquityCurve({
 
     const ro = new ResizeObserver(() => {
       const w = el.clientWidth;
-      if (w > 0 && plotRef.current) plotRef.current.setSize({ width: w, height: chartH });
+      const h = fillContainer ? Math.floor(el.clientHeight) : chartH;
+      if (w > 0 && h > 0 && plotRef.current) plotRef.current.setSize({ width: w, height: h });
     });
     ro.observe(el);
 
@@ -244,7 +268,7 @@ export function EquityCurve({
       plot.destroy();
       plotRef.current = null;
     };
-  }, [seriesData, chartH, currency, resolved, drill, router, markerIndex, metric, compact]);
+  }, [seriesData, chartH, currency, resolved, drill, router, markerIndex, metric, compact, fillContainer]);
 
   if (curve.length < 2) return null;
   if (sliced.length < 2) {
@@ -256,7 +280,11 @@ export function EquityCurve({
   }
 
   return (
-    <div className="equity-curve" role="img" aria-label={metric === "cumulative_r" ? "Cumulative R equity curve" : "Equity curve"}>
+    <div
+      className={`equity-curve${fillContainer ? " fill" : ""}`}
+      role="img"
+      aria-label={metric === "cumulative_r" ? "Cumulative R equity curve" : "Equity curve"}
+    >
       {showRangeControls ? (
         <div className="ranges" role="group" aria-label="Equity time range">
           {RANGE_OPTIONS.map((r) => (
@@ -272,7 +300,11 @@ export function EquityCurve({
           ))}
         </div>
       ) : null}
-      <div ref={hostRef} className="plot" style={{ height: chartH }} />
+      <div
+        ref={hostRef}
+        className="plot"
+        style={fillContainer ? undefined : { height: chartH }}
+      />
       {hover ? (
         <p className="hover" aria-live="polite">
           {hover}
@@ -295,15 +327,18 @@ export function EquityCurve({
           max-width: 100%;
           min-width: 0;
           min-height: 0;
+          overflow-x: hidden;
+        }
+        .equity-curve.fill {
           height: 100%;
           flex: 1 1 auto;
-          overflow-x: hidden;
         }
         .ranges {
           display: flex;
           flex-wrap: wrap;
           gap: 4px;
           margin-bottom: 8px;
+          flex-shrink: 0;
         }
         .ranges button {
           border: 1px solid var(--border);
@@ -323,8 +358,10 @@ export function EquityCurve({
         .plot {
           width: 100%;
           min-height: 0;
-          height: 100%;
+        }
+        .equity-curve.fill .plot {
           flex: 1 1 auto;
+          height: auto;
         }
         .plot :global(.uplot) {
           margin: 0;
@@ -335,6 +372,7 @@ export function EquityCurve({
           font-size: 12px;
           color: var(--text-primary);
           min-height: 1.15em;
+          flex-shrink: 0;
         }
         .hover.muted,
         .hint {
@@ -343,6 +381,7 @@ export function EquityCurve({
         .hint {
           margin: 4px 0 0;
           font-size: 11px;
+          flex-shrink: 0;
         }
       `}</style>
     </div>

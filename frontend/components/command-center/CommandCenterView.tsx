@@ -226,47 +226,51 @@ export function CommandCenterView({ data, trades, openTrades }: Props) {
               ))}
             </div>
           </div>
-          {mode === "equity" &&
-            (equityCurve.length >= 2 ? (
-              <EquityCurve
-                curve={equityCurve}
-                currency={currency}
-                compact
-                showRangeControls={false}
-                defaultRange="ALL"
-              />
-            ) : (
-              <p className="empty muted">
-                {stats.n === 0
-                  ? "No closed trades in this period yet."
-                  : "Need at least two closed trades in this period to draw equity."}
-              </p>
-            ))}
-          {mode === "drawdown" &&
-            (ddPoints.length >= 2 ? (
-              <UnderwaterCurve
-                curve={ddPoints}
-                currency={currency}
-                showRangeControls={false}
-                defaultRange="ALL"
-                height={232}
-              />
-            ) : (
-              <p className="empty muted">Not enough equity history for drawdown in this period.</p>
-            ))}
-          {mode === "r" &&
-            (rCurve.length >= 2 ? (
-              <EquityCurve
-                curve={rCurve}
-                currency={currency}
-                compact
-                showRangeControls={false}
-                defaultRange="ALL"
-                metric="cumulative_r"
-              />
-            ) : (
-              <p className="empty muted">Need closed trades with R results in this period.</p>
-            ))}
+          <div className="hero-body">
+            {mode === "equity" &&
+              (equityCurve.length >= 2 ? (
+                <EquityCurve
+                  curve={equityCurve}
+                  currency={currency}
+                  compact
+                  fillContainer
+                  showRangeControls={false}
+                  defaultRange="ALL"
+                />
+              ) : (
+                <p className="empty muted">
+                  {stats.n === 0
+                    ? "No closed trades in this period yet."
+                    : "Need at least two closed trades in this period to draw equity."}
+                </p>
+              ))}
+            {mode === "drawdown" &&
+              (ddPoints.length >= 2 ? (
+                <UnderwaterCurve
+                  curve={ddPoints}
+                  currency={currency}
+                  fillContainer
+                  showRangeControls={false}
+                  defaultRange="ALL"
+                />
+              ) : (
+                <p className="empty muted">Not enough equity history for drawdown in this period.</p>
+              ))}
+            {mode === "r" &&
+              (rCurve.length >= 2 ? (
+                <EquityCurve
+                  curve={rCurve}
+                  currency={currency}
+                  compact
+                  fillContainer
+                  showRangeControls={false}
+                  defaultRange="ALL"
+                  metric="cumulative_r"
+                />
+              ) : (
+                <p className="empty muted">Need closed trades with R results in this period.</p>
+              ))}
+          </div>
         </section>
 
         <aside className="side">
@@ -469,6 +473,13 @@ export function CommandCenterView({ data, trades, openTrades }: Props) {
           gap: 12px;
           margin-bottom: 8px;
           flex-wrap: wrap;
+          flex-shrink: 0;
+        }
+        .hero-body {
+          flex: 1 1 auto;
+          min-height: 0;
+          display: flex;
+          flex-direction: column;
         }
         .mode-tabs {
           display: inline-flex;
