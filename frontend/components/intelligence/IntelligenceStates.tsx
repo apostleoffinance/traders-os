@@ -5,21 +5,19 @@ import Link from "next/link";
 export function IntelligenceEmptyState({ tradeCount = 0 }: { tradeCount?: number }) {
   return (
     <section className="empty" aria-labelledby="intel-empty-title">
-      <h2 id="intel-empty-title">Start building your trading intelligence</h2>
-      <p>TraderOS needs completed trades to identify:</p>
-      <ul>
-        <li>performance patterns</li>
-        <li>trading edges</li>
-        <li>execution inefficiencies</li>
-        <li>behaviour patterns</li>
-        <li>risk deviations</li>
-      </ul>
-      <p className="count">
-        <strong>{tradeCount}</strong> completed trades
+      <h2 id="intel-empty-title">Nothing to analyze yet</h2>
+      <p>
+        Once you close a few trades, TraderOS will start surfacing patterns in your performance,
+        behaviour and risk.
       </p>
+      {tradeCount > 0 ? (
+        <p className="count">
+          <strong>{tradeCount}</strong> completed trade{tradeCount === 1 ? "" : "s"} so far
+        </p>
+      ) : null}
       <div className="actions">
         <Link href="/trades/new" className="btn primary">
-          Log a Trade
+          Log a trade
         </Link>
         <Link href="/accounts" className="btn">
           Connect MT5
@@ -33,7 +31,7 @@ export function IntelligenceEmptyState({ tradeCount = 0 }: { tradeCount?: number
           padding: 22px 20px;
           display: grid;
           gap: 10px;
-          max-width: 560px;
+          max-width: 480px;
         }
         h2 {
           margin: 0;
@@ -46,13 +44,6 @@ export function IntelligenceEmptyState({ tradeCount = 0 }: { tradeCount?: number
           font-size: 14px;
           line-height: 1.5;
           color: var(--text-secondary);
-        }
-        ul {
-          margin: 0;
-          padding-left: 1.1rem;
-          color: var(--text-muted);
-          font-size: 13px;
-          line-height: 1.55;
         }
         .count {
           font-size: 13px;
@@ -98,39 +89,36 @@ export function IntelligenceEmptyState({ tradeCount = 0 }: { tradeCount?: number
 export function IntelligenceNoFindingState({ tradeCount }: { tradeCount: number }) {
   return (
     <section className="none" aria-labelledby="intel-none-title">
-      <p className="eyebrow">Primary intelligence</p>
-      <h2 id="intel-none-title">No standout pattern in this window</h2>
+      <h2 id="intel-none-title">No clear pattern yet</h2>
       <p>
-        TraderOS reviewed {tradeCount} closed trade{tradeCount === 1 ? "" : "s"} and did not surface a
-        high-confidence finding for the current filters. Try a longer period or clear narrow filters.
+        {tradeCount} trade{tradeCount === 1 ? "" : "s"} analyzed — nothing stands out enough to surface
+        as a primary finding right now.
       </p>
+      <p className="hint">Keep journaling. Patterns become clearer as your history grows.</p>
       <style jsx>{`
         .none {
           border: 1px solid var(--border);
           border-radius: 12px;
           background: var(--surface);
-          padding: 18px 20px;
+          padding: 18px 16px;
           display: grid;
           gap: 8px;
-        }
-        .eyebrow {
-          margin: 0;
-          font-size: 11px;
-          font-weight: 700;
-          letter-spacing: 0.08em;
-          text-transform: uppercase;
-          color: var(--text-muted);
+          max-width: 520px;
         }
         h2 {
           margin: 0;
-          font-size: 1.1rem;
+          font-size: 1.05rem;
           font-weight: 650;
         }
-        p:last-child {
+        p {
           margin: 0;
-          font-size: 13px;
-          line-height: 1.5;
+          font-size: 14px;
+          line-height: 1.45;
           color: var(--text-secondary);
+        }
+        .hint {
+          font-size: 13px;
+          color: var(--text-muted);
         }
       `}</style>
     </section>
@@ -140,20 +128,20 @@ export function IntelligenceNoFindingState({ tradeCount }: { tradeCount: number 
 export function IntelligenceErrorState({ onRetry }: { onRetry: () => void }) {
   return (
     <section className="err" role="alert">
-      <h2>Intelligence couldn&apos;t be generated right now</h2>
-      <p>Check your connection and try again. Your trades and analytics were not modified.</p>
+      <h2>Couldn’t load intelligence</h2>
+      <p>Check your connection and try again.</p>
       <button type="button" className="retry" onClick={onRetry}>
         Retry
       </button>
       <style jsx>{`
         .err {
-          border: 1px solid color-mix(in srgb, var(--neg) 35%, var(--border));
+          border: 1px solid var(--border);
           border-radius: 12px;
-          background: color-mix(in srgb, var(--neg) 8%, var(--surface));
-          padding: 18px 20px;
+          background: var(--surface);
+          padding: 18px 16px;
           display: grid;
           gap: 8px;
-          max-width: 520px;
+          max-width: 420px;
         }
         h2 {
           margin: 0;
@@ -161,17 +149,17 @@ export function IntelligenceErrorState({ onRetry }: { onRetry: () => void }) {
         }
         p {
           margin: 0;
-          font-size: 13px;
+          font-size: 14px;
           color: var(--text-secondary);
         }
         .retry {
-          justify-self: start;
+          width: fit-content;
           margin-top: 4px;
-          padding: 8px 14px;
-          border-radius: 8px;
           border: 1px solid var(--border);
-          background: var(--surface);
+          background: var(--surface-2);
           color: var(--text-primary);
+          border-radius: 8px;
+          padding: 8px 14px;
           font-size: 13px;
           font-weight: 650;
           cursor: pointer;

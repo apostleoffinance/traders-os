@@ -6,76 +6,71 @@ import { EvidenceStrip, findingTypeLabel } from "./EvidenceStrip";
 import { InvestigateButton } from "./InvestigateButton";
 import { SeverityBadge } from "./SeverityBadge";
 
-export function PrimaryFinding({
-  finding,
-  early = false,
-  tradeCount,
-}: {
-  finding: Finding;
-  early?: boolean;
-  tradeCount?: number;
-}) {
-  const confidence = confidenceText(finding.confidence, finding.sampleSize);
+/**
+ * Primary visual finding — evidence first, short explanation, progressive disclosure.
+ * Consumes existing Finding model; no engine changes.
+ */
+export function PrimaryFinding({ finding }: { finding: Finding }) {
+  const evidenceState = confidenceText(finding.confidence, finding.sampleSize);
+  const sampleLine =
+    finding.sampleSize > 0
+      ? `${finding.sampleSize} trade${finding.sampleSize === 1 ? "" : "s"}`
+      : null;
 
   return (
-    <section className="primary" aria-labelledby="primary-intel-title">
+    <section className="primary" aria-labelledby="noticed-title">
       <header className="head">
-        <div className="eyebrow-row">
-          <p className="eyebrow" id="primary-intel-title">
-            Primary intelligence
+        <div className="left">
+          <p className="section" id="noticed-title">
+            TraderOS noticed
           </p>
-          <SeverityBadge severity={finding.severity} />
+          <span className="type">{findingTypeLabel(finding.type)}</span>
         </div>
-        <span className="type">{findingTypeLabel(finding.type)}</span>
+        <SeverityBadge severity={finding.severity} />
       </header>
 
       <h2 className="title">{finding.title}</h2>
-      <p className="summary">{finding.summary}</p>
 
       {finding.metric ? (
-        <p className={`hero-metric ${finding.metric.tone ?? "neutral"}`}>
+        <p className={`hero ${finding.metric.tone ?? "neutral"}`}>
           <span className="hero-value">{finding.metric.value}</span>
           <span className="hero-label">{finding.metric.label}</span>
         </p>
       ) : null}
 
-      <EvidenceStrip evidence={finding.evidence} comparison={finding.comparison} />
-
-      <div className="why">
-        <p className="why-label">Why it matters</p>
-        <p>{finding.whyItMatters}</p>
+      <div className="viz">
+        <EvidenceStrip evidence={finding.evidence} comparison={finding.comparison} prominent />
       </div>
 
-      <div className="footer">
-        <p className="confidence" title={finding.whySurfaced}>
-          <span className="conf-label">Confidence</span>
-          <span>{confidence}</span>
+      {(sampleLine || finding.metric) && (
+        <p className="meta">
+          {finding.evidence[0] ? (
+            <span>
+              {finding.evidence[0].label}: {finding.evidence[0].value}
+            </span>
+          ) : null}
+          {sampleLine ? <span>{sampleLine}</span> : null}
+          <span className="state">{evidenceState}</span>
         </p>
-        <InvestigateButton finding={finding} label={finding.action.label || "Explore this edge →"} />
+      )}
+
+      <p className="means">{finding.whyItMatters}</p>
+
+      <div className="actions">
+        <InvestigateButton finding={finding} label={finding.action.label || "Explore →"} />
       </div>
 
-      {early && tradeCount != null ? (
-        <p className="early-note" role="note">
-          {tradeCount} trades — treat this as an early signal.
-        </p>
-      ) : null}
-
-      <details className="why-details">
+      <details className="why">
         <summary>Why am I seeing this?</summary>
         <p>{finding.whySurfaced}</p>
       </details>
 
       <style jsx>{`
         .primary {
-          border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border));
+          border: 1px solid var(--border);
           border-radius: 12px;
-          background: linear-gradient(
-            165deg,
-            color-mix(in srgb, var(--accent-soft) 55%, var(--surface-elevated)) 0%,
-            var(--surface) 48%,
-            var(--surface) 100%
-          );
-          padding: 18px 20px 16px;
+          background: var(--surface);
+          padding: 18px 18px 14px;
           display: grid;
           gap: 12px;
         }
@@ -107,18 +102,15 @@ export function PrimaryFinding({
         }
         .head {
           display: flex;
-          align-items: center;
+          align-items: flex-start;
           justify-content: space-between;
           gap: 12px;
-          flex-wrap: wrap;
         }
-        .eyebrow-row {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          flex-wrap: wrap;
+        .left {
+          display: grid;
+          gap: 4px;
         }
-        .eyebrow {
+        .section {
           margin: 0;
           font-size: 11px;
           font-weight: 700;
@@ -129,118 +121,92 @@ export function PrimaryFinding({
         .type {
           font-size: 11px;
           font-weight: 600;
-          letter-spacing: 0.06em;
+          letter-spacing: 0.05em;
           text-transform: uppercase;
           color: var(--text-muted);
         }
         .title {
           margin: 0;
-          font-size: clamp(1.15rem, 2.2vw, 1.45rem);
+          font-size: clamp(1.2rem, 2.4vw, 1.5rem);
           font-weight: 650;
           line-height: 1.25;
           color: var(--text-primary);
-          letter-spacing: -0.01em;
+          letter-spacing: -0.015em;
+          max-width: 36ch;
         }
-        .summary {
-          margin: 0;
-          font-size: 14px;
-          line-height: 1.5;
-          color: var(--text-secondary);
-          max-width: 62ch;
-        }
-        .hero-metric {
+        .hero {
           display: flex;
           align-items: baseline;
           gap: 10px;
           margin: 0;
         }
         .hero-value {
-          font-size: 1.75rem;
+          font-size: clamp(1.75rem, 3vw, 2.15rem);
           font-weight: 700;
           font-variant-numeric: tabular-nums;
           font-family: var(--font-mono), ui-monospace, Menlo, monospace;
           color: var(--text-primary);
+          line-height: 1;
         }
-        .hero-metric.pos .hero-value {
+        .hero.pos .hero-value {
           color: var(--pos);
         }
-        .hero-metric.neg .hero-value {
+        .hero.neg .hero-value {
           color: var(--neg);
         }
         .hero-label {
           font-size: 12px;
           color: var(--text-muted);
-          text-transform: uppercase;
-          letter-spacing: 0.04em;
           font-weight: 600;
         }
-        .why {
-          padding: 10px 12px;
-          border-radius: 8px;
-          background: color-mix(in srgb, var(--surface-2) 70%, transparent);
-          border: 1px solid var(--border);
+        .viz {
+          padding: 12px 0 4px;
+          border-top: 1px solid var(--border);
+          border-bottom: 1px solid var(--border);
         }
-        .why-label {
-          margin: 0 0 4px;
-          font-size: 10px;
-          font-weight: 700;
-          letter-spacing: 0.06em;
-          text-transform: uppercase;
+        .meta {
+          margin: 0;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px 14px;
+          font-size: 12px;
           color: var(--text-muted);
+          font-weight: 600;
         }
-        .why p {
+        .state {
+          color: var(--text-secondary);
+        }
+        .means {
           margin: 0;
           font-size: 13px;
           line-height: 1.45;
           color: var(--text-secondary);
+          max-width: 58ch;
         }
-        .footer {
+        .actions {
           display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 12px;
           flex-wrap: wrap;
-          padding-top: 4px;
+          gap: 10px;
         }
-        .confidence {
-          margin: 0;
-          display: grid;
-          gap: 2px;
-          font-size: 13px;
-          font-weight: 600;
-          color: var(--text-primary);
-        }
-        .conf-label {
-          font-size: 10px;
-          font-weight: 700;
-          letter-spacing: 0.06em;
-          text-transform: uppercase;
-          color: var(--text-muted);
-        }
-        .early-note {
-          margin: 0;
-          font-size: 12px;
-          color: var(--warning, var(--accent-text));
-        }
-        .why-details {
+        .why {
           border-top: 1px solid var(--border);
           padding-top: 8px;
         }
-        .why-details summary {
+        .why summary {
           cursor: pointer;
           font-size: 12px;
           font-weight: 600;
           color: var(--accent-text, var(--accent));
           list-style: none;
         }
-        .why-details summary::-webkit-details-marker {
+        .why summary::-webkit-details-marker {
           display: none;
         }
-        .why-details summary:focus-visible {
+        .why summary:focus-visible {
           outline: 2px solid var(--accent);
           outline-offset: 2px;
         }
-        .why-details p {
+        .why p {
           margin: 8px 0 0;
           font-size: 12px;
           line-height: 1.45;
@@ -254,69 +220,44 @@ export function PrimaryFinding({
 export function PrimaryFindingSkeleton() {
   return (
     <div className="skel" aria-hidden>
-      <div className="line w40" />
-      <div className="line w80 tall" />
-      <div className="line w60" />
-      <div className="row">
-        <div className="block" />
-        <div className="block" />
-        <div className="block" />
-      </div>
+      <div className="line w30" />
+      <div className="line w70 tall" />
+      <div className="line w40 hero" />
+      <div className="bars" />
       <style jsx>{`
         .skel {
           border: 1px solid var(--border);
           border-radius: 12px;
           background: var(--surface);
-          padding: 18px 20px;
+          padding: 18px;
           display: grid;
           gap: 12px;
         }
         .line {
           height: 12px;
           border-radius: 4px;
-          background: linear-gradient(
-            90deg,
-            var(--surface-2) 0%,
-            color-mix(in srgb, var(--accent-soft) 40%, var(--surface-2)) 50%,
-            var(--surface-2) 100%
-          );
-          background-size: 200% 100%;
-          animation: shimmer 1.4s ease-in-out infinite;
+          background: var(--surface-2);
         }
         .tall {
           height: 22px;
         }
+        .hero {
+          height: 28px;
+          width: 35%;
+        }
+        .w30 {
+          width: 30%;
+        }
         .w40 {
           width: 40%;
         }
-        .w60 {
-          width: 60%;
+        .w70 {
+          width: 70%;
         }
-        .w80 {
-          width: 80%;
-        }
-        .row {
-          display: flex;
-          gap: 10px;
-        }
-        .block {
-          width: 88px;
-          height: 36px;
-          border-radius: 6px;
+        .bars {
+          height: 72px;
+          border-radius: 8px;
           background: var(--surface-2);
-        }
-        @keyframes shimmer {
-          0% {
-            background-position: 100% 0;
-          }
-          100% {
-            background-position: -100% 0;
-          }
-        }
-        @media (prefers-reduced-motion: reduce) {
-          .line {
-            animation: none;
-          }
         }
       `}</style>
     </div>

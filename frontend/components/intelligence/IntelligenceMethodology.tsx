@@ -4,7 +4,7 @@
 export function IntelligenceMethodology() {
   return (
     <details className="method">
-      <summary>How findings are generated</summary>
+      <summary>How TraderOS finds patterns</summary>
       <div className="body">
         <p>
           TraderOS Intelligence is a decision layer on top of deterministic analytics — not a second
@@ -20,8 +20,8 @@ export function IntelligenceMethodology() {
             cannot outrank well-supported patterns.
           </li>
           <li>
-            <strong>Confidence</strong> is sample-aware (Insufficient → Early → Emerging → Supported →
-            Strong). It is not an AI score and not statistical significance unless Quant Lab says so.
+            <strong>Confidence</strong> is sample-aware (Early → Emerging → Supported → Stronger
+            history). It is not an AI score and not statistical significance unless Quant Lab says so.
           </li>
           <li>
             <strong>Investigate</strong> opens evidence and the related lab. Optional AI explains the

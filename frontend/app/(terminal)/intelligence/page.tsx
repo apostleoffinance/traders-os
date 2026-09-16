@@ -15,13 +15,12 @@ import {
 } from "@/lib/analytics";
 import {
   buildIntelligenceFindings,
+  intelligenceActivityStatus,
   type IntelligenceFeedResponse,
   type IntelligenceEngineResult,
 } from "@/lib/intelligence";
 import { PrimaryFinding, PrimaryFindingSkeleton } from "@/components/intelligence/PrimaryFinding";
 import { AttentionGrid, AttentionGridSkeleton } from "@/components/intelligence/AttentionGrid";
-import { InvestigateNext, InvestigateNextSkeleton } from "@/components/intelligence/InvestigateNext";
-import { RecentIntelligence, RecentIntelligenceSkeleton } from "@/components/intelligence/RecentIntelligence";
 import { FindingDetailProvider } from "@/components/intelligence/FindingDetailContext";
 import { IntelligenceMethodology } from "@/components/intelligence/IntelligenceMethodology";
 import {
@@ -86,7 +85,6 @@ export default function IntelligencePage() {
 
     let gotDash = false;
     try {
-      // Dashboard first — Primary/Attention can render without waiting on feed/lab.
       const dashRes = await api<AnalyticsDashboard>(`/api/analytics/dashboard?${q}`);
       if (seq !== loadSeq.current) return;
       gotDash = true;
@@ -140,6 +138,8 @@ export default function IntelligencePage() {
 
   const showSkeletons = accountId && loading && !engine;
   const showCenter = accountId && !error && engine;
+  const activity =
+    engine != null ? intelligenceActivityStatus(engine.tradeCount, engine.maturity) : null;
 
   const body = (
     <>
@@ -156,8 +156,6 @@ export default function IntelligencePage() {
         <div className="center" aria-busy="true" aria-live="polite">
           <PrimaryFindingSkeleton />
           <AttentionGridSkeleton />
-          <InvestigateNextSkeleton />
-          <RecentIntelligenceSkeleton />
         </div>
       ) : null}
 
@@ -167,42 +165,20 @@ export default function IntelligencePage() {
             <IntelligenceEmptyState tradeCount={engine.tradeCount} />
           ) : (
             <>
-              {engine.maturity === "early" ? (
-                <p className="maturity" role="status">
-                  Early signals — {engine.tradeCount} completed trades. Observations are available, but
-                  evidence is still limited.
-                </p>
-              ) : engine.notableCount > 0 ? (
-                <p className="maturity" role="status">
-                  Your trading has {engine.notableCount} notable pattern
-                  {engine.notableCount === 1 ? "" : "s"} in {activePeriodLabel}.
-                </p>
-              ) : null}
-
-              {enriching ? (
-                <p className="enrich muted" role="status">
-                  Refining feed and lab signals…
+              {activity ? (
+                <p className="status" role="status">
+                  {activity}
+                  {enriching ? <span className="enrich"> · refining…</span> : null}
                 </p>
               ) : null}
 
               {engine.primary ? (
-                <PrimaryFinding
-                  finding={engine.primary}
-                  early={engine.maturity === "early"}
-                  tradeCount={engine.tradeCount}
-                />
+                <PrimaryFinding finding={engine.primary} />
               ) : (
                 <IntelligenceNoFindingState tradeCount={engine.tradeCount} />
               )}
 
-              <AttentionGrid findings={engine.attention} early={engine.maturity === "early"} />
-              <InvestigateNext findings={engine.queue} />
-              <RecentIntelligence findings={engine.recent} />
-
-              <p className="ai-note muted">
-                Open any finding and use <strong>Explain this finding</strong> for optional AI
-                interpretation. Numbers stay locked to deterministic evidence.
-              </p>
+              <AttentionGrid findings={engine.attention} />
 
               <IntelligenceMethodology />
             </>
@@ -220,10 +196,8 @@ export default function IntelligencePage() {
 
       <header className="hero">
         <h1>Intelligence</h1>
-        <p className="tagline">Your trading data, interpreted.</p>
-        <p className="support">
-          TraderOS surfaces the patterns, risks and behaviours worth your attention.
-        </p>
+        <p className="tagline">Your trading, interpreted.</p>
+        <p className="support">TraderOS surfaces patterns, behaviours and risks worth your attention.</p>
       </header>
 
       {accountId ? (
@@ -285,7 +259,7 @@ export default function IntelligencePage() {
         .hero {
           display: grid;
           gap: 4px;
-          max-width: 640px;
+          max-width: 560px;
         }
         h1 {
           margin: 0;
@@ -313,20 +287,15 @@ export default function IntelligencePage() {
           display: grid;
           gap: 14px;
         }
-        .maturity {
+        .status {
           margin: 0;
           font-size: 13px;
+          font-weight: 600;
           color: var(--text-secondary);
         }
         .enrich {
-          margin: -4px 0 0;
-          font-size: 11px;
-        }
-        .ai-note {
-          margin: 0;
-          font-size: 12px;
-          line-height: 1.45;
-          max-width: 52ch;
+          font-weight: 500;
+          color: var(--text-muted);
         }
         @media (max-width: 700px) {
           .page {

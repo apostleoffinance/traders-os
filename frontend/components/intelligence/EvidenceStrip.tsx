@@ -7,15 +7,18 @@ export function EvidenceStrip({
   evidence,
   comparison,
   compact = false,
+  prominent = false,
 }: {
   evidence: FindingEvidenceItem[];
   comparison?: FindingComparison | null;
   compact?: boolean;
+  /** Larger bars for primary visual finding. */
+  prominent?: boolean;
 }) {
   const bars = comparisonBars(comparison);
 
   return (
-    <div className={`strip ${compact ? "compact" : ""}`} aria-label="Evidence">
+    <div className={`strip ${compact ? "compact" : ""} ${prominent ? "prominent" : ""}`} aria-label="Evidence">
       {bars ? (
         <div className="bars" role="img" aria-label={bars.aria}>
           <div className="bar-row">
@@ -43,7 +46,7 @@ export function EvidenceStrip({
 
       {evidence.length > 0 ? (
         <dl className="metrics">
-          {evidence.slice(0, compact ? 3 : 6).map((item) => (
+          {evidence.slice(0, compact ? 3 : prominent ? 4 : 6).map((item) => (
             <div key={`${item.label}-${item.value}`} className="metric">
               <dt>{item.label}</dt>
               <dd className={item.tone ?? "neutral"}>{item.value}</dd>
@@ -60,15 +63,25 @@ export function EvidenceStrip({
         .compact {
           gap: 8px;
         }
+        .prominent {
+          gap: 14px;
+        }
         .bars {
           display: grid;
           gap: 8px;
         }
+        .prominent .bars {
+          gap: 10px;
+        }
         .bar-row {
           display: grid;
-          grid-template-columns: minmax(64px, 100px) 1fr auto;
+          grid-template-columns: minmax(72px, 120px) 1fr auto;
           gap: 10px;
           align-items: center;
+        }
+        .prominent .bar-row {
+          grid-template-columns: minmax(80px, 140px) 1fr auto;
+          gap: 12px;
         }
         .bar-label {
           font-size: 12px;
@@ -77,15 +90,24 @@ export function EvidenceStrip({
           text-overflow: ellipsis;
           white-space: nowrap;
         }
+        .prominent .bar-label {
+          font-size: 13px;
+          font-weight: 600;
+          color: var(--text-secondary);
+        }
         .track {
           height: 6px;
           border-radius: 3px;
           background: var(--surface-2);
           overflow: hidden;
         }
+        .prominent .track {
+          height: 10px;
+          border-radius: 5px;
+        }
         .fill {
           height: 100%;
-          border-radius: 3px;
+          border-radius: inherit;
           background: var(--accent);
           min-width: 2px;
           transition: width 0.35s ease;
@@ -107,6 +129,10 @@ export function EvidenceStrip({
           color: var(--text-primary);
           min-width: 4.5rem;
           text-align: right;
+        }
+        .prominent .bar-value {
+          font-size: 13px;
+          font-weight: 700;
         }
         .bar-value.pos {
           color: var(--pos);
@@ -150,6 +176,17 @@ export function EvidenceStrip({
         @media (prefers-reduced-motion: reduce) {
           .fill {
             transition: none;
+          }
+        }
+        @media (max-width: 560px) {
+          .bar-row,
+          .prominent .bar-row {
+            grid-template-columns: minmax(64px, 1fr) auto;
+            grid-template-rows: auto auto;
+          }
+          .track {
+            grid-column: 1 / -1;
+            grid-row: 2;
           }
         }
       `}</style>

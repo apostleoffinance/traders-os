@@ -46,7 +46,25 @@ export function findingConfidenceLabel(
 
 export function confidenceText(label: FindingConfidenceLabel, sampleSize: number): string {
   const unit = sampleSize === 1 ? "trade" : "trades";
-  return `${label} · ${sampleSize} ${unit}`;
+  // Trader-facing display — keep internal labels; soften harsh wording on primary UI.
+  const friendly =
+    label === "Insufficient evidence"
+      ? "Early signal"
+      : label === "Strong evidence"
+        ? "Stronger history"
+        : label;
+  return `${friendly} · ${sampleSize} ${unit}`;
+}
+
+/** Activity line for Intelligence status (replaces sample-size jargon). */
+export function intelligenceActivityStatus(tradeCount: number, maturity: "empty" | "early" | "mature"): string {
+  if (tradeCount <= 0 || maturity === "empty") return "No closed trades yet";
+  const unit = tradeCount === 1 ? "trade" : "trades";
+  if (maturity === "early") {
+    if (tradeCount < 5) return `${tradeCount} ${unit} analyzed · Still early`;
+    return `${tradeCount} ${unit} analyzed · Patterns starting to emerge`;
+  }
+  return `${tradeCount} ${unit} analyzed · Stronger history available`;
 }
 
 /** Bridge analytics prose labels when needed. */

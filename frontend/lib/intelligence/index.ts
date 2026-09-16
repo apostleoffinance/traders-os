@@ -45,6 +45,7 @@ export { prioritizeFindings, dedupeFindings, scoreFinding } from "./prioritizati
 export {
   confidenceFromSample,
   confidenceText,
+  intelligenceActivityStatus,
   findingConfidenceLabel,
   severityFromFeed,
   severityFromLab,
