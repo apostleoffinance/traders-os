@@ -14,6 +14,7 @@ import {
 import {
   calendarNavBounds,
   clampYearMonth,
+  excludeFutureCalendarDays,
   preferredCalendarMonth,
 } from "@/lib/analytics/calendarViewModel";
 import { formatDrillDayLabel } from "@/lib/analytics-drilldown";
@@ -33,8 +34,11 @@ export function PerformanceCalendar({
 }) {
   const t = data.lab?.temporal;
   const currency = data.account.currency;
-  const days = t?.calendar.days ?? [];
   const timezone = t?.calendar.timezone || "UTC";
+  const days = useMemo(
+    () => excludeFutureCalendarDays(t?.calendar.days ?? [], timezone),
+    [t?.calendar.days, timezone],
+  );
 
   const bounds = useMemo(() => calendarNavBounds(days, timezone), [days, timezone]);
 

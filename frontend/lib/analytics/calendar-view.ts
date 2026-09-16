@@ -125,30 +125,23 @@ export function shiftYearMonth(year: number, month: number, delta: number): { ye
   return { year: Math.floor(idx / 12), month: (idx % 12) + 1 };
 }
 
-/** @deprecated Prefer preferredCalendarMonth from calendarViewModel (opens to today, not latest trade). */
+/** @deprecated Prefer preferredCalendarMonth from calendarViewModel (opens to today, never future). */
 export function initialCalendarMonth(days: CalendarDay[]): { year: number; month: number } {
-  // Keep export for older callers — behavior aligned with preferred: use UTC today when possible.
   const now = new Date();
   const today = { year: now.getUTCFullYear(), month: now.getUTCMonth() + 1 };
-  const traded = days.filter((d) => d.n > 0).sort((a, b) => a.date.localeCompare(b.date));
-  if (!traded.length) {
-    if (days.length) {
-      const sorted = [...days].sort((a, b) => b.date.localeCompare(a.date));
-      const [y, m] = sorted[0].date.split("-").map(Number);
-      return { year: y, month: m };
-    }
-    return today;
-  }
+  const todayIso = `${today.year}-${String(today.month).padStart(2, "0")}-28`;
+  const traded = days
+    .filter((d) => d.n > 0 && d.date <= todayIso.slice(0, 8) + "31")
+    .filter((d) => {
+      const [y, m] = d.date.split("-").map(Number);
+      return y * 12 + m <= today.year * 12 + today.month;
+    })
+    .sort((a, b) => a.date.localeCompare(b.date));
+  if (!traded.length) return today;
   const [y0, m0] = traded[0].date.split("-").map(Number);
-  const [y1, m1] = traded[traded.length - 1].date.split("-").map(Number);
-  const last = { year: y1, month: m1 };
-  const max =
-    last.year * 12 + last.month >= today.year * 12 + today.month ? last : today;
   const min = { year: y0, month: m0 };
-  const t = today.year * 12 + today.month;
-  if (t >= min.year * 12 + min.month && t <= max.year * 12 + max.month) return today;
-  if (t > max.year * 12 + max.month) return max;
-  return min;
+  if (min.year * 12 + min.month > today.year * 12 + today.month) return today;
+  return today;
 }
 
 export function dayPerformanceValue(day: CalendarDay | null | undefined): number | null {

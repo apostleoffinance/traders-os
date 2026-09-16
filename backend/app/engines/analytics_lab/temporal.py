@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from statistics import median
 from typing import Sequence
@@ -20,14 +21,39 @@ from app.engines.risk_engine import ClosedTrade
 WEEKDAYS = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
 
 
-def _enhanced_calendar(trades: Sequence[AnalyticsTrade], timezone: str) -> list[dict]:
-    tz = ZoneInfo(timezone)
+def _trading_calendar_day(
+    t: AnalyticsTrade,
+    tz: ZoneInfo,
+    *,
+    now_utc: datetime | None = None,
+) -> date:
+    """
+    Canonical trading day for calendar cells.
+
+    Prefer exit when present and not in the future; otherwise entry.
+    Prevents future exit timestamps from placing trades on months that have not occurred yet.
+    """
+    now = now_utc or datetime.now(timezone.utc)
+    entry = as_utc(t.entry_at)
+    if t.exit_at is not None:
+        exit_dt = as_utc(t.exit_at)
+        if exit_dt <= now:
+            return exit_dt.astimezone(tz).date()
+    return entry.astimezone(tz).date()
+
+
+def _enhanced_calendar(trades: Sequence[AnalyticsTrade], timezone_name: str) -> list[dict]:
+    tz = ZoneInfo(timezone_name)
+    now_utc = datetime.now(timezone.utc)
+    today_local = now_utc.astimezone(tz).date()
     by_day: dict = defaultdict(list)
     for t in closed_trades(list(trades)):
-        day = as_utc(t.exit_at or t.entry_at).astimezone(tz).date()
+        day = _trading_calendar_day(t, tz, now_utc=now_utc)
         by_day[day].append(t)
     rows = []
     for day, items in sorted(by_day.items()):
+        if day > today_local:
+            continue
         rs = [t.r_multiple for t in items if t.r_multiple is not None]
         net = sum((t.net_pnl for t in items), ZERO)
         gross = sum((t.gross_pnl for t in items), ZERO)

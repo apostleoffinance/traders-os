@@ -10,6 +10,7 @@ export type DrilldownTrade = {
   setup_name: string | null;
   timeframe: string;
   trade_timestamp: string | null;
+  exit_timestamp?: string | null;
   realized_pnl: string;
   realized_r: string | null;
   result: string;

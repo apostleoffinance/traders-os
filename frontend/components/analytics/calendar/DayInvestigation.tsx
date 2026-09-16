@@ -9,6 +9,30 @@ import { filterForSingleDay, formatDrillDayLabel } from "@/lib/analytics-drilldo
 import type { CalendarDay } from "@/lib/analytics/calendar-view";
 import { dayPerformanceValue } from "@/lib/analytics/calendar-view";
 import { formatWhen, money, sessionLabel, signed, tone } from "@/lib/format";
+import { todayISODate } from "@/lib/analytics/calendarViewModel";
+
+/** Match calendar bucketing: exit day if exit ≤ today, else entry day. */
+function tradingDayISO(iso: string | null | undefined, timeZone: string): string | null {
+  if (!iso) return null;
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(iso));
+}
+
+function tradeBelongsToCalendarDay(
+  trade: DrilldownTrade,
+  dayIso: string,
+  timeZone: string,
+): boolean {
+  const today = todayISODate(timeZone);
+  const entryDay = tradingDayISO(trade.trade_timestamp, timeZone);
+  const exitDay = tradingDayISO(trade.exit_timestamp, timeZone);
+  const effective = exitDay && exitDay <= today ? exitDay : entryDay;
+  return effective === dayIso;
+}
 
 /**
  * Day investigation drawer — loads day trades without mutating global filters.
@@ -46,7 +70,10 @@ export function DayInvestigation({
     const q = buildAnalyticsQuery(accountId, dayFilters);
     void api<{ trades: DrilldownTrade[]; meta: { total: number } }>(`/api/analytics/trades?${q}`)
       .then((res) => {
-        if (!cancelled) setTrades(res.trades);
+        if (cancelled) return;
+        const tz = timezone || "UTC";
+        const matched = res.trades.filter((t) => tradeBelongsToCalendarDay(t, day.date, tz));
+        setTrades(matched);
       })
       .catch((e) => {
         if (!cancelled) setError(e instanceof Error ? e.message : "Couldn’t load trades");
@@ -153,7 +180,12 @@ export function DayInvestigation({
                   <p className="meta">
                     {sessionLabel(t.session)}
                     {t.setup_name ? ` · ${t.setup_name}` : ""}
-                    {t.trade_timestamp ? ` · ${formatWhen(t.trade_timestamp, timezone)}` : ""}
+                    {t.trade_timestamp
+                      ? ` · Entry ${formatWhen(t.trade_timestamp, timezone)}`
+                      : ""}
+                    {t.exit_timestamp
+                      ? ` · Exit ${formatWhen(t.exit_timestamp, timezone)}`
+                      : ""}
                   </p>
                   <div className="actions">
                     <Link href={`/trades/${t.id}`}>View trade</Link>

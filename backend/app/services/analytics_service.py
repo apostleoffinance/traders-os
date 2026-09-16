@@ -839,6 +839,7 @@ def list_filtered_trades(
                 "setup_name": t.setup.name if t.setup else None,
                 "timeframe": t.timeframe,
                 "trade_timestamp": t.trade_timestamp.isoformat() if t.trade_timestamp else None,
+                "exit_timestamp": t.exit_timestamp.isoformat() if t.exit_timestamp else None,
                 "realized_pnl": str(t.realized_pnl or 0),
                 "realized_r": str(t.realized_r) if t.realized_r is not None else None,
                 "result": t.result.value if hasattr(t.result, "value") else str(t.result),

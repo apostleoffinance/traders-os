@@ -65,6 +65,16 @@ export function todayYearMonth(timeZone = "UTC"): YearMonth {
   return { year, month };
 }
 
+/** YYYY-MM-DD for “today” in the account timezone. */
+export function todayISODate(timeZone = "UTC"): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
 export function compareYearMonth(a: YearMonth, b: YearMonth): number {
   return a.year * 12 + a.month - (b.year * 12 + b.month);
 }
@@ -75,21 +85,31 @@ export function shortDayLabel(iso: string): string {
   return `${MONTH_SHORT[m - 1]} ${d}`;
 }
 
-/** Nav range: earliest traded month → max(latest traded, today). */
+/** Drop calendar days after today — future exit timestamps must not appear. */
+export function excludeFutureCalendarDays(days: CalendarDay[], timeZone = "UTC"): CalendarDay[] {
+  const today = todayISODate(timeZone);
+  return days.filter((d) => d.date <= today);
+}
+
+/**
+ * Nav range: earliest real traded month → today.
+ * Never allow navigation into future months (even if bad exit timestamps exist).
+ */
 export function calendarNavBounds(days: CalendarDay[], timeZone = "UTC"): { min: YearMonth; max: YearMonth } {
   const today = todayYearMonth(timeZone);
-  const traded = days.filter((d) => d.n > 0).sort((a, b) => a.date.localeCompare(b.date));
+  const traded = excludeFutureCalendarDays(days, timeZone)
+    .filter((d) => d.n > 0)
+    .sort((a, b) => a.date.localeCompare(b.date));
   if (!traded.length) return { min: today, max: today };
   const [y0, m0] = traded[0].date.split("-").map(Number);
-  const [y1, m1] = traded[traded.length - 1].date.split("-").map(Number);
-  const last = { year: y1, month: m1 };
-  const max = compareYearMonth(last, today) >= 0 ? last : today;
-  return { min: { year: y0, month: m0 }, max };
+  const min = { year: y0, month: m0 };
+  if (compareYearMonth(min, today) > 0) return { min: today, max: today };
+  return { min, max: today };
 }
 
 /**
  * Open to the current calendar month when it falls in the navigable range.
- * Fixes “shows November while we are in September” caused by jumping to latest trade month.
+ * Never opens to a future month.
  */
 export function preferredCalendarMonth(days: CalendarDay[], timeZone = "UTC"): YearMonth {
   const today = todayYearMonth(timeZone);
@@ -173,7 +193,7 @@ export function buildCalendarViewModel(data: AnalyticsDashboard): CalendarViewMo
   if (!t) return null;
 
   const timezone = t.calendar.timezone || "UTC";
-  const days = t.calendar.days;
+  const days = excludeFutureCalendarDays(t.calendar.days, timezone);
   const traded = days.filter((d) => d.n > 0);
   const totalTrades = traded.reduce((s, d) => s + d.n, 0);
 
