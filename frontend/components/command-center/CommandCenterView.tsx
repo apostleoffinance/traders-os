@@ -455,6 +455,11 @@ export function CommandCenterView({ data, trades, openTrades }: Props) {
           gap: 14px;
           align-items: start;
         }
+        .hero {
+          display: flex;
+          flex-direction: column;
+          min-height: 0;
+        }
         .hero-head {
           display: flex;
           justify-content: space-between;

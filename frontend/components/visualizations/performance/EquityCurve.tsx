@@ -134,7 +134,10 @@ export function EquityCurve({
         points: { show: seriesData.xs.length <= 12 },
       },
       scales: {
-        x: { time: true },
+        x: {
+          time: true,
+          range: (_u, dataMin, dataMax) => [dataMin, dataMax],
+        },
         y: {
           range: (_u, dataMin, dataMax) => {
             const lo = Number.isFinite(dataMin) ? dataMin : 0;
@@ -286,9 +289,12 @@ export function EquityCurve({
       ) : null}
       <style jsx>{`
         .equity-curve {
+          display: flex;
+          flex-direction: column;
           width: 100%;
           max-width: 100%;
           min-width: 0;
+          min-height: 0;
           overflow-x: hidden;
         }
         .ranges {
@@ -315,6 +321,8 @@ export function EquityCurve({
         .plot {
           width: 100%;
           min-height: 0;
+          height: 100%;
+          flex: 1 1 auto;
         }
         .plot :global(.uplot) {
           margin: 0;
