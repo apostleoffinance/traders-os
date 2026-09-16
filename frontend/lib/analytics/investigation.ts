@@ -17,6 +17,8 @@ export interface InvestigationItem {
   severity: InvestigationSeverity;
   title: string;
   summary: string;
+  /** Explicit NOW WHAT CTA when different from generic Investigate. */
+  actionHint?: string;
   sampleSize?: number;
   tab?: AnalyticsPageId;
   href?: string;
@@ -188,5 +190,21 @@ export function buildInvestigationQueue(data: AnalyticsDashboard): Investigation
     });
   }
 
-  return items.sort((a, b) => b.priority - a.priority).slice(0, 6);
+  const ACTION: Record<string, string> = {
+    sample_size: "Keep journaling — revisit after more closed trades →",
+    session_gap: "Open Edge and filter the weaker session →",
+    strongest_instrument: "Review that instrument in Edge Explorer →",
+    fragile_pf: "Open Performance deep dive (PF explorer) →",
+    cost_drag: "Inspect cost bridge on Performance →",
+    overtrading: "Check Execution sizing and hold times →",
+    exit_efficiency: "Open Execution exit capture →",
+    rolling_decline: "Run Quant Lab rolling expectancy →",
+    weak_setup: "Open Edge and inspect this setup →",
+    drawdown: "Open Risk budget and underwater →",
+    insufficient_evidence: "Add closed trades before trusting ranks →",
+  };
+  return items
+    .map((i) => ({ ...i, actionHint: i.actionHint ?? ACTION[i.id] }))
+    .sort((a, b) => b.priority - a.priority)
+    .slice(0, 6);
 }

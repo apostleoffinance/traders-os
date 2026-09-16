@@ -1,5 +1,6 @@
 "use client";
 
+import { AnalyticsFilters, DrilldownFilterBar, LoadingState } from "@/components/trader";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -15,9 +16,7 @@ import {
   type AnalyticsDashboard,
   type FilterState,
 } from "@/lib/analytics";
-import { AnalyticsFilters } from "@/components/analytics/Filters";
 import { AnalyticsDrilldownProvider } from "@/components/analytics/AnalyticsDrilldownContext";
-import { DrilldownFilterBar } from "@/components/analytics/primitives/DrilldownFilterBar";
 import { AnalyticsOverview } from "@/components/analytics/Overview";
 import { PerformanceTab } from "@/components/analytics/tabs/PerformanceTab";
 import { EdgeTab } from "@/components/analytics/tabs/EdgeTab";
@@ -41,7 +40,7 @@ type TabId = (typeof TABS)[number]["id"];
 
 export default function AnalyticsPage() {
   return (
-    <Suspense fallback={<p className="muted">Loading analytics…</p>}>
+    <Suspense fallback={<LoadingState label="Loading analytics…" />}>
       <AnalyticsLab />
     </Suspense>
   );
@@ -163,7 +162,7 @@ function AnalyticsLab() {
       />
       {data && <DrilldownFilterBar filters={applied} data={data} onChange={setApplied} />}
       {error && <Alert kind="danger">{error}</Alert>}
-      {!data && <p className="muted">Loading…</p>}
+      {!data && <LoadingState />}
       {data && <div className="stack">{tabContent}</div>}
 
       {tab === "overview" && data && (

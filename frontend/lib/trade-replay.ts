@@ -19,6 +19,46 @@ export type ReplayTimelineEvent = {
   detail?: string;
 };
 
+export type TradeReplayExcursions = {
+  mfe_price: string | null;
+  mae_price: string | null;
+  mfe_r: string | null;
+  mae_r: string | null;
+  mfe_at?: string | null;
+  mae_at?: string | null;
+  /** Progress along hold [0,1] when timed. */
+  mfe_t?: number | null;
+  mae_t?: number | null;
+  source: string | null;
+  precision: string | null;
+  timing_precision?: string | null;
+};
+
+export type TradeReplayMetrics = {
+  realized_r: string | null;
+  planned_rr: string | null;
+  holding_time_seconds: number | null;
+  risk_amount: string | null;
+};
+
+export type TradeReplayPriceSeriesPoint = {
+  at: string;
+  t: number;
+  open: string;
+  high: string;
+  low: string;
+  close: string;
+};
+
+export type TradeReplayPriceSeries = {
+  source: string;
+  timeframe: string;
+  bar_count: number;
+  point_count: number;
+  downsampled: boolean;
+  points: TradeReplayPriceSeriesPoint[];
+};
+
 export type TradeReplay = {
   trade_id: string;
   symbol: string;
@@ -41,6 +81,10 @@ export type TradeReplay = {
     take_profit: string | null;
     exit: string | null;
   };
+  excursions?: TradeReplayExcursions;
+  metrics?: TradeReplayMetrics;
+  /** Optional M1 OHLC path for the hold window — absent when market data unavailable. */
+  price_series?: TradeReplayPriceSeries | null;
   context: {
     pre_trade: ReplayContextCard[];
     execution: ReplayContextCard[];

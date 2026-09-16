@@ -1,17 +1,41 @@
 "use client";
 
-import { ChartCard } from "@/components/analytics/primitives/ChartCard";
+import { ChartCard } from "@/components/trader";
+import { ReportTable } from "@/components/trader/tables/ResearchTable";
+import { useMemo } from "react";
+
+type PlaybookRow = {
+  key?: string;
+  label?: string;
+  n: number;
+  expectancy_r?: string | null;
+  edge_quality?: { score: string };
+  drift?: string;
+};
 
 export function ReportPlaybookSection({ playbooks }: { playbooks: Record<string, unknown> }) {
-  const ranked = (playbooks.ranked ?? playbooks.playbooks ?? []) as {
-    key?: string;
-    label?: string;
-    n: number;
-    expectancy_r?: string | null;
-    edge_quality?: { score: string };
-    drift?: string;
-  }[];
+  const ranked = (playbooks.ranked ?? playbooks.playbooks ?? []) as PlaybookRow[];
   const best = playbooks.best_playbook as { label?: string; n?: number; disclaimer?: string } | undefined;
+  const top = useMemo(() => ranked.slice(0, 8), [ranked]);
+
+  const columns = useMemo(
+    () => [
+      { id: "label", header: "Playbook", accessor: (p: PlaybookRow) => p.label ?? p.key ?? "—" },
+      { id: "n", header: "n", accessor: (p: PlaybookRow) => p.n, numeric: true },
+      {
+        id: "exp",
+        header: "Expectancy R",
+        accessor: (p: PlaybookRow) => (p.expectancy_r ? `${p.expectancy_r}R` : "—"),
+        numeric: true,
+      },
+      {
+        id: "quality",
+        header: "Quality",
+        accessor: (p: PlaybookRow) => p.edge_quality?.score ?? "—",
+      },
+    ],
+    [],
+  );
 
   return (
     <>
@@ -27,28 +51,14 @@ export function ReportPlaybookSection({ playbooks }: { playbooks: Record<string,
           <p className="muted">More observations are required before identifying a reliable playbook (minimum sample applies).</p>
         </ChartCard>
       )}
-      {ranked.length > 0 && (
+      {top.length > 0 && (
         <ChartCard title="Setup playbooks ranked">
-          <table className="tbl">
-            <thead>
-              <tr>
-                <th>Playbook</th>
-                <th>n</th>
-                <th>Expectancy R</th>
-                <th>Quality</th>
-              </tr>
-            </thead>
-            <tbody>
-              {ranked.slice(0, 8).map((p) => (
-                <tr key={p.key ?? p.label}>
-                  <td>{p.label ?? p.key}</td>
-                  <td>{p.n}</td>
-                  <td>{p.expectancy_r ? `${p.expectancy_r}R` : "—"}</td>
-                  <td>{p.edge_quality?.score ?? "—"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <ReportTable
+            rows={top}
+            columns={columns}
+            getRowId={(p, i) => p.key ?? p.label ?? String(i)}
+            caption="Ranked playbooks"
+          />
         </ChartCard>
       )}
       <style jsx>{`
@@ -59,22 +69,6 @@ export function ReportPlaybookSection({ playbooks }: { playbooks: Record<string,
         .muted {
           color: var(--muted);
           font-size: 13px;
-        }
-        .tbl {
-          width: 100%;
-          border-collapse: collapse;
-          font-size: 13px;
-        }
-        th,
-        td {
-          text-align: left;
-          padding: 8px;
-          border-bottom: 1px solid var(--border);
-        }
-        th {
-          font-size: 11px;
-          text-transform: uppercase;
-          color: var(--muted);
         }
       `}</style>
     </>

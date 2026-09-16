@@ -3,6 +3,7 @@
 import { ChartCard } from "@/components/analytics/primitives/ChartCard";
 import { InteractiveChart } from "@/components/analytics/primitives/InteractiveChart";
 import { useLiveChart } from "@/components/analytics/Charts";
+import { ReportChapter } from "@/components/reports/story/ReportChapter";
 import { num } from "@/lib/format";
 
 export function ReportExecutionSection({
@@ -16,6 +17,12 @@ export function ReportExecutionSection({
   const mfe = execution.mfe_mae as { available?: boolean; scatter?: { trade_id: string; mfe_r: string; mae_r: string; result: string }[] } | undefined;
   const exit = execution.exit_efficiency as { available?: boolean; median_capture_pct?: string } | undefined;
   const scatterPts = mfe?.scatter ?? [];
+
+  const capture = exit?.median_capture_pct != null ? Number(exit.median_capture_pct) : null;
+  const takeaway =
+    capture != null
+      ? `Median favorable-move capture at exit: ${num(capture, 1)}%. Review MFE/MAE when capture is low on winners.`
+      : "Exit efficiency needs more trades with MFE recorded.";
 
   const mfeScatter = scatterPts.length
     ? {
@@ -41,17 +48,16 @@ export function ReportExecutionSection({
   const dqLabels = decisionQuality.labels as Record<string, string> | undefined;
 
   return (
-    <>
-      <h2 className="section-title">Execution quality</h2>
-      {mfeScatter && (
-        <ChartCard title="MFE / MAE scatter" subtitle="Maximum favorable vs adverse excursion per trade" interactive>
-          <InteractiveChart option={mfeScatter} height={280} showHint={false} />
+    <ReportChapter id="execution" title="5. Execution" question="How well did I manage trades once in?" takeaway={takeaway}>
+      {exit?.available && (
+        <ChartCard title="Exit efficiency" question="Am I leaving money on the table?">
+          <p className="stat">Median MFE capture: {exit.median_capture_pct ? `${num(exit.median_capture_pct, 1)}%` : "—"}</p>
+          <p className="hint">Share of favorable excursion captured at exit — not a forecast.</p>
         </ChartCard>
       )}
-      {exit?.available && (
-        <ChartCard title="Exit efficiency">
-          <p className="stat">Median MFE capture: {exit.median_capture_pct ? `${num(exit.median_capture_pct, 1)}%` : "—"}</p>
-          <p className="hint">How much of favorable movement was captured at exit.</p>
+      {mfeScatter && (
+        <ChartCard title="MFE / MAE scatter" subtitle="Maximum favorable vs adverse excursion per trade" interactive={false}>
+          <InteractiveChart option={mfeScatter} size="standard" showHint={false} ariaLabel="MFE MAE scatter" />
         </ChartCard>
       )}
       {dq && dqLabels && (
@@ -67,30 +73,30 @@ export function ReportExecutionSection({
         </ChartCard>
       )}
       <style jsx>{`
-        .section-title {
-          font-size: 18px;
-          margin: 0 0 16px;
-        }
         .stat {
-          font-family: var(--font-mono), monospace;
+          margin: 0;
           font-size: 22px;
+          font-weight: 700;
+          font-family: var(--font-mono), monospace;
         }
         .hint {
-          font-size: 13px;
-          color: var(--muted);
+          margin: 6px 0 0;
+          font-size: 12px;
+          color: var(--text-muted);
         }
         .dq-list {
           list-style: none;
-          padding: 0;
           margin: 0;
+          padding: 0;
+          display: grid;
+          gap: 8px;
         }
         .dq-list li {
           display: flex;
           justify-content: space-between;
-          padding: 8px 0;
-          border-bottom: 1px solid var(--border);
+          font-size: 13px;
         }
       `}</style>
-    </>
+    </ReportChapter>
   );
 }

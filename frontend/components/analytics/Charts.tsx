@@ -58,7 +58,13 @@ export function MetricToggle({
   return (
     <div className="toggles">
       {METRICS.map((m) => (
-        <button key={m.id} type="button" className={value === m.id ? "on" : ""} onClick={() => onChange(m.id)}>
+        <button
+          key={m.id}
+          type="button"
+          className={value === m.id ? "on" : ""}
+          aria-pressed={value === m.id}
+          onClick={() => onChange(m.id)}
+        >
           {m.label}
         </button>
       ))}

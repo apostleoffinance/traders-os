@@ -58,7 +58,7 @@ const NAV: NavItem[] = [
   { href: "/analytics", label: "Analytics Lab", icon: ChartNoAxesCombined, group: "intelligence" },
   { href: "/intelligence", label: "Intelligence Feed", icon: BrainCircuit, group: "intelligence" },
   { href: "/quant-lab", label: "Quant Lab", icon: FlaskConical, group: "intelligence" },
-  { href: "/labs/vela", label: "Vela Lab", icon: CandlestickChart, group: "intelligence" },
+  { href: "/labs/vela", label: "Market Lab", icon: CandlestickChart, group: "intelligence" },
   { href: "/reports", label: "Reports", icon: FileText, group: "intelligence" },
   { href: "/risk", label: "Risk Command", icon: ShieldAlert, group: "risk" },
   { href: "/accounts", label: "Accounts", icon: WalletCards, group: "account" },

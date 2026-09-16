@@ -1,21 +1,22 @@
 "use client";
 
+import { OverviewDecisionStrip, InvestigationQueue } from "@/components/trader";
 import { useMemo } from "react";
 import { OverviewScorecard } from "@/components/analytics/overview/OverviewScorecard";
 import { OverviewEquityHero } from "@/components/analytics/overview/OverviewEquityHero";
-import { HowYouWinSection } from "@/components/analytics/overview/HowYouWinSection";
-import { OverviewBestTrades } from "@/components/analytics/overview/OverviewBestTrades";
-import { YourEdgeSection } from "@/components/analytics/overview/YourEdgeSection";
-import { TradeHabitsSection } from "@/components/analytics/overview/TradeHabitsSection";
-import { CostSummarySection } from "@/components/analytics/overview/CostSummarySection";
 import { ExploreLinksSection } from "@/components/analytics/overview/ExploreLinksSection";
-import { InvestigationQueue } from "@/components/analytics/insights/InvestigationQueue";
+import { EdgeSnapshot } from "@/components/visualizations/edge/EdgeSnapshot";
 import { buildInvestigationQueue } from "@/lib/analytics/investigation";
 import type { AnalyticsDashboard } from "@/lib/analytics";
 
 type DrillMetric = "win_rate" | "expectancy_r" | "profit_factor" | "average_r";
 type TabId = "overview" | "performance" | "edge" | "behaviour" | "execution" | "risk" | "calendar";
 
+/**
+ * Overview answers in ~10 seconds:
+ * Am I doing well? What's working? What's hurting? What should I investigate?
+ * Dense charts live in Performance / Edge / Execution / Quant — not here.
+ */
 export function AnalyticsOverview({
   data,
   onMetricClick,
@@ -31,17 +32,30 @@ export function AnalyticsOverview({
     <div className="overview">
       <OverviewScorecard data={data} onMetricClick={onMetricClick} />
       <OverviewEquityHero data={data} />
-      <InvestigationQueue items={investigations} onTabChange={onTabChange} />
-      <HowYouWinSection data={data} />
-      <OverviewBestTrades data={data} />
-      <YourEdgeSection data={data} />
-      <TradeHabitsSection data={data} onExploreExecution={() => onTabChange?.("execution")} />
-      <CostSummarySection data={data} onViewCosts={() => onTabChange?.("performance")} />
+      <section className="happening">
+        <h2 className="section-title">What&apos;s happening</h2>
+        <p className="section-lead">Deterministic signals from your sample — investigate before you change your process.</p>
+        <InvestigationQueue items={investigations} onTabChange={onTabChange} />
+      </section>
+      <EdgeSnapshot data={data} />
+      <OverviewDecisionStrip data={data} onTabChange={onTabChange} />
       <ExploreLinksSection onTabChange={onTabChange} />
       <style jsx>{`
         .overview {
           display: grid;
-          gap: 4px;
+          gap: 8px;
+        }
+        .happening {
+          margin-top: 4px;
+        }
+        .section-title {
+          margin: 0 0 4px;
+          font-size: 15px;
+        }
+        .section-lead {
+          margin: 0 0 12px;
+          font-size: 14px;
+          color: var(--text-muted);
         }
       `}</style>
     </div>

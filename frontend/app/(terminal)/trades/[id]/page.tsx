@@ -187,6 +187,12 @@ export default function TradeDetailPage() {
           )}
           {isOpen && <p className="muted open-copy">Position is still running. Close it when you exit.</p>}
           <div className="actions">
+            <Link
+              href={`/labs/vela?trade=${trade.id}&symbol=${encodeURIComponent(trade.symbol.replace("/", ""))}`}
+              className="btn"
+            >
+              Open in Market Lab
+            </Link>
             <Link href={`/trades/${trade.id}/edit`} className="btn">
               Edit trade
             </Link>
@@ -206,7 +212,20 @@ export default function TradeDetailPage() {
         </Alert>
       )}
 
-      <TradeReplayView tradeId={trade.id} />
+      <TradeReplayView
+        tradeId={trade.id}
+        fallbacks={{
+          mfeR: trade.mfe_r,
+          maeR: trade.mae_r,
+          mfePrice: trade.mfe_price,
+          maePrice: trade.mae_price,
+          mfeAt: trade.mfe_at,
+          maeAt: trade.mae_at,
+          realizedR: trade.realized_r,
+          plannedRr: trade.planned_rr,
+          holdSeconds: trade.holding_time_seconds,
+        }}
+      />
 
       <div className="cols">
         <Panel title="Setup">

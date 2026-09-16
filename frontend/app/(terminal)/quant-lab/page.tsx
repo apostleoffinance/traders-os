@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import { api, getActiveAccountId } from "@/lib/api";
 import { useGlobalFilters } from "@/lib/filters";
@@ -18,17 +19,30 @@ import {
   DrawdownPanel,
   ExpectancyEnginePanel,
   QuantOverviewPanel,
-  RobustnessLab,
   RollingPanel,
   StreakPanel,
 } from "@/components/quant-lab/QuantLabPanels";
-import { SimulationLab } from "@/components/quant-lab/SimulationLab";
-import { BehaviorResearchLab } from "@/components/quant-lab/BehaviorResearchLab";
-import { ResearchIntelligenceLab } from "@/components/quant-lab/ResearchIntelligenceLab";
 import { AnalyticsDrilldownProvider } from "@/components/analytics/AnalyticsDrilldownContext";
 import { DrilldownFilterBar } from "@/components/analytics/primitives/DrilldownFilterBar";
 import { QuantLabIntro } from "@/components/quant-lab/primitives/QuantLabIntro";
 import { Alert } from "@/components/ui";
+
+const RobustnessLab = dynamic(
+  () => import("@/components/quant-lab/QuantLabPanels").then((m) => m.RobustnessLab),
+  { loading: () => <p className="muted">Loading robustness studies…</p> },
+);
+const SimulationLab = dynamic(
+  () => import("@/components/quant-lab/SimulationLab").then((m) => m.SimulationLab),
+  { loading: () => <p className="muted">Loading simulation lab…</p> },
+);
+const BehaviorResearchLab = dynamic(
+  () => import("@/components/quant-lab/BehaviorResearchLab").then((m) => m.BehaviorResearchLab),
+  { loading: () => <p className="muted">Loading behaviour research…</p> },
+);
+const ResearchIntelligenceLab = dynamic(
+  () => import("@/components/quant-lab/ResearchIntelligenceLab").then((m) => m.ResearchIntelligenceLab),
+  { loading: () => <p className="muted">Loading research intelligence…</p> },
+);
 
 const TABS = [
   { id: "overview", label: "Overview" },
@@ -130,9 +144,16 @@ function QuantLab() {
         />
       )}
 
-      <nav className="tab-nav" aria-label="Quant Lab sections">
+      <nav className="tab-nav" aria-label="Quant Lab sections" role="tablist">
         {TABS.map((t) => (
-          <button key={t.id} type="button" className={tab === t.id ? "active" : ""} onClick={() => setTab(t.id)}>
+          <button
+            key={t.id}
+            type="button"
+            role="tab"
+            aria-selected={tab === t.id}
+            className={tab === t.id ? "active" : ""}
+            onClick={() => setTab(t.id)}
+          >
             {t.label}
           </button>
         ))}
@@ -140,7 +161,7 @@ function QuantLab() {
 
       {!accountId && <Alert kind="info">Select an account to load Quant Lab.</Alert>}
       {error && <Alert kind="danger">{error}</Alert>}
-      {loading && !data && <p className="muted">Computing research metrics…</p>}
+      {loading && !data && <p className="muted" role="status">Computing research metrics…</p>}
 
       {accountId && data && (
         <AnalyticsDrilldownProvider
@@ -151,52 +172,57 @@ function QuantLab() {
         >
           {dash && <DrilldownFilterBar filters={applied} data={dash} onChange={setApplied} />}
           <DataQualityStrip dq={data.overview.data_quality} meta={data.meta} />
-          {tab === "overview" && (
-            <div className="grid-stack">
-              <QuantOverviewPanel data={data} />
-              <RollingPanel data={data} />
-              <div className="two-col">
-                <ExpectancyEnginePanel data={data} />
+          <div className="tab-panel" role="tabpanel">
+            {tab === "overview" && (
+              <div className="grid-stack">
+                <QuantOverviewPanel data={data} />
+                <RollingPanel data={data} />
+                <div className="two-col">
+                  <ExpectancyEnginePanel data={data} />
+                  <StreakPanel data={data} />
+                </div>
+              </div>
+            )}
+            {tab === "edge" && <ExpectancyEnginePanel data={data} />}
+            {tab === "drawdown" && (
+              <div className="grid-stack">
+                <DrawdownPanel data={data} currency={dash?.account.currency ?? "USD"} />
                 <StreakPanel data={data} />
               </div>
-            </div>
-          )}
-          {tab === "edge" && <ExpectancyEnginePanel data={data} />}
-          {tab === "drawdown" && (
-            <div className="grid-stack">
-              <DrawdownPanel data={data} />
-              <StreakPanel data={data} />
-            </div>
-          )}
-          {tab === "robustness" && <RobustnessLab data={data} />}
-          {tab === "simulation" && (
-            <SimulationLab
-              accountId={accountId}
-              filters={applied}
-              data={data}
-              startingBalance={data.meta.starting_balance ?? "10000"}
-            />
-          )}
-          {tab === "research" && (
-            <>
-              <ResearchIntelligenceLab accountId={accountId} data={data} />
-              <BehaviorResearchLab accountId={accountId} filters={applied} data={data} />
-            </>
-          )}
+            )}
+            {tab === "robustness" && <RobustnessLab data={data} />}
+            {tab === "simulation" && (
+              <SimulationLab
+                accountId={accountId}
+                filters={applied}
+                data={data}
+                startingBalance={data.meta.starting_balance ?? "10000"}
+              />
+            )}
+            {tab === "research" && (
+              <>
+                <ResearchIntelligenceLab accountId={accountId} data={data} />
+                <BehaviorResearchLab accountId={accountId} filters={applied} data={data} />
+              </>
+            )}
+          </div>
           <p className="disclaimer muted">{data.disclaimer}</p>
         </AnalyticsDrilldownProvider>
       )}
 
       <style jsx>{`
+        .quant-lab {
+          width: 100%;
+          max-width: 100%;
+          min-width: 0;
+          overflow-x: hidden;
+        }
         .head-row {
           display: flex;
           justify-content: space-between;
           align-items: flex-start;
           gap: 16px;
           margin-bottom: 8px;
-        }
-        .intro {
-          max-width: 640px;
         }
         .tab-nav {
           display: flex;
@@ -214,11 +240,16 @@ function QuantLab() {
           font-size: 14px;
           cursor: pointer;
           color: var(--muted);
+          min-height: 40px;
         }
         .tab-nav button.active {
           background: var(--surface-2);
           color: var(--text);
           font-weight: 600;
+        }
+        .tab-panel {
+          min-width: 0;
+          max-width: 100%;
         }
         .grid-stack {
           display: flex;
@@ -238,6 +269,10 @@ function QuantLab() {
         @media (max-width: 900px) {
           .two-col {
             grid-template-columns: 1fr;
+          }
+          .tab-nav button {
+            font-size: 13px;
+            padding: 8px 12px;
           }
         }
       `}</style>

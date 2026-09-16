@@ -16,19 +16,24 @@ import { ReportDataQualitySection } from "./ReportDataQualitySection";
 import { ReportWinLossSection } from "./ReportWinLossSection";
 import { ReportYearInReviewSection } from "./ReportYearInReviewSection";
 import { ReportInterpretationSection } from "./ReportInterpretationSection";
+import { ReportChapter } from "./story/ReportChapter";
 import type { PerformanceReport, ReportInterpretation } from "@/lib/reports";
 
+/** Story spine TOC — matches ReportChapter ids. */
 const SECTIONS = [
   { id: "summary", label: "Summary" },
-  { id: "performance", label: "Performance" },
-  { id: "win-loss", label: "Win/Loss" },
-  { id: "execution", label: "Execution" },
-  { id: "risk", label: "Risk" },
-  { id: "behavior", label: "Behavior" },
+  { id: "performance", label: "1. Performance" },
+  { id: "edge", label: "2. Edge" },
+  { id: "risk", label: "3. Risk" },
+  { id: "behavior", label: "4. Behaviour" },
+  { id: "execution", label: "5. Execution" },
+  { id: "comparison", label: "6. Evolution" },
+  { id: "recommendations", label: "7. Actions" },
+  { id: "win-loss", label: "Win/Loss detail" },
   { id: "playbooks", label: "Playbooks" },
   { id: "trades", label: "Trades" },
   { id: "costs", label: "Costs" },
-  { id: "comparison", label: "Evolution" },
+  { id: "year-review", label: "Year in review" },
   { id: "interpretation", label: "AI narrative" },
   { id: "data-quality", label: "Data quality" },
 ];
@@ -50,8 +55,13 @@ export function ReportShell({
 
   return (
     <div className="report-shell">
-      <nav className="report-nav" aria-label="Report sections">
-        {SECTIONS.filter((s) => s.id !== "interpretation" || interpretation).map((s) => (
+      <nav className="report-nav" aria-label="Report story">
+        {SECTIONS.filter((s) => {
+          if (s.id === "interpretation" && !interpretation) return false;
+          if (s.id === "comparison" && !data.comparison) return false;
+          if (s.id === "year-review" && !data.year_in_review) return false;
+          return true;
+        }).map((s) => (
           <a key={s.id} href={`#${s.id}`} className="nav-link">
             {s.label}
           </a>
@@ -70,55 +80,60 @@ export function ReportShell({
 
       <article className="report-body">
         <ReportHeader data={data} />
-        <section id="summary">
+        <section id="summary" className="block">
           <ReportExecutiveSummary data={data} aiSummary={interpretation?.result.executive_summary} />
         </section>
-        <section id="performance">
-          <ReportPerformanceSection performance={data.performance} currency={currency} confidence={data.confidence} />
-        </section>
-        <section id="win-loss">
+
+        {/* Chapters own their section ids via ReportChapter */}
+        <ReportPerformanceSection performance={data.performance} currency={currency} confidence={data.confidence} />
+        <ReportEdgeSection edge={data.edge} />
+        <ReportRiskSection risk={data.risk} currency={currency} />
+        <ReportBehaviorSection behavior={data.behavior} />
+        <ReportExecutionSection execution={data.execution} decisionQuality={data.decision_quality} />
+
+        {data.comparison && (
+          <ReportChapter
+            id="comparison"
+            title="6. Evolution"
+            question="What changed versus the prior period?"
+            takeaway="Use period deltas to decide whether the edge is improving, flat, or degrading — not to chase noise."
+          >
+            <ReportComparisonSection comparison={data.comparison} reportType={data.report.type} />
+          </ReportChapter>
+        )}
+
+        <ReportChapter
+          id="recommendations"
+          title="7. Actions"
+          question="What should I investigate or change next?"
+          takeaway="Prioritize process fixes over outcome chasing — one investigation at a time."
+        >
+          <ReportRecommendationsSection recommendations={data.recommendations} />
+        </ReportChapter>
+
+        <section id="win-loss" className="block">
           <ReportWinLossSection performance={data.performance} currency={currency} />
         </section>
-        <section id="edge">
-          <ReportEdgeSection edge={data.edge} />
-        </section>
-        <section id="execution">
-          <ReportExecutionSection execution={data.execution} decisionQuality={data.decision_quality} />
-        </section>
-        <section id="risk">
-          <ReportRiskSection risk={data.risk} currency={currency} />
-        </section>
-        <section id="behavior">
-          <ReportBehaviorSection behavior={data.behavior} />
-        </section>
-        <section id="playbooks">
+        <section id="playbooks" className="block">
           <ReportPlaybookSection playbooks={data.playbooks} />
         </section>
-        <section id="trades">
+        <section id="trades" className="block">
           <ReportTradesSection highlights={data.trade_highlights} decisionQuality={data.decision_quality} currency={currency} />
         </section>
-        <section id="costs">
+        <section id="costs" className="block">
           <ReportCostsSection costs={data.costs} currency={currency} />
         </section>
-        {data.comparison && (
-          <section id="comparison">
-            <ReportComparisonSection comparison={data.comparison} reportType={data.report.type} />
-          </section>
-        )}
         {data.year_in_review && (
-          <section id="year-review">
+          <section id="year-review" className="block">
             <ReportYearInReviewSection yearInReview={data.year_in_review} currency={currency} />
           </section>
         )}
-        <section id="recommendations">
-          <ReportRecommendationsSection recommendations={data.recommendations} />
-        </section>
         {interpretation && (
-          <section id="interpretation">
+          <section id="interpretation" className="block">
             <ReportInterpretationSection interpretation={interpretation} />
           </section>
         )}
-        <section id="data-quality">
+        <section id="data-quality" className="block">
           <ReportDataQualitySection dataQuality={data.data_quality} confidence={data.confidence} />
         </section>
       </article>
@@ -129,6 +144,8 @@ export function ReportShell({
           grid-template-columns: 200px 1fr;
           gap: 24px;
           align-items: start;
+          max-width: 100%;
+          min-width: 0;
         }
         .report-nav {
           position: sticky;
@@ -158,14 +175,23 @@ export function ReportShell({
           font-size: 12px;
           cursor: pointer;
         }
-        .report-body section {
+        .report-body {
+          min-width: 0;
+          max-width: 100%;
+        }
+        .block {
           margin-bottom: 28px;
           scroll-margin-top: 80px;
         }
-        .year-banner h2 {
-          font-size: 22px;
-          letter-spacing: 0.04em;
-          margin: 24px 0 8px;
+        .h {
+          margin: 0 0 6px;
+          font-size: 18px;
+          font-weight: 650;
+        }
+        .q {
+          margin: 0 0 14px;
+          font-size: 14px;
+          color: var(--text-muted);
         }
         @media (max-width: 900px) {
           .report-shell {

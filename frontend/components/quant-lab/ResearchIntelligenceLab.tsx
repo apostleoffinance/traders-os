@@ -102,7 +102,12 @@ export function ResearchIntelligenceLab({
           </div>
           <p className="muted">{edgeConfidence.disclaimer}</p>
         </div>
-        <InteractiveChart option={edgeConfidenceChart} height={Math.max(180, componentEntries.length * 36 + 48)} showHint={false} />
+        <InteractiveChart
+          option={edgeConfidenceChart}
+          height={Math.max(180, componentEntries.length * 36 + 48)}
+          showHint={false}
+          ariaLabel="Edge confidence components"
+        />
         <QuantStudyFooter studyId="edge_confidence" />
       </ChartCard>
 
@@ -136,7 +141,12 @@ export function ResearchIntelligenceLab({
         subtitle={`Method: ${walkForward.method === "trade_sequence_split" ? `first ${Math.round((walkForward.split_ratio ?? 0.7) * 100)}% vs remainder` : "custom date ranges"}`}
         interactive
       >
-        <InteractiveChart option={wfChart} height={260} showHint={false} />
+        <InteractiveChart
+          option={wfChart}
+          size="standard"
+          showHint={false}
+          ariaLabel="Walk-forward in-sample vs out-of-sample"
+        />
         <div className="wf-grid">
           <div className="wf-col">
             <h4>In-sample</h4>

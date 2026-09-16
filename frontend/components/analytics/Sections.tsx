@@ -14,7 +14,7 @@ import { linearRegression } from "@/lib/chart-regression";
 import { getAnalyticsDefinition } from "@/lib/analytics/registry";
 import { ScatterQuadrantGuide } from "@/components/analytics/primitives/ScatterQuadrantGuide";
 import { useOptionalAnalyticsDrilldown } from "@/components/analytics/AnalyticsDrilldownContext";
-import { ChartCard } from "@/components/analytics/primitives/ChartCard";
+import { ChartCard } from "@/components/trader";
 import { InteractiveChart } from "@/components/analytics/primitives/InteractiveChart";
 import { Empty, EvidenceTag, HorizontalBars, MetricToggle, sessionName, useLiveChart } from "@/components/analytics/Charts";
 
@@ -159,11 +159,20 @@ export function Distribution({ data }: { data: AnalyticsDashboard }) {
   );
 }
 
-export function Scatters({ data }: { data: AnalyticsDashboard }) {
+export function Scatters({
+  data,
+  mode = "all",
+}: {
+  data: AnalyticsDashboard;
+  /** hold_only avoids duplicating risk-vs-R already shown in ExecutionLab advanced */
+  mode?: "all" | "hold_only" | "risk_only";
+}) {
   const { C } = useLiveChart();
   const router = useRouter();
   const risk = data.risk_vs_result;
   const hold = data.holding_vs_result;
+  const showRisk = mode === "all" || mode === "risk_only";
+  const showHold = mode === "all" || mode === "hold_only";
 
   const riskRegression = useMemo(
     () => linearRegression(risk.map((d) => ({ x: Number(d.risk_percent), y: Number(d.realized_r) }))),
@@ -243,46 +252,56 @@ export function Scatters({ data }: { data: AnalyticsDashboard }) {
 
   return (
     <div className="two">
-      <ChartCard
-        title={riskDef?.title ?? "Risk vs result"}
-        question={riskDef?.primaryQuestion}
-        tier={riskDef?.tier}
-        subtitle="Each point is a trade. Dashed line is descriptive trend only."
-        interactive
-      >
-        {risk.length ? (
-          <>
-            <ScatterQuadrantGuide
-              xLabel="Risk %"
-              yLabel="Realized R"
-              quadrants={[
-                { position: "Upper-left", meaning: "Lower risk with positive R." },
-                { position: "Lower-right", meaning: "Higher risk with negative R." },
-              ]}
-            />
-            <InteractiveChart option={riskOpt} height={280} showHint={false} onChartClick={handleTradeClick} />
-          </>
-        ) : (
-          <Empty>No closed trades with risk data.</Empty>
-        )}
-      </ChartCard>
-      <ChartCard title="Holding time vs result" question="Do I over-hold losers or cut winners early?" tier="deep_dive" subtitle="Minutes held vs realized R per trade." interactive>
-        {hold.length ? (
-          <>
-            <ScatterQuadrantGuide
-              xLabel="Hold time (minutes)"
-              yLabel="Realized R"
-              quadrants={[
-                { position: "Upper-left", meaning: "Short hold with positive R." },
-                { position: "Lower-right", meaning: "Long hold with negative R — check exit discipline." },
-              ]}
-            />
-            <InteractiveChart option={holdOpt} height={280} showHint={false} onChartClick={handleTradeClick} />
-          </>
-        ) : (
-          <Empty>No holding times recorded.</Empty>
-        )}
-      </ChartCard>
+      {showRisk && (
+        <ChartCard
+          title={riskDef?.title ?? "Risk vs result"}
+          question={riskDef?.primaryQuestion}
+          tier={riskDef?.tier}
+          subtitle="Each point is a trade. Dashed line is descriptive trend only."
+          interactive
+        >
+          {risk.length ? (
+            <>
+              <ScatterQuadrantGuide
+                xLabel="Risk %"
+                yLabel="Realized R"
+                quadrants={[
+                  { position: "Upper-left", meaning: "Lower risk with positive R." },
+                  { position: "Lower-right", meaning: "Higher risk with negative R." },
+                ]}
+              />
+              <InteractiveChart option={riskOpt} size="standard" showHint={false} onChartClick={handleTradeClick} ariaLabel="Risk vs result scatter" />
+            </>
+          ) : (
+            <Empty>No closed trades with risk data.</Empty>
+          )}
+        </ChartCard>
+      )}
+      {showHold && (
+        <ChartCard
+          title="Holding time vs result"
+          question="Do I over-hold losers or cut winners early?"
+          tier="deep_dive"
+          subtitle="Minutes held vs realized R per trade."
+          interactive
+        >
+          {hold.length ? (
+            <>
+              <ScatterQuadrantGuide
+                xLabel="Hold time (minutes)"
+                yLabel="Realized R"
+                quadrants={[
+                  { position: "Upper-left", meaning: "Short hold with positive R." },
+                  { position: "Lower-right", meaning: "Long hold with negative R — check exit discipline." },
+                ]}
+              />
+              <InteractiveChart option={holdOpt} size="standard" showHint={false} onChartClick={handleTradeClick} ariaLabel="Holding time vs result" />
+            </>
+          ) : (
+            <Empty>No holding times recorded.</Empty>
+          )}
+        </ChartCard>
+      )}
       <style jsx>{`
         .two {
           display: grid;

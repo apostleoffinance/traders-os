@@ -110,7 +110,9 @@ export const QUANT_STUDY_META: Record<QuantStudyId, QuantStudyMeta> = {
 };
 
 export function getQuantStudy(id: QuantStudyId): AnalyticsDefinition | undefined {
-  return getAnalyticsDefinition(id);
+  // Registry uses streak_distribution; Quant payload / meta use loss_streak_distribution.
+  const registryId = id === "loss_streak_distribution" ? "streak_distribution" : id;
+  return getAnalyticsDefinition(registryId);
 }
 
 export function getQuantStudyMeta(id: QuantStudyId): QuantStudyMeta {

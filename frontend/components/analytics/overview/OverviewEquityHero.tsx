@@ -2,12 +2,11 @@
 
 import { useMemo } from "react";
 import { Stat } from "@/components/ui";
-import { ChartCard } from "@/components/analytics/primitives/ChartCard";
+import { ChartCard } from "@/components/trader";
 import { Empty } from "@/components/analytics/Charts";
-import { EquityInteractiveChart } from "@/components/analytics/primitives/EquityInteractive";
+import { EquityCurve } from "@/components/visualizations/performance/EquityCurve";
 import type { AnalyticsDashboard } from "@/lib/analytics";
-import { generateEquityInsight } from "@/lib/analytics/insights/generators";
-import { getAnalyticsDefinition } from "@/lib/analytics/registry";
+import { generateEquityInsight, resolveVizCopy } from "@/lib/visualization";
 import { getPerformanceMetrics } from "@/lib/analytics/view-models";
 import { money, num, tone } from "@/lib/format";
 
@@ -15,7 +14,7 @@ export function OverviewEquityHero({ data }: { data: AnalyticsDashboard }) {
   const eq = data.lab?.equity;
   const currency = data.account.currency;
   const o = data.overview;
-  const def = getAnalyticsDefinition("equity_curve");
+  const copy = resolveVizCopy("equity_curve");
   const insight = useMemo(() => {
     const m = getPerformanceMetrics(data);
     return generateEquityInsight({
@@ -31,7 +30,7 @@ export function OverviewEquityHero({ data }: { data: AnalyticsDashboard }) {
   const netCurve = eq.net_pnl.curve;
   if (netCurve.length < 2) {
     return (
-      <ChartCard title={def?.title ?? "Equity curve"} question={def?.primaryQuestion} tier={def?.tier}>
+      <ChartCard title={copy.title} question={copy.question} tier="essential">
         <Empty>Close more trades to see your equity curve.</Empty>
       </ChartCard>
     );
@@ -41,20 +40,20 @@ export function OverviewEquityHero({ data }: { data: AnalyticsDashboard }) {
 
   return (
     <ChartCard
-      title={def?.title ?? "Equity curve"}
-      question={def?.primaryQuestion ?? "Is my account growing consistently?"}
-      tier={def?.tier}
+      title={copy.title}
+      question={copy.question}
+      tier="essential"
       interactive
       insight={insight}
+      subtitle="Account growth over time. Use the range controls to focus recent performance."
     >
       <div className="hero">
         <div className="chart">
-          <EquityInteractiveChart
-            netCurve={netCurve}
-            grossCurve={eq.gross_pnl.curve}
+          <EquityCurve
+            curve={netCurve}
             markers={eq.markers ?? []}
-            mode="net_pnl"
             currency={currency}
+            defaultRange="ALL"
           />
         </div>
         <aside className="snapshot">
@@ -62,7 +61,6 @@ export function OverviewEquityHero({ data }: { data: AnalyticsDashboard }) {
           <Stat label="Net P&L" value={money(o.net_pnl, currency)} tone={tone(o.net_pnl)} />
           <Stat label="Profit factor" value={o.profit_factor ? num(o.profit_factor) : "—"} />
           <Stat label="Expectancy" value={o.expectancy_r ? `${num(o.expectancy_r)}R` : "—"} tone={tone(o.expectancy_r)} />
-          <Stat label="Average R" value={o.average_r ? `${num(o.average_r)}R` : "—"} />
           <Stat label="Max drawdown" value={money(dd.max_drawdown, currency)} tone="neg" />
           <Stat label="Current drawdown" value={money(dd.current_drawdown, currency)} />
         </aside>
@@ -70,9 +68,12 @@ export function OverviewEquityHero({ data }: { data: AnalyticsDashboard }) {
       <style jsx>{`
         .hero {
           display: grid;
-          grid-template-columns: minmax(0, 1fr) 200px;
+          grid-template-columns: minmax(0, 1fr) 180px;
           gap: 20px;
           align-items: start;
+        }
+        .chart {
+          min-width: 0;
         }
         .snap-title {
           margin: 0 0 10px;

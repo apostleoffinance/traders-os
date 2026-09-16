@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Stat } from "@/components/ui";
-import { ChartCard } from "@/components/analytics/primitives/ChartCard";
+import { ChartCard } from "@/components/trader";
 import type { AnalyticsDashboard } from "@/lib/analytics";
 
 export function TradeHabitsSection({

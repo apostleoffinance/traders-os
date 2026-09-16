@@ -5,12 +5,16 @@ import { Panel, Stat, KpiGrid } from "@/components/ui";
 import { Empty, useLiveChart } from "@/components/analytics/Charts";
 import { ChartCard } from "@/components/analytics/primitives/ChartCard";
 import { InteractiveChart } from "@/components/analytics/primitives/InteractiveChart";
+import { UnderwaterCurve } from "@/components/visualizations/risk/UnderwaterCurve";
+import { RollingExpectancy } from "@/components/visualizations/quant/RollingExpectancy";
+import { ResearchTable } from "@/components/trader/tables/ResearchTable";
 import type { QuantLabPayload } from "@/lib/quant";
 import { EVIDENCE_LABELS, EVIDENCE_SHORT_LABELS } from "@/lib/quant";
 import { getQuantStudy } from "@/lib/analytics/quant-studies";
 import { QuantStudyFooter } from "@/components/quant-lab/primitives/QuantStudyFooter";
 import { colorForBinRange } from "@/lib/chart-colors";
 import { num, signed, tone } from "@/lib/format";
+import { resolveVizCopy } from "@/lib/visualization";
 
 const CHART_GRID = { left: 52, right: 20, top: 32, bottom: 44 } as const;
 
@@ -250,32 +254,19 @@ export function ExpectancyEnginePanel({ data }: { data: QuantLabPayload }) {
   );
 }
 
-export function DrawdownPanel({ data }: { data: QuantLabPayload }) {
+export function DrawdownPanel({ data, currency = "USD" }: { data: QuantLabPayload; currency?: string }) {
   const dd = data.drawdown;
-  const chart = useLiveChart();
   const curve = dd.currency.underwater_curve;
-
-  const option =
-    curve.length > 1
-      ? {
-          ...chart,
-          grid: CHART_GRID,
-          tooltip: { trigger: "axis" as const },
-          xAxis: { type: "category" as const, data: curve.map((p) => p.at.slice(0, 10)), axisLabel: { fontSize: 10 } },
-          yAxis: { type: "value" as const, name: "Drawdown" },
-          series: [
-            {
-              type: "line" as const,
-              data: curve.map((p) => Number(p.drawdown)),
-              areaStyle: { color: "rgba(239, 68, 68, 0.15)" },
-              lineStyle: { color: "#ef4444", width: 1.5 },
-              showSymbol: false,
-            },
-          ],
-        }
-      : null;
-
   const ddDef = getQuantStudy("drawdown_research");
+  const underwaterCopy = resolveVizCopy("underwater_equity");
+
+  const underwaterPts = curve.map((p) => ({
+    at: p.at,
+    drawdown: String(p.drawdown),
+    drawdown_pct: String((p as { drawdown_pct?: string }).drawdown_pct ?? "0"),
+    equity: String((p as { equity?: string }).equity ?? "0"),
+    peak: String((p as { peak?: string }).peak ?? "0"),
+  }));
 
   return (
     <>
@@ -294,9 +285,20 @@ export function DrawdownPanel({ data }: { data: QuantLabPayload }) {
         <QuantStudyFooter studyId="drawdown_research" sample={dd.sample} />
       </Panel>
 
-      {option && (
-        <ChartCard title="Underwater equity" subtitle="Drawdown depth over time" tier="quant" interactive>
-          <InteractiveChart option={option} height={280} showHint={false} className="chart-spaced" />
+      {underwaterPts.length >= 2 ? (
+        <ChartCard
+          title={underwaterCopy.title}
+          question={ddDef?.primaryQuestion ?? underwaterCopy.question}
+          subtitle="Drawdown depth over time — uPlot underwater curve (same treatment as Risk analytics)."
+          tier="quant"
+          interactive
+        >
+          <UnderwaterCurve curve={underwaterPts} currency={currency} />
+          <QuantStudyFooter studyId="drawdown_research" sample={dd.sample} />
+        </ChartCard>
+      ) : (
+        <ChartCard title={underwaterCopy.title} question={underwaterCopy.question} tier="quant">
+          <Empty>Not enough points to plot underwater equity.</Empty>
         </ChartCard>
       )}
 
@@ -313,52 +315,41 @@ export function DrawdownPanel({ data }: { data: QuantLabPayload }) {
 
 export function RollingPanel({ data }: { data: QuantLabPayload }) {
   const rolling = data.rolling;
-  const chart = useLiveChart();
   const [window, setWindow] = useState(rolling.default_windows[0] ?? 20);
 
   const series = rolling.series[String(window)] ?? [];
   const points = series.filter((p) => p.expectancy_r != null);
-
-  const option =
-    points.length > 0
-      ? {
-          ...chart,
-          grid: CHART_GRID,
-          tooltip: {
-            trigger: "axis" as const,
-            formatter: (params: { dataIndex: number }[]) => {
-              const i = params[0]?.dataIndex ?? 0;
-              const p = points[i];
-              if (!p) return "";
-              return `Trade #${p.trade_number}<br/>Expectancy: ${signed(p.expectancy_r!)}R<br/>Win rate: ${p.win_rate ? num(p.win_rate, 1) + "%" : "—"}`;
-            },
-          },
-          xAxis: { type: "category" as const, data: points.map((p) => String(p.trade_number)) },
-          yAxis: { type: "value" as const, name: "Expectancy R" },
-          series: [{ type: "line" as const, data: points.map((p) => Number(p.expectancy_r)), showSymbol: false, lineStyle: { width: 2 } }],
-        }
-      : null;
-
   const rollingDef = getQuantStudy("rolling_expectancy");
+  const copy = resolveVizCopy("rolling_expectancy");
 
   return (
     <ChartCard
-      title={rollingDef?.title ?? "Rolling performance"}
-      question={rollingDef?.primaryQuestion}
+      title={rollingDef?.title ?? copy.title}
+      question={rollingDef?.primaryQuestion ?? copy.question}
       tier="quant"
       sampleSize={rolling.n}
       interactive
       actions={
-        <div className="window-picks">
+        <div className="window-picks" role="group" aria-label="Rolling window size">
           {rolling.default_windows.map((w) => (
-            <button key={w} type="button" className={w === window ? "active" : ""} onClick={() => setWindow(w)}>
+            <button
+              key={w}
+              type="button"
+              className={w === window ? "active" : ""}
+              aria-pressed={w === window}
+              onClick={() => setWindow(w)}
+            >
               {w}
             </button>
           ))}
         </div>
       }
     >
-      {option ? <InteractiveChart option={option} height={300} showHint={false} className="chart-spaced" /> : <Empty>Insufficient trades for rolling window {window}.</Empty>}
+      {points.length >= 2 ? (
+        <RollingExpectancy points={points} />
+      ) : (
+        <Empty>Insufficient trades for rolling window {window}.</Empty>
+      )}
       <QuantStudyFooter studyId="rolling_expectancy" />
       <style jsx>{`
         .window-picks {
@@ -405,7 +396,13 @@ export function StreakPanel({ data }: { data: QuantLabPayload }) {
       interactive
     >
       {dist.some((d) => d.occurrences > 0) ? (
-        <InteractiveChart option={lossOpt} height={220} showHint={false} className="chart-spaced" />
+        <InteractiveChart
+          option={lossOpt}
+          size="compact"
+          showHint={false}
+          className="chart-spaced"
+          ariaLabel={streakDef?.title ?? "Loss streak distribution"}
+        />
       ) : (
         <Empty>No loss streaks in this sample.</Empty>
       )}
@@ -578,48 +575,36 @@ export function TopTradeRemovalPanel({ data }: { data: QuantLabPayload }) {
 
   return (
     <Panel title={getQuantStudy("top_trade_removal")?.title ?? "Robustness test · top-trade removal"}>
-      <table className="scenario-table">
-        <thead>
-          <tr>
-            <th>Scenario</th>
-            <th>n</th>
-            <th>Expectancy R</th>
-            <th>Profit factor</th>
-            <th>Net R</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rob.scenarios.map((s) => (
-            <tr key={s.label}>
-              <td>{s.label}</td>
-              <td>{s.n}</td>
-              <td>{s.expectancy_r ? `${signed(s.expectancy_r)}R` : "—"}</td>
-              <td>{s.profit_factor ? num(s.profit_factor) : "—"}</td>
-              <td>{s.net_r ? `${signed(s.net_r)}R` : "—"}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <ResearchTable
+        rows={rob.scenarios}
+        columns={[
+          { id: "label", header: "Scenario", accessor: (s) => s.label },
+          { id: "n", header: "n", accessor: (s) => s.n, numeric: true },
+          {
+            id: "exp",
+            header: "Expectancy R",
+            accessor: (s) => (s.expectancy_r ? `${signed(s.expectancy_r)}R` : "—"),
+            numeric: true,
+          },
+          {
+            id: "pf",
+            header: "Profit factor",
+            accessor: (s) => (s.profit_factor ? num(s.profit_factor) : "—"),
+            numeric: true,
+          },
+          {
+            id: "net",
+            header: "Net R",
+            accessor: (s) => (s.net_r ? `${signed(s.net_r)}R` : "—"),
+            numeric: true,
+          },
+        ]}
+        getRowId={(s) => s.label}
+        caption="Top-trade removal scenarios"
+      />
       <p className="muted">{rob.disclaimer}</p>
       <QuantStudyFooter studyId="top_trade_removal" />
       <style jsx>{`
-        .scenario-table {
-          width: 100%;
-          border-collapse: collapse;
-          font-size: 13px;
-        }
-        th,
-        td {
-          text-align: left;
-          padding: 8px 10px;
-          border-bottom: 1px solid var(--border);
-        }
-        th {
-          color: var(--muted);
-          font-weight: 600;
-          font-size: 11px;
-          text-transform: uppercase;
-        }
         .muted {
           margin-top: 12px;
           font-size: 13px;

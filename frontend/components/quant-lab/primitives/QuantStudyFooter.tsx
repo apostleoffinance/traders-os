@@ -9,6 +9,10 @@ import {
   type QuantStudyId,
 } from "@/lib/analytics/quant-studies";
 
+/**
+ * Quant study interpretation footer — research hierarchy:
+ * WHAT? → SO WHAT? → methodology / sample → caution (NOW WHAT = do not treat as a signal).
+ */
 export function QuantStudyFooter({
   studyId,
   sample,
@@ -32,8 +36,16 @@ export function QuantStudyFooter({
     <footer className="quant-footer">
       {def?.primaryQuestion && (
         <p className="question">
-          <span className="label">Research question</span>
+          <span className="label">What?</span>
+          <span className="soft">What does this mean?</span>
           {def.primaryQuestion}
+        </p>
+      )}
+      {def?.traderValue && (
+        <p className="care">
+          <span className="label">So what?</span>
+          <span className="soft">Why should I care?</span>
+          {def.traderValue}
         </p>
       )}
       {def?.methodology && (
@@ -47,6 +59,7 @@ export function QuantStudyFooter({
           <span className="label">Sample</span>
           {EVIDENCE_LABELS[sample.evidence_level] ?? sample.evidence_level} · {sample.sample_size} trade
           {sample.sample_size === 1 ? "" : "s"}
+          {def?.minimumSampleSize != null ? ` · min suggested ${def.minimumSampleSize}` : ""}
           {sample.message ? ` — ${sample.message}` : ""}
         </p>
       )}
@@ -62,12 +75,13 @@ export function QuantStudyFooter({
       )}
       {(warnings.length > 0 || sampleWarning) && (
         <div className="block warn">
-          <span className="label">Statistical caution</span>
+          <span className="label">Now what? · Statistical caution</span>
           <ul>
             {sampleWarning && <li>{sampleWarning}</li>}
             {warnings.map((w) => (
               <li key={w}>{w}</li>
             ))}
+            <li>Do not treat Quant Lab outputs as trade signals — use them to stress-test journal claims.</li>
           </ul>
         </div>
       )}
@@ -88,13 +102,23 @@ export function QuantStudyFooter({
           font-weight: 700;
           text-transform: uppercase;
           letter-spacing: 0.05em;
+          color: var(--accent);
+          margin-bottom: 2px;
+        }
+        .soft {
+          display: block;
+          font-size: 10px;
+          font-weight: 600;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
           color: var(--text-muted);
           margin-bottom: 2px;
         }
-        .question {
+        .question,
+        .care {
           margin: 0;
           font-weight: 500;
-          color: var(--text-secondary);
+          color: var(--text-secondary, var(--text));
         }
         .method,
         .sample {

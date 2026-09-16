@@ -1,56 +1,42 @@
 "use client";
 
-import ReactECharts from "echarts-for-react";
-import { CHART_INTERACTIVE_HINT } from "@/lib/chart-constants";
+import dynamic from "next/dynamic";
+import type { InteractiveChartProps } from "./InteractiveChartEcharts";
 
-type ClickEvent = {
-  dataIndex?: number;
-  name?: string;
-  seriesName?: string;
-  componentType?: string;
-  data?: unknown;
-};
+const InteractiveChartEcharts = dynamic(
+  () => import("./InteractiveChartEcharts").then((m) => m.InteractiveChartEcharts),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="chart-skel" role="status" aria-live="polite" aria-busy="true">
+        <span className="sr">Loading chart…</span>
+        <style jsx>{`
+          .chart-skel {
+            width: 100%;
+            max-width: 100%;
+            min-height: 200px;
+            border-radius: 8px;
+            background: color-mix(in srgb, var(--surface-2, var(--surface)) 70%, transparent);
+          }
+          .sr {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            border: 0;
+          }
+        `}</style>
+      </div>
+    ),
+  },
+);
 
-export function InteractiveChart({
-  option,
-  height = 260,
-  onChartClick,
-  className,
-  showHint = true,
-}: {
-  option: object;
-  height?: number;
-  onChartClick?: (event: ClickEvent) => void;
-  className?: string;
-  showHint?: boolean;
-}) {
-  const interactiveOption = {
-    ...option,
-    tooltip: { ...((option as { tooltip?: object }).tooltip ?? {}), confine: true },
-  };
-
-  return (
-    <div className={className ? `chart-wrap ${className}` : "chart-wrap"}>
-      <ReactECharts
-        option={interactiveOption}
-        style={{ height, width: "100%" }}
-        notMerge
-        lazyUpdate
-        onEvents={
-          onChartClick
-            ? {
-                click: (params: ClickEvent) => onChartClick(params),
-              }
-            : undefined
-        }
-      />
-      {onChartClick && showHint && <p className="click-hint muted">{CHART_INTERACTIVE_HINT}</p>}
-      <style jsx>{`
-        .click-hint {
-          font-size: 11px;
-          margin: 8px 0 0;
-        }
-      `}</style>
-    </div>
-  );
+/** Lazily loads ECharts — keeps the analytics/quant initial bundle lighter. */
+export function InteractiveChart(props: InteractiveChartProps) {
+  return <InteractiveChartEcharts {...props} />;
 }
+
+export type { InteractiveChartProps, ChartClickEvent } from "./InteractiveChartEcharts";

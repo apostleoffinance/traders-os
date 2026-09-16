@@ -41,6 +41,14 @@ def _trade(**kwargs):
         emotional_trade=False,
         mistake=False,
         discipline_score=94,
+        mfe_price=Decimal("1.08790"),
+        mae_price=Decimal("1.08440"),
+        mfe_r=Decimal("2.9"),
+        mae_r=Decimal("-0.6"),
+        mfe_mae_source="test",
+        mfe_mae_precision="bar_ohlc",
+        mfe_at=datetime(2026, 3, 10, 9, 0, tzinfo=timezone.utc),
+        mae_at=datetime(2026, 3, 10, 8, 45, tzinfo=timezone.utc),
         setup=SimpleNamespace(name="Liquidity Sweep"),
         setup_name="Liquidity Sweep",
         psychology=SimpleNamespace(
@@ -78,6 +86,21 @@ def test_replay_winning_trade_has_entry_and_after_insights():
     assert any("London" in i["text"] for i in out["decision_replay"]["at_entry"])
     assert any("direction" in i["text"].lower() for i in out["decision_replay"]["after"])
     assert out["decision_quality"]["process_score"] == 94
+    assert out["excursions"]["mfe_r"] == "2.9"
+    assert out["excursions"]["mae_r"] == "-0.6"
+    assert out["metrics"]["realized_r"] == "1.8"
+    assert out["excursions"]["mfe_at"] is not None
+    assert out["excursions"]["mae_at"] is not None
+    assert out["excursions"]["mae_t"] is not None
+    assert out["excursions"]["mfe_t"] is not None
+    assert out["excursions"]["mae_t"] < out["excursions"]["mfe_t"]
+
+
+def test_replay_excursions_null_when_missing():
+    t = _trade(mfe_price=None, mae_price=None, mfe_r=None, mae_r=None, mfe_mae_source=None, mfe_mae_precision=None)
+    out = build_trade_replay(t, profile=None, timezone="UTC")
+    assert out["excursions"]["mfe_r"] is None
+    assert out["excursions"]["mae_r"] is None
 
 
 def test_replay_open_trade_skips_after_insights():

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChartCard } from "@/components/analytics/primitives/ChartCard";
+import { ChartCard } from "@/components/trader";
 import { InsufficientSample } from "@/components/analytics/primitives/InsufficientSample";
 import { HorizontalBars, MetricToggle } from "@/components/analytics/Charts";
 import { useOptionalAnalyticsDrilldown } from "@/components/analytics/AnalyticsDrilldownContext";

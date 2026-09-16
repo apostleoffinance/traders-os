@@ -1,12 +1,11 @@
 "use client";
 
+import { ChartCard, MetricCard } from "@/components/trader";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Panel, Stat } from "@/components/ui";
 import { Empty, EvidenceTag, useLiveChart } from "@/components/analytics/Charts";
-import { ChartCard } from "@/components/analytics/primitives/ChartCard";
 import { InteractiveChart } from "@/components/analytics/primitives/InteractiveChart";
-import { MetricCard } from "@/components/analytics/primitives/MetricCard";
 import { MiniSparkline } from "@/components/analytics/primitives/MiniSparkline";
 import { useOptionalAnalyticsDrilldown } from "@/components/analytics/AnalyticsDrilldownContext";
 import type { AnalyticsDashboard, GroupRow, LabLeaderboardRow, LabTradeRank } from "@/lib/analytics";
@@ -17,9 +16,12 @@ type DrillMetric = "win_rate" | "expectancy_r" | "profit_factor" | "average_r";
 export function PerformanceLab({
   data,
   onMetricClick,
+  variant = "essential",
 }: {
   data: AnalyticsDashboard;
   onMetricClick?: (metric: DrillMetric) => void;
+  /** essential = trader defaults; full includes PF explorer + direction scatter. */
+  variant?: "essential" | "full";
 }) {
   const lab = data.lab;
   const currency = data.account.currency;
@@ -95,10 +97,12 @@ export function PerformanceLab({
         )}
       </Panel>
 
-      {n > 0 && <ProfitFactorExplorer data={data} wl={wl} currency={currency} onMetricClick={onMetricClick} />}
+      {n > 0 && variant === "full" && (
+        <ProfitFactorExplorer data={data} wl={wl} currency={currency} onMetricClick={onMetricClick} />
+      )}
       {n > 0 && <WinLossSection wl={wl} currency={currency} rDistribution={data.r_distribution} />}
       {n > 0 && <PayoffComparison wl={wl} currency={currency} />}
-      {n > 0 && <DirectionComparison dc={dc} currency={currency} />}
+      {n > 0 && <DirectionComparison dc={dc} currency={currency} showScatter={variant === "full"} />}
       {n > 0 && <RankedTradesPanel bt={bt} currency={currency} timezone={lab.metadata.timezone} />}
 
       <style jsx>{`
@@ -124,7 +128,7 @@ export function PerformanceLab({
 
 type PfSegment = "overall" | "setup" | "session" | "instrument";
 
-function ProfitFactorExplorer({
+export function ProfitFactorExplorer({
   data,
   wl,
   currency,
@@ -234,8 +238,11 @@ function ProfitFactorExplorer({
 
   return (
     <ChartCard
-      title="Profit factor explorer"
+      title="Profit factor"
+      question="Are my winners bigger than my losers overall?"
+      tier="deep_dive"
       interactive
+      subtitle="PF = gross profit ÷ gross loss. Segment to see where strength comes from."
       actions={
         <button type="button" className="drill-btn" onClick={() => onMetricClick?.("profit_factor")}>
           Explain PF ↗
@@ -311,7 +318,6 @@ function ProfitFactorExplorer({
 
 function WinLossSection({
   wl,
-  currency,
   rDistribution,
 }: {
   wl: NonNullable<AnalyticsDashboard["lab"]>["performance"]["win_loss"];
@@ -357,28 +363,20 @@ function WinLossSection({
         }
       : null;
 
-  const pie = {
-    tooltip: { trigger: "item" },
-    series: [
-      {
-        type: "pie",
-        radius: ["42%", "68%"],
-        label: { formatter: "{b}: {d}%" },
-        data: wl.composition.map((c) => ({
-          name: c.label,
-          value: c.n,
-          itemStyle: { color: c.label === "Win" ? C.pos : c.label === "Loss" ? C.neg : C.muted },
-        })),
-      },
-    ],
-  };
-
   return (
     <>
-      <ChartCard title="Win / loss analytics" sampleSize={wl.n} evidenceLabel={wl.evidence.label} subtitle="Distribution shows R-multiple shape" interactive>
+      <ChartCard
+        title="Win / loss / breakeven"
+        question="How often do I win vs lose?"
+        sampleSize={wl.n}
+        evidenceLabel={wl.evidence.label}
+        subtitle="Win rate alone is incomplete — pair with payoff and expectancy below."
+        interactive
+      >
         <div className="wl-labels">
           <span className="win">Wins {num(winPct, 1)}%</span>
           <span className="loss">Losses {num(lossPct, 1)}%</span>
+          <span className="be">BE {num(Math.max(0, 100 - winPct - lossPct), 1)}%</span>
         </div>
         <InteractiveChart
           option={segmentedBar}
@@ -394,37 +392,25 @@ function WinLossSection({
             }
           }}
         />
-        <div className="wl-grid">
-          <div>
-            <div className="mini-stats">
-              <Stat label="Wins" value={String(wl.wins)} />
-              <Stat label="Losses" value={String(wl.losses)} />
-              <Stat label="Breakevens" value={String(wl.breakevens)} />
-              <Stat label="Win/loss ratio" value={wl.win_loss_ratio ? num(wl.win_loss_ratio) : "—"} />
-            </div>
-          </div>
-          <InteractiveChart
-            option={pie}
-            height={200}
-            showHint={false}
-            onChartClick={(e) => {
-              if (!drill || !e.name) return;
-              const result = e.name.toLowerCase();
-              if (result === "win" || result === "loss" || result === "breakeven") {
-                drill.applyPatch({ result }, `${e.name} trades`);
-                drill.openTrades(`${e.name} trades`);
-              }
-            }}
-          />
+        <div className="mini-stats">
+          <Stat label="Wins" value={String(wl.wins)} />
+          <Stat label="Losses" value={String(wl.losses)} />
+          <Stat label="Breakevens" value={String(wl.breakevens)} />
+          <Stat label="Win/loss ratio" value={wl.win_loss_ratio ? num(wl.win_loss_ratio) : "—"} />
         </div>
       </ChartCard>
 
       {histogram && (
         <ChartCard
-          title="Trade outcome distribution (R)"
-          subtitle={`Mean ${rDistribution.mean ?? "—"}R · median ${rDistribution.median ?? "—"}R · skew reveals tail risk vs consistency`}
+          title="How your trades pay off"
+          question="Are outcomes clustered in small wins, large wins, or oversized losses?"
+          tier="essential"
+          subtitle={`Average ${rDistribution.mean ?? "—"}R · typical (median) ${rDistribution.median ?? "—"}R · based on ${rDistribution.n} trades`}
           interactive
         >
+          <p className="payoff-hint muted">
+            Left of zero = losses · right of zero = wins. Tall bars near zero mean many small outcomes; bars far right/left are outliers.
+          </p>
           <InteractiveChart
             option={histogram}
             height={240}
@@ -443,37 +429,34 @@ function WinLossSection({
       )}
 
       <style jsx>{`
-        .wl-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 16px;
-          margin-top: 16px;
-        }
         .wl-labels {
           display: flex;
           justify-content: space-between;
+          gap: 8px;
           font-size: 12px;
           margin-bottom: 4px;
         }
         .win {
-          color: var(--pos);
+          color: var(--success, var(--pos));
         }
         .loss {
-          color: var(--neg);
+          color: var(--danger, var(--neg));
+        }
+        .be {
+          color: var(--text-muted);
         }
         .mini-stats {
           display: grid;
-          grid-template-columns: repeat(2, 1fr);
+          grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
           gap: 12px;
+          margin-top: 14px;
+        }
+        .payoff-hint {
+          font-size: 12px;
+          margin: 0 0 8px;
         }
         .muted {
-          font-size: 13px;
-          margin-top: 8px;
-        }
-        @media (max-width: 800px) {
-          .wl-grid {
-            grid-template-columns: 1fr;
-          }
+          color: var(--text-muted);
         }
       `}</style>
     </>
@@ -514,7 +497,12 @@ function PayoffComparison({
   };
 
   return (
-    <ChartCard title="Average win vs average loss" subtitle="How much you capture per unit of risk on winners vs losers">
+    <ChartCard
+      title="Average win vs average loss"
+      question="How much do I typically make or lose per trade?"
+      subtitle={`Payoff ratio ${payoff} — a high win rate can still lose money if losers are larger than winners.`}
+      tier="essential"
+    >
       <div className="payoff-head">
         <div className="ratio">
           <span className="label">Payoff ratio</span>
@@ -550,9 +538,11 @@ function PayoffComparison({
 
 function DirectionComparison({
   dc,
+  showScatter = false,
 }: {
   dc: NonNullable<AnalyticsDashboard["lab"]>["performance"]["direction_comparison"];
   currency: string;
+  showScatter?: boolean;
 }) {
   const { C } = useLiveChart();
   const drill = useOptionalAnalyticsDrilldown();
@@ -611,7 +601,13 @@ function DirectionComparison({
   };
 
   return (
-    <ChartCard title="Long vs short" subtitle={`Long n=${long.n ?? 0} · Short n=${short.n ?? 0}`} interactive>
+    <ChartCard
+      title="Long vs short"
+      question="Which direction works better for me?"
+      subtitle={`Long n=${long.n ?? 0} · Short n=${short.n ?? 0}`}
+      tier="essential"
+      interactive
+    >
       {(Number(long.n) > 0 || Number(short.n) > 0) && (
         <>
           <InteractiveChart
@@ -627,21 +623,35 @@ function DirectionComparison({
               }
             }}
           />
-          <InteractiveChart
-            option={quadrant}
-            height={200}
-            showHint={false}
-            onChartClick={(e) => {
-              if (!drill || !e.name) return;
-              const dir = e.name.toLowerCase();
-              if (dir === "long" || dir === "short") {
-                drill.applyPatch({ direction: dir }, `${e.name} trades`);
-                drill.openTrades(`${e.name} trades`);
-              }
-            }}
-          />
+          {showScatter ? (
+            <>
+              <p className="scatter-hint muted">What to look for: points further up/right combine higher win rate with stronger profit factor.</p>
+              <InteractiveChart
+                option={quadrant}
+                height={200}
+                showHint={false}
+                onChartClick={(e) => {
+                  if (!drill || !e.name) return;
+                  const dir = e.name.toLowerCase();
+                  if (dir === "long" || dir === "short") {
+                    drill.applyPatch({ direction: dir }, `${e.name} trades`);
+                    drill.openTrades(`${e.name} trades`);
+                  }
+                }}
+              />
+            </>
+          ) : null}
         </>
       )}
+      <style jsx>{`
+        .scatter-hint {
+          font-size: 12px;
+          margin: 12px 0 6px;
+        }
+        .muted {
+          color: var(--text-muted);
+        }
+      `}</style>
     </ChartCard>
   );
 }

@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import { buildAnalyticsQuery, type FilterState } from "@/lib/analytics";
 import type { MonteCarloResult, QuantLabPayload, RiskOfRuinResult } from "@/lib/quant";
 import { Panel, Stat } from "@/components/ui";
-import { Empty, useLiveChart } from "@/components/analytics/Charts";
+import { Empty } from "@/components/analytics/Charts";
 import { ChartCard } from "@/components/analytics/primitives/ChartCard";
 import { InteractiveChart } from "@/components/analytics/primitives/InteractiveChart";
 import { QuantStudyFooter } from "@/components/quant-lab/primitives/QuantStudyFooter";
@@ -21,7 +21,6 @@ type Props = {
 
 export function SimulationLab({ accountId, filters, data, startingBalance }: Props) {
   const sim = data.simulation;
-  const chart = useLiveChart();
   const query = buildAnalyticsQuery(accountId, filters);
 
   const [mcSims, setMcSims] = useState(sim.default_config.simulations);
@@ -84,23 +83,22 @@ export function SimulationLab({ accountId, filters, data, startingBalance }: Pro
     }
   }
 
-  const fanOption =
-    mcResult?.sample_paths && mcResult.sample_paths.length > 0
-      ? {
-          ...chart,
-          grid: { left: 48, right: 16, top: 24, bottom: 32 },
-          tooltip: { trigger: "axis" as const },
-          xAxis: { type: "category" as const, data: mcResult.sample_paths[0].cumulative.map((_, i) => String(i)) },
-          yAxis: { type: "value" as const, name: mcResult.config?.unit === "R" ? "Cumulative R" : "Cumulative" },
-          series: mcResult.sample_paths.slice(0, 12).map((p, idx) => ({
-            type: "line" as const,
-            data: p.cumulative.map((v) => Number(v)),
-            showSymbol: false,
-            lineStyle: { width: 1, opacity: 0.45 },
-            name: `Path ${idx + 1}`,
-          })),
-        }
-      : null;
+  const fanOption = useMemo(() => {
+    if (!mcResult?.sample_paths?.length) return null;
+    return {
+      grid: { left: 48, right: 16, top: 24, bottom: 32 },
+      tooltip: { trigger: "axis" as const },
+      xAxis: { type: "category" as const, data: mcResult.sample_paths[0].cumulative.map((_, i) => String(i)) },
+      yAxis: { type: "value" as const, name: mcResult.config?.unit === "R" ? "Cumulative R" : "Cumulative" },
+      series: mcResult.sample_paths.slice(0, 12).map((p, idx) => ({
+        type: "line" as const,
+        data: p.cumulative.map((v) => Number(v)),
+        showSymbol: false,
+        lineStyle: { width: 1, opacity: 0.45 },
+        name: `Path ${idx + 1}`,
+      })),
+    };
+  }, [mcResult]);
 
   const mcDef = getQuantStudy("monte_carlo");
   const rorDef = getQuantStudy("risk_of_ruin");
@@ -168,7 +166,11 @@ export function SimulationLab({ accountId, filters, data, startingBalance }: Pro
               <Stat label="P(positive end)" value={mcResult.probabilities?.positive_ending_return ? `${num(mcResult.probabilities.positive_ending_return, 1)}%` : "—"} />
             </div>
 
-            <ChartCard title="Drawdown scenarios" subtitle="Simulated drawdown percentiles at risk">
+            <ChartCard
+              title="Drawdown scenarios"
+              question={mcDef?.primaryQuestion ?? "What drawdowns are plausible from this history?"}
+              subtitle="Simulated drawdown percentiles at risk — numbers, not color alone."
+            >
               <div className="kpis">
                 <Stat label="50th percentile" value={mcResult.drawdown_at_risk?.p50 ? `${num(mcResult.drawdown_at_risk.p50)}${mcUnit === "R" ? "R" : ""}` : "—"} />
                 <Stat label="75th percentile" value={mcResult.drawdown_at_risk?.p75 ? `${num(mcResult.drawdown_at_risk.p75)}${mcUnit === "R" ? "R" : ""}` : "—"} />
@@ -184,8 +186,17 @@ export function SimulationLab({ accountId, filters, data, startingBalance }: Pro
             </ChartCard>
 
             {fanOption && (
-              <ChartCard title="Sample equity paths" subtitle="Simulated paths from historical trade distribution">
-                <InteractiveChart option={fanOption} height={280} showHint={false} />
+              <ChartCard
+                title="Sample equity paths"
+                question="What range of equity paths is plausible from this sample?"
+                subtitle="Illustrative resampled paths — not forecasts."
+              >
+                <InteractiveChart
+                  option={fanOption}
+                  size="standard"
+                  showHint={false}
+                  ariaLabel="Monte Carlo sample equity paths"
+                />
               </ChartCard>
             )}
 

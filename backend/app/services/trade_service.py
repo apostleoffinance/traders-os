@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 from decimal import Decimal
 from uuid import UUID, uuid4
@@ -46,6 +47,8 @@ from app.services.checklist_service import resolve_template
 from app.services.mfe_mae_backfill import backfill_mfe_mae_for_trade
 from app.services.mapping import parse_windows, profile_view, trade_to_closed
 from app.storage.factory import get_storage
+
+log = logging.getLogger(__name__)
 
 
 def _load_account_trades(db: Session, account_id: UUID, user_id: UUID) -> list[Trade]:
@@ -449,7 +452,44 @@ def get_trade_replay(db: Session, user_id: UUID, trade_id: UUID) -> dict:
     account = get_owned_account(db, user_id, trade.account_id)
     user = db.query(User).filter(User.id == user_id).one()
     profile = profile_view(account.risk_profile) if account.risk_profile else None
-    return build_trade_replay(trade, profile=profile, timezone=user.timezone or trade.timezone)
+    payload = build_trade_replay(trade, profile=profile, timezone=user.timezone or trade.timezone)
+
+    # Best-effort M1 path + timed excursions. Never fail the replay if market data is down.
+    if (
+        trade.status == TradeStatus.CLOSED.value
+        and trade.trade_timestamp is not None
+        and trade.exit_timestamp is not None
+        and as_utc(trade.exit_timestamp) > as_utc(trade.trade_timestamp)
+    ):
+        try:
+            from app.engines.trade_anatomy_path import bar_limit, enrich_replay_with_candles
+            from app.market_data import service as market_service
+
+            start = as_utc(trade.trade_timestamp)
+            end = as_utc(trade.exit_timestamp)
+            candles = market_service.get_ohlcv_range(
+                db,
+                trade.symbol,
+                "M1",
+                start=start,
+                end=end,
+                limit=bar_limit(start, end),
+            )
+            if candles:
+                payload = enrich_replay_with_candles(
+                    payload,
+                    candles,
+                    direction=trade.direction,
+                    entry=Decimal(trade.entry_price),
+                    start=start,
+                    end=end,
+                    mfe_price=Decimal(trade.mfe_price) if trade.mfe_price is not None else None,
+                    mae_price=Decimal(trade.mae_price) if trade.mae_price is not None else None,
+                )
+        except Exception:
+            log.info("trade replay path enrichment skipped trade=%s", trade_id)
+
+    return payload
 
 
 def list_trades(

@@ -1,9 +1,8 @@
 "use client";
 
+import { MetricCard, ChartCard } from "@/components/trader";
 import { useMemo, useState } from "react";
 import { Stat } from "@/components/ui";
-import { MetricCard } from "@/components/analytics/primitives/MetricCard";
-import { ChartCard } from "@/components/analytics/primitives/ChartCard";
 import { MiniSparkline } from "@/components/analytics/primitives/MiniSparkline";
 import { InsufficientSample } from "@/components/analytics/primitives/InsufficientSample";
 import type { AnalyticsDashboard } from "@/lib/analytics";
@@ -94,6 +93,7 @@ export function OverviewScorecard({
           onClick={onMetricClick ? () => onMetricClick("expectancy_r") : undefined}
         />
         <MetricCard label="Total R" value={signed(o.total_r, "R")} tone={tone(o.total_r)} />
+        <MetricCard label="Max drawdown" value={money(o.max_drawdown, currency)} tone="neg" />
         <MetricCard label="Trades" value={String(n)} />
       </div>
 

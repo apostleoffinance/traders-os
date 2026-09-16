@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { TradeAnatomy } from "@/components/visualizations/trade-anatomy";
 import { api } from "@/lib/api";
 import { holdingLabel, sessionLabel, tone } from "@/lib/format";
+import type { TradeAnatomyFallbacks } from "@/lib/trade-anatomy";
 import type { TradeReplay, ReplayInsight } from "@/lib/trade-replay";
 
 function insightIcon(tone: string): string {
@@ -10,104 +12,6 @@ function insightIcon(tone: string): string {
   if (tone === "warn") return "⚠";
   if (tone === "bad") return "✕";
   return "·";
-}
-
-function PricePath({ replay }: { replay: TradeReplay }) {
-  const { price_path: p, levels } = replay;
-  const w = 280;
-  const h = 200;
-  const pad = 24;
-
-  const y = (norm: number | null) => {
-    if (norm === null) return null;
-    return pad + (1 - norm) * (h - pad * 2);
-  };
-
-  const entryY = y(p.entry_y) ?? h / 2;
-  const exitY = y(p.exit_y);
-  const stopY = y(p.stop_y);
-  const targetY = y(p.target_y);
-
-  const pathEnd = exitY ?? (p.favorable === false ? (stopY ?? entryY + 40) : targetY ?? entryY - 40);
-  const midX = w * 0.55;
-  const path = `M ${pad} ${entryY} C ${midX} ${entryY}, ${midX} ${pathEnd}, ${w - pad} ${pathEnd}`;
-
-  return (
-    <div className="price-path">
-      <svg viewBox={`0 0 ${w} ${h}`} role="img" aria-label="Schematic price path from entry to exit">
-        {stopY !== null && (
-          <line x1={pad} y1={stopY} x2={w - pad} y2={stopY} className="level sl" />
-        )}
-        {targetY !== null && (
-          <line x1={pad} y1={targetY} x2={w - pad} y2={targetY} className="level tp" />
-        )}
-        <line x1={pad} y1={entryY} x2={w - pad} y2={entryY} className="level entry" />
-        {replay.status === "closed" && (
-          <path d={path} className={`movement ${p.favorable ? "up" : "down"}`} fill="none" />
-        )}
-        <circle cx={pad} cy={entryY} r={5} className="dot entry" />
-        {exitY !== null && <circle cx={w - pad} cy={exitY} r={5} className="dot exit" />}
-      </svg>
-      <div className="level-labels">
-        <span>SL {levels.stop_loss}</span>
-        <span>Entry {levels.entry}</span>
-        {levels.take_profit && <span>TP {levels.take_profit}</span>}
-        {levels.exit && <span>Exit {levels.exit}</span>}
-      </div>
-      <style jsx>{`
-        .price-path {
-          background: color-mix(in srgb, var(--surface) 92%, var(--bg));
-          border: 1px solid var(--line);
-          padding: 12px;
-        }
-        svg {
-          width: 100%;
-          height: auto;
-          display: block;
-        }
-        .level {
-          stroke: var(--line-strong);
-          stroke-width: 1;
-          stroke-dasharray: 4 4;
-        }
-        .level.entry {
-          stroke: var(--accent);
-          stroke-dasharray: none;
-          opacity: 0.5;
-        }
-        .level.sl {
-          stroke: var(--danger, #ef4444);
-        }
-        .level.tp {
-          stroke: var(--pos, #22c55e);
-        }
-        .movement {
-          stroke-width: 2.5;
-        }
-        .movement.up {
-          stroke: var(--pos, #22c55e);
-        }
-        .movement.down {
-          stroke: var(--danger, #ef4444);
-        }
-        .dot.entry {
-          fill: var(--accent);
-        }
-        .dot.exit {
-          fill: ${p.favorable ? "var(--pos, #22c55e)" : "var(--danger, #ef4444)"};
-        }
-        .level-labels {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 8px 14px;
-          margin-top: 8px;
-          font-family: var(--font-mono), ui-monospace, monospace;
-          font-size: 11px;
-          color: var(--text-secondary);
-        }
-      `}</style>
-    </div>
-  );
 }
 
 function Timeline({ events }: { events: TradeReplay["timeline"] }) {
@@ -317,7 +221,13 @@ function InsightList({ title, insights }: { title: string; insights: ReplayInsig
   );
 }
 
-export function TradeReplayView({ tradeId }: { tradeId: string }) {
+export function TradeReplayView({
+  tradeId,
+  fallbacks,
+}: {
+  tradeId: string;
+  fallbacks?: TradeAnatomyFallbacks;
+}) {
   const [replay, setReplay] = useState<TradeReplay | null>(null);
   const [showDecision, setShowDecision] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -331,7 +241,7 @@ export function TradeReplayView({ tradeId }: { tradeId: string }) {
   }, [tradeId]);
 
   if (error) return <p className="muted">{error}</p>;
-  if (!replay) return <p className="muted">Loading trade replay…</p>;
+  if (!replay) return <p className="muted">Loading trade anatomy…</p>;
 
   const dq = replay.decision_quality;
   const isClosed = replay.status === "closed";
@@ -340,7 +250,7 @@ export function TradeReplayView({ tradeId }: { tradeId: string }) {
     <section className="replay">
       <header className="replay-head">
         <div>
-          <p className="kicker">Trade replay</p>
+          <p className="kicker">Trade anatomy</p>
           <h2>
             {replay.symbol} {replay.direction.toUpperCase()}
           </h2>
@@ -361,7 +271,7 @@ export function TradeReplayView({ tradeId }: { tradeId: string }) {
 
       <div className="replay-grid">
         <div className="visual">
-          <PricePath replay={replay} />
+          <TradeAnatomy replay={replay} fallbacks={fallbacks} />
           <Timeline events={replay.timeline} />
         </div>
         <div className="context">
@@ -438,7 +348,7 @@ export function TradeReplayView({ tradeId }: { tradeId: string }) {
         }
         .replay-grid {
           display: grid;
-          grid-template-columns: 1.1fr 0.9fr;
+          grid-template-columns: 1.25fr 0.85fr;
           gap: 14px;
           margin-bottom: 14px;
         }

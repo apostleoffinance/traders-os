@@ -330,6 +330,25 @@ def build_trade_replay(trade: Trade, *, profile: RiskProfileView | None, timezon
     if profile is not None:
         quality["process_score"] = trade.discipline_score if trade.discipline_score is not None else quality["process_score"]
 
+    mfe_t = None
+    mae_t = None
+    timing_precision = None
+    if (
+        trade.trade_timestamp is not None
+        and trade.exit_timestamp is not None
+        and as_utc(trade.exit_timestamp) > as_utc(trade.trade_timestamp)
+    ):
+        start = as_utc(trade.trade_timestamp)
+        end = as_utc(trade.exit_timestamp)
+        span = (end - start).total_seconds()
+        if span > 0:
+            if getattr(trade, "mfe_at", None) is not None:
+                mfe_t = round(max(0.0, min(1.0, (as_utc(trade.mfe_at) - start).total_seconds() / span)), 6)
+                timing_precision = "bar_ohlc"
+            if getattr(trade, "mae_at", None) is not None:
+                mae_t = round(max(0.0, min(1.0, (as_utc(trade.mae_at) - start).total_seconds() / span)), 6)
+                timing_precision = "bar_ohlc"
+
     return {
         "trade_id": str(trade.id),
         "symbol": trade.symbol,
@@ -344,6 +363,34 @@ def build_trade_replay(trade: Trade, *, profile: RiskProfileView | None, timezon
             "stop_loss": str(trade.stop_loss),
             "take_profit": str(trade.take_profit) if trade.take_profit is not None else None,
             "exit": str(trade.exit_price) if trade.exit_price is not None else None,
+        },
+        "excursions": {
+            "mfe_price": str(trade.mfe_price) if getattr(trade, "mfe_price", None) is not None else None,
+            "mae_price": str(trade.mae_price) if getattr(trade, "mae_price", None) is not None else None,
+            "mfe_r": str(trade.mfe_r) if getattr(trade, "mfe_r", None) is not None else None,
+            "mae_r": str(trade.mae_r) if getattr(trade, "mae_r", None) is not None else None,
+            "mfe_at": (
+                as_utc(trade.mfe_at).isoformat().replace("+00:00", "Z")
+                if getattr(trade, "mfe_at", None) is not None
+                else None
+            ),
+            "mae_at": (
+                as_utc(trade.mae_at).isoformat().replace("+00:00", "Z")
+                if getattr(trade, "mae_at", None) is not None
+                else None
+            ),
+            "mfe_t": mfe_t,
+            "mae_t": mae_t,
+            "source": getattr(trade, "mfe_mae_source", None),
+            "precision": getattr(trade, "mfe_mae_precision", None),
+            "timing_precision": timing_precision,
+        },
+        "price_series": None,
+        "metrics": {
+            "realized_r": str(trade.realized_r) if trade.realized_r is not None else None,
+            "planned_rr": str(trade.planned_rr) if trade.planned_rr is not None else None,
+            "holding_time_seconds": trade.holding_time_seconds,
+            "risk_amount": str(trade.risk_amount) if trade.risk_amount is not None else None,
         },
         "context": _context_cards(trade),
         "decision_replay": {

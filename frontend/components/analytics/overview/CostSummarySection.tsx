@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { Stat } from "@/components/ui";
-import { ChartCard } from "@/components/analytics/primitives/ChartCard";
+import { ChartCard } from "@/components/trader";
 import { InteractiveChart } from "@/components/analytics/primitives/InteractiveChart";
 import { useLiveChart } from "@/components/analytics/Charts";
 import type { AnalyticsDashboard } from "@/lib/analytics";

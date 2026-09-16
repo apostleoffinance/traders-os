@@ -5,8 +5,9 @@ import Link from "next/link";
 type TabId = "overview" | "performance" | "edge" | "behaviour" | "execution" | "risk" | "calendar";
 
 const LINKS: { tab: TabId; label: string; description: string }[] = [
-  { tab: "performance", label: "Performance", description: "Deeper KPIs, distributions, and period comparisons" },
-  { tab: "edge", label: "Edge Explorer", description: "Instrument × session matrix and advanced edge tools" },
+  { tab: "performance", label: "Performance", description: "Win/loss, payoff, costs, and period comparisons" },
+  { tab: "edge", label: "Edge Explorer", description: "Full rankings, time-of-day, and advanced edge tools" },
+  { tab: "behaviour", label: "Behaviour", description: "Psychology, discipline, and process vs outcome" },
   { tab: "execution", label: "Execution", description: "MFE/MAE, exit efficiency, and position sizing" },
   { tab: "risk", label: "Risk", description: "Drawdown research and capital preservation" },
   { tab: "calendar", label: "Calendar", description: "Day-by-day and temporal patterns" },

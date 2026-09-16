@@ -3,8 +3,9 @@
 import { useMemo, useState } from "react";
 import { ChartCard } from "@/components/analytics/primitives/ChartCard";
 import { InteractiveChart } from "@/components/analytics/primitives/InteractiveChart";
-import { EquityInteractiveChart } from "@/components/analytics/primitives/EquityInteractive";
+import { EquityCurve } from "@/components/visualizations/performance/EquityCurve";
 import { Empty, useLiveChart } from "@/components/analytics/Charts";
+import { ReportChapter } from "@/components/reports/story/ReportChapter";
 import type { EquityPt } from "@/lib/analytics";
 import { colorForBinRange } from "@/lib/chart-colors";
 import { money, num } from "@/lib/format";
@@ -21,7 +22,7 @@ export function ReportPerformanceSection({
   confidence: { level: string; message: string };
 }) {
   const { C } = useLiveChart();
-  const [eqMode, setEqMode] = useState<"net_pnl" | "r_multiple">("net_pnl");
+  const [metric, setMetric] = useState<"equity" | "cumulative_r">("equity");
   const kpis = (performance.kpis ?? {}) as Record<string, { value?: string }>;
   const wl = (performance.win_loss ?? {}) as Record<string, unknown>;
   const equity = (performance.equity_curve ?? {}) as {
@@ -30,6 +31,15 @@ export function ReportPerformanceSection({
   };
   const calendar = (performance.calendar ?? []) as { date: string; n: number; net_pnl: string; r?: string }[];
   const dist = (performance.distributions ?? {}) as Record<string, unknown>;
+
+  const netPnl = kpis.net_pnl?.value;
+  const exp = kpis.expectancy_r?.value;
+  const takeaway =
+    netPnl != null
+      ? `Net P&L ${money(netPnl, currency)}${exp != null ? ` · expectancy ${exp}R` : ""}${
+          wl.win_rate ? ` · win rate ${wl.win_rate}%` : ""
+        }. ${confidence.message}`
+      : confidence.message;
 
   const rHist = useMemo(() => {
     const bins = (dist.r_multiple as { bins?: { from: number; to: number; n: number }[] })?.bins ?? [];
@@ -66,55 +76,72 @@ export function ReportPerformanceSection({
   );
 
   return (
-    <>
-      <h2 className="section-title">Performance analysis</h2>
+    <ReportChapter
+      id="performance"
+      title="1. Performance"
+      question="How did I perform this period?"
+      takeaway={takeaway}
+    >
       <div className="kpi-row">
-        <Kpi label="Net P&L" value={kpis.net_pnl?.value ? money(kpis.net_pnl.value, currency) : "—"} />
+        <Kpi label="Net P&L" value={netPnl ? money(netPnl, currency) : "—"} />
         <Kpi label="Win rate" value={wl.win_rate ? `${wl.win_rate}%` : "—"} />
         <Kpi label="Profit factor" value={kpis.profit_factor?.value ?? "—"} />
-        <Kpi label="Expectancy R" value={kpis.expectancy_r?.value ? `${kpis.expectancy_r.value}R` : "—"} />
+        <Kpi label="Expectancy R" value={exp ? `${exp}R` : "—"} />
         <Kpi label="Average R" value={kpis.average_r?.value ? `${kpis.average_r.value}R` : "—"} />
       </div>
 
       <ChartCard
         title="Equity curve"
+        question="How did account equity evolve?"
         subtitle={confidence.message}
-        interactive
+        interactive={false}
         actions={
           <div className="modes">
-            <button type="button" className={eqMode === "net_pnl" ? "on" : ""} onClick={() => setEqMode("net_pnl")}>
-              Currency
+            <button type="button" className={metric === "equity" ? "on" : ""} aria-pressed={metric === "equity"} onClick={() => setMetric("equity")}>
+              Net $
             </button>
-            <button type="button" className={eqMode === "r_multiple" ? "on" : ""} onClick={() => setEqMode("r_multiple")}>
+            <button
+              type="button"
+              className={metric === "cumulative_r" ? "on" : ""}
+              aria-pressed={metric === "cumulative_r"}
+              onClick={() => setMetric("cumulative_r")}
+            >
               Cumulative R
             </button>
           </div>
         }
       >
         {netCurve.length >= 2 ? (
-          <EquityInteractiveChart
-            netCurve={netCurve}
-            grossCurve={[]}
+          <EquityCurve
+            curve={netCurve}
             markers={(equity.markers as never[]) ?? []}
-            mode={eqMode}
             currency={currency}
+            metric={metric}
+            showRangeControls={false}
+            defaultRange="ALL"
           />
         ) : (
           <Empty>Not enough trades for an equity curve.</Empty>
         )}
       </ChartCard>
 
-      <ChartCard title="Daily P&L calendar" interactive>
+      <ChartCard title="Daily P&L calendar" question="Which days contributed most?">
         {calendar.length ? (
-          <div className="cal">
+          <div className="cal" role="list" aria-label="Daily P&L">
             {calendar.map((d) => {
               const pnl = Number(d.net_pnl);
               const t = Math.min(1, Math.abs(pnl) / 100);
               const bg = pnl >= 0 ? `rgba(24,185,129,${0.15 + t * 0.6})` : `rgba(239,68,68,${0.15 + t * 0.6})`;
               return (
-                <div key={d.date} className="cell" style={{ background: bg }} title={`${d.date} · ${money(d.net_pnl, currency)} · n=${d.n}`}>
+                <div
+                  key={d.date}
+                  className="cell"
+                  role="listitem"
+                  style={{ background: bg }}
+                  title={`${d.date} · ${money(d.net_pnl, currency)} · n=${d.n}`}
+                >
                   <span>{d.date.slice(8)}</span>
-                  <span>{d.r != null ? `${num(d.r, 1)}R` : "—"}</span>
+                  <span>{d.r != null ? `${num(d.r, 1)}R` : money(d.net_pnl, currency)}</span>
                 </div>
               );
             })}
@@ -125,16 +152,12 @@ export function ReportPerformanceSection({
       </ChartCard>
 
       {rHist && (
-        <ChartCard title="R-multiple distribution" interactive>
-          <InteractiveChart option={rHist} height={220} showHint={false} />
+        <ChartCard title="R-multiple distribution" question="How are trade outcomes distributed?" tier="deep_dive">
+          <InteractiveChart option={rHist} size="compact" showHint={false} ariaLabel="R-multiple distribution" />
         </ChartCard>
       )}
 
       <style jsx>{`
-        .section-title {
-          font-size: 18px;
-          margin: 0 0 16px;
-        }
         .kpi-row {
           display: grid;
           grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
@@ -150,7 +173,7 @@ export function ReportPerformanceSection({
           padding: 4px 8px;
           border: 1px solid var(--border);
           background: transparent;
-          border-radius: 999px;
+          border-radius: 6px;
           cursor: pointer;
         }
         .modes .on {
@@ -171,7 +194,7 @@ export function ReportPerformanceSection({
           flex-direction: column;
         }
       `}</style>
-    </>
+    </ReportChapter>
   );
 }
 

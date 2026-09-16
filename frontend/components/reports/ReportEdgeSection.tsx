@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo } from "react";
-import { ChartCard } from "@/components/analytics/primitives/ChartCard";
+import { useMemo, useState } from "react";
+import { ChartCard, RankList, sortEdgeRows } from "@/components/trader";
 import { HorizontalBars } from "@/components/analytics/Charts";
 import { InteractiveChart } from "@/components/analytics/primitives/InteractiveChart";
 import { useLiveChart } from "@/components/analytics/Charts";
+import { ReportChapter } from "@/components/reports/story/ReportChapter";
 import { num } from "@/lib/format";
 import type { Evidence, GroupRow } from "@/lib/analytics";
 
@@ -46,10 +47,16 @@ function toGroupRow(r: EdgeRow): GroupRow {
 
 export function ReportEdgeSection({ edge }: { edge: Record<string, unknown> }) {
   const { C } = useLiveChart();
+  const [showDetails, setShowDetails] = useState(false);
   const instruments = (edge.instruments ?? []) as EdgeRow[];
   const setups = (edge.setups ?? []) as EdgeRow[];
   const sessions = (edge.sessions ?? []) as EdgeRow[];
   const tod = edge.time_of_day as { heatmap?: { hour: number; day: string; expectancy_r: string | null; n: number }[] } | undefined;
+
+  const topSetup = sortEdgeRows(setups, (k) => (k === "unclassified" ? "Unclassified" : k))[0];
+  const takeaway = topSetup
+    ? `Strongest setup by expectancy: ${topSetup.label} (${topSetup.expectancy != null ? `${topSetup.expectancy.toFixed(2)}R` : "—"}, n=${topSetup.trades}).`
+    : "Not enough tagged setups to rank edge yet.";
 
   const scatter = useMemo(() => {
     if (!instruments.length) return null;
@@ -97,42 +104,67 @@ export function ReportEdgeSection({ edge }: { edge: Record<string, unknown> }) {
       }
     : null;
 
-  const instRows = instruments.map(toGroupRow);
-
   return (
-    <>
-      <h2 className="section-title">Where does your edge exist?</h2>
-      <ChartCard title="Instrument edge map" subtitle="Win rate × expectancy · bubble size = sample" interactive>
-        {scatter ? <InteractiveChart option={scatter} height={280} showHint={false} /> : <p className="muted">No instrument data.</p>}
-      </ChartCard>
-      <ChartCard title="Instrument ranking" interactive>
-        <HorizontalBars rows={instRows} metric="expectancy_r" />
-      </ChartCard>
-      <ChartCard title="Setup performance">
-        <HorizontalBars
-          rows={setups.map(toGroupRow)}
-          metric="expectancy_r"
-          labelFn={(k) => (k === "unclassified" ? "Unclassified" : k)}
-        />
-      </ChartCard>
-      <ChartCard title="Session performance">
-        <HorizontalBars rows={sessions.map(toGroupRow)} metric="expectancy_r" />
-      </ChartCard>
-      {heatmap && (
-        <ChartCard title="Day × hour heatmap" interactive>
-          <InteractiveChart option={heatmap} height={300} showHint={false} />
-        </ChartCard>
+    <ReportChapter id="edge" title="2. Edge" question="Where did my edge show up?" takeaway={takeaway}>
+      <div className="ranks">
+        <RankList title="Top instruments" rows={sortEdgeRows(instruments)} />
+        <RankList title="Top setups" rows={sortEdgeRows(setups, (k) => (k === "unclassified" ? "Unclassified" : k))} />
+        <RankList title="Top sessions" rows={sortEdgeRows(sessions)} />
+      </div>
+
+      <button type="button" className="details-toggle" aria-expanded={showDetails} onClick={() => setShowDetails((v) => !v)}>
+        {showDetails ? "Hide ranking detail & maps" : "Show ranking detail & maps"}
+      </button>
+
+      {showDetails && (
+        <div className="details">
+          <ChartCard title="Instrument ranking" interactive={false}>
+            <HorizontalBars rows={instruments.map(toGroupRow)} metric="expectancy_r" />
+          </ChartCard>
+          <ChartCard title="Setup performance">
+            <HorizontalBars
+              rows={setups.map(toGroupRow)}
+              metric="expectancy_r"
+              labelFn={(k) => (k === "unclassified" ? "Unclassified" : k)}
+            />
+          </ChartCard>
+          <ChartCard title="Session performance">
+            <HorizontalBars rows={sessions.map(toGroupRow)} metric="expectancy_r" />
+          </ChartCard>
+          {scatter && (
+            <ChartCard title="Instrument edge map" subtitle="Win rate × expectancy · bubble size = sample">
+              <InteractiveChart option={scatter} size="standard" showHint={false} ariaLabel="Instrument edge scatter" />
+            </ChartCard>
+          )}
+          {heatmap && (
+            <ChartCard title="Day × hour heatmap">
+              <InteractiveChart option={heatmap} size="standard" showHint={false} ariaLabel="Day hour expectancy heatmap" />
+            </ChartCard>
+          )}
+        </div>
       )}
+
       <style jsx>{`
-        .section-title {
-          font-size: 18px;
-          margin: 0 0 16px;
+        .ranks {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          gap: 12px;
+          margin-bottom: 12px;
         }
-        .muted {
-          color: var(--muted);
+        .details-toggle {
+          border: 1px solid var(--border);
+          background: transparent;
+          border-radius: 8px;
+          padding: 8px 12px;
           font-size: 13px;
+          cursor: pointer;
+          margin-bottom: 12px;
+        }
+        .details {
+          display: grid;
+          gap: 12px;
         }
       `}</style>
-    </>
+    </ReportChapter>
   );
 }

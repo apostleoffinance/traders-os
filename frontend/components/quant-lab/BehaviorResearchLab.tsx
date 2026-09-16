@@ -190,8 +190,17 @@ export function BehaviorResearchLab({
 
   return (
     <div className="stack">
-      <ChartCard title="Discipline alpha · OBSERVED PERFORMANCE" interactive>
-        <InteractiveChart option={disciplineComparisonChart(comps, C)} height={260} showHint={false} />
+      <ChartCard
+        title="Discipline alpha · OBSERVED PERFORMANCE"
+        question="Does following rules correlate with better expectancy in this sample?"
+        interactive
+      >
+        <InteractiveChart
+          option={disciplineComparisonChart(comps, C)}
+          size="standard"
+          showHint={false}
+          ariaLabel="Discipline alpha comparison"
+        />
         <div className="grid">
           {comps.map((c, i) => (
             <div key={i} className="card">
@@ -206,19 +215,42 @@ export function BehaviorResearchLab({
         </div>
       </ChartCard>
 
-      <ChartCard title="Risk escalation research" subtitle={behavior.risk_escalation.disclaimer} interactive>
-        <InteractiveChart option={riskChart} height={Math.max(180, behavior.risk_escalation.patterns.length * 32 + 48)} showHint={false} />
+      <ChartCard
+        title="Risk escalation research"
+        question="Do I increase size after losses or wins?"
+        subtitle={behavior.risk_escalation.disclaimer}
+        interactive
+      >
+        <InteractiveChart
+          option={riskChart}
+          height={Math.max(180, behavior.risk_escalation.patterns.length * 32 + 48)}
+          showHint={false}
+          ariaLabel="Risk escalation patterns"
+        />
       </ChartCard>
 
-      <ChartCard title="Position size research" interactive>
+      <ChartCard
+        title="Position size research"
+        question="How does expectancy change across position-size buckets?"
+        interactive
+      >
         {behavior.position_size.available && positionChart ? (
-          <InteractiveChart option={positionChart} height={260} showHint={false} />
+          <InteractiveChart
+            option={positionChart}
+            size="standard"
+            showHint={false}
+            ariaLabel="Position size research"
+          />
         ) : (
           <Empty>{behavior.position_size.reason}</Empty>
         )}
       </ChartCard>
 
-      <ChartCard title="Setup interaction explorer" interactive>
+      <ChartCard
+        title="Setup interaction explorer"
+        question="Which setup × condition combinations appear strongest in this sample?"
+        interactive
+      >
         <p className="muted">{behavior.setup_interactions.multiple_exploration_notice}</p>
         <div className="config">
           <label>

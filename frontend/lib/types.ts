@@ -201,6 +201,14 @@ export type Trade = {
   instrument_status?: string | null;
   commission?: string | null;
   swap?: string | null;
+  mfe_price?: string | null;
+  mae_price?: string | null;
+  mfe_r?: string | null;
+  mae_r?: string | null;
+  mfe_mae_source?: string | null;
+  mfe_mae_precision?: string | null;
+  mfe_at?: string | null;
+  mae_at?: string | null;
   created_at: string;
   psychology: (Psychology & { id: string; trade_id: string }) | null;
   screenshots: Screenshot[];

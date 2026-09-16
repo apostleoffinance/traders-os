@@ -2,8 +2,12 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { VelaChart, type DataMode } from "@/components/charts/vela/VelaChart";
+import { MarketChart, type DataMode } from "@/components/visualizations/market/MarketChart";
+import { MarketLabIntro } from "@/components/market/MarketLabIntro";
+import { MarketSystemBridge } from "@/components/market/MarketSystemBridge";
 import { Alert } from "@/components/ui";
+import { LoadingState } from "@/components/trader/LoadingState";
+import { EmptyState } from "@/components/trader/EmptyState";
 import { api, getActiveAccountId } from "@/lib/api";
 import {
   levelsFromReplay,
@@ -21,14 +25,15 @@ const DEFAULT_CRYPTO = "BTCUSDT";
 
 export default function VelaLabPage() {
   return (
-    <Suspense fallback={<p className="muted">Loading Vela lab…</p>}>
-      <VelaLab />
+    <Suspense fallback={<LoadingState label="Loading Market Lab…" />}>
+      <MarketLab />
     </Suspense>
   );
 }
 
-function VelaLab() {
+function MarketLab() {
   const searchParams = useSearchParams();
+  const initialTrade = searchParams.get("trade") || "";
   const [instruments, setInstruments] = useState<MarketInstrument[]>([]);
   const [status, setStatus] = useState<MarketStatusResponse | null>(null);
   const [symbol, setSymbol] = useState(
@@ -41,7 +46,7 @@ function VelaLab() {
   const [showRsi, setShowRsi] = useState(true);
   const [live, setLive] = useState(true);
   const [trades, setTrades] = useState<Trade[]>([]);
-  const [tradeId, setTradeId] = useState<string>("");
+  const [tradeId, setTradeId] = useState<string>(initialTrade);
   const [overlay, setOverlay] = useState<TradeOverlayLevels | null>(null);
   const [meta, setMeta] = useState<{
     backendProvider?: string;
@@ -52,6 +57,7 @@ function VelaLab() {
     error?: string | null;
   }>({});
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [catalogLoading, setCatalogLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -62,7 +68,15 @@ function VelaLab() {
         setInstruments(inst);
         setStatus(st);
       } catch (e) {
-        if (!cancelled) setLoadError(e instanceof Error ? e.message : "Failed to load market catalog");
+        if (!cancelled) {
+          setLoadError(
+            e instanceof Error
+              ? e.message
+              : "TraderOS could not load the market instrument catalog.",
+          );
+        }
+      } finally {
+        if (!cancelled) setCatalogLoading(false);
       }
     })();
     return () => {
@@ -87,6 +101,37 @@ function VelaLab() {
     };
   }, []);
 
+  const applyTradeOverlay = useCallback(async (id: string, tradeList: Trade[]) => {
+    setTradeId(id);
+    if (!id) {
+      setOverlay(null);
+      return;
+    }
+    const trade = tradeList.find((t) => t.id === id);
+    try {
+      const replay = await api<TradeReplay>(`/api/trades/${id}/replay`);
+      setOverlay(levelsFromReplay(replay));
+      if (trade?.symbol) {
+        setSymbol(trade.symbol.toUpperCase().replace("/", ""));
+        setDataMode("naviq");
+      }
+    } catch {
+      if (trade) {
+        setOverlay(levelsFromTrade(trade));
+        if (trade.symbol) {
+          setSymbol(trade.symbol.toUpperCase().replace("/", ""));
+          setDataMode("naviq");
+        }
+      }
+    }
+  }, []);
+
+  // Deep-link: ?trade=… once trades are loaded
+  useEffect(() => {
+    if (!initialTrade || trades.length === 0) return;
+    void applyTradeOverlay(initialTrade, trades);
+  }, [initialTrade, trades, applyTradeOverlay]);
+
   const selectedInstrument = useMemo(
     () => instruments.find((i) => i.symbol === symbol),
     [instruments, symbol],
@@ -110,44 +155,25 @@ function VelaLab() {
 
   const onMeta = useCallback((m: typeof meta) => setMeta(m), []);
 
-  async function applyTradeOverlay(id: string) {
-    setTradeId(id);
-    if (!id) {
-      setOverlay(null);
-      return;
-    }
-    const trade = trades.find((t) => t.id === id);
-    try {
-      const replay = await api<TradeReplay>(`/api/trades/${id}/replay`);
-      const levels = levelsFromReplay(replay);
-      setOverlay(levels);
-      if (trade?.symbol) {
-        setSymbol(trade.symbol.toUpperCase().replace("/", ""));
-        setDataMode("naviq");
-      }
-    } catch {
-      if (trade) setOverlay(levelsFromTrade(trade));
-    }
-  }
-
   return (
-    <div className="vela-lab">
-      <header className="vela-lab-head">
-        <div>
-          <p className="eyebrow">Labs · Chart POC</p>
-          <h1>Vela chart</h1>
-          <p className="lede">
-            Provider-agnostic candles via NAVIQ market data. ECharts analytics stay unchanged —
-            this route isolates <code>@luxalgo/vela</code> behind an adapter.
-          </p>
-        </div>
-      </header>
+    <div className="market-lab">
+      <MarketLabIntro />
 
-      {loadError ? <Alert kind="danger">{loadError}</Alert> : null}
-      {meta.error ? <Alert kind="danger">{meta.error}</Alert> : null}
+      {catalogLoading ? <LoadingState label="Loading instruments…" /> : null}
+      {loadError ? (
+        <EmptyState title="Market catalog unavailable">
+          <p className="hint">{loadError}</p>
+          <p className="hint">Your existing journal data is unaffected. Retry after the market API is reachable.</p>
+        </EmptyState>
+      ) : null}
+      {meta.error ? (
+        <Alert kind="danger">
+          Market data unavailable for {symbol}. {meta.error} Journal data is unaffected.
+        </Alert>
+      ) : null}
       {meta.warning ? <Alert kind="warn">{meta.warning}</Alert> : null}
 
-      <div className="controls">
+      <section className="controls" aria-label="Market controls">
         <label>
           Symbol
           <select value={symbol} onChange={(e) => setSymbol(e.target.value)}>
@@ -199,7 +225,7 @@ function VelaLab() {
         </label>
         <label>
           Trade overlay
-          <select value={tradeId} onChange={(e) => void applyTradeOverlay(e.target.value)}>
+          <select value={tradeId} onChange={(e) => void applyTradeOverlay(e.target.value, trades)}>
             <option value="">None</option>
             {trades.map((t) => (
               <option key={t.id} value={t.id}>
@@ -220,11 +246,12 @@ function VelaLab() {
           <input type="checkbox" checked={showRsi} onChange={(e) => setShowRsi(e.target.checked)} />
           RSI 14
         </label>
-      </div>
+      </section>
 
       <div className="meta-row">
         <span>
-          Backend provider: <strong>{meta.backendProvider || (dataMode === "vela-binance" ? "binance (vela)" : "—")}</strong>
+          Backend provider:{" "}
+          <strong>{meta.backendProvider || (dataMode === "vela-binance" ? "binance (vela)" : "—")}</strong>
         </span>
         <span>
           Freshness: <strong>{meta.freshness || "—"}</strong>
@@ -241,8 +268,7 @@ function VelaLab() {
         ) : null}
       </div>
 
-      {/* Remount when indicator toggles change so addNativeIndicator runs cleanly */}
-      <VelaChart
+      <MarketChart
         key={`${showEma}-${showRsi}-${dataMode}`}
         symbol={symbol}
         timeframe={timeframe}
@@ -254,42 +280,36 @@ function VelaLab() {
         tradeOverlay={overlay}
         height={580}
         onMeta={onMeta}
+        showChrome
       />
+
+      <MarketSystemBridge tradeId={tradeId || undefined} symbol={symbol} />
 
       <section className="notes">
         <h2>POC notes</h2>
         <ul>
-          <li>Candles come from <code>GET /api/market/ohlcv</code> (optional <code>provider=</code>).</li>
-          <li>Forex: Dukascopy primary. Crypto: CCXT; optional direct Vela Binance for comparison.</li>
-          <li>Drawings toolbar is enabled; trade overlay paints Entry / SL / TP / Exit hlines.</li>
-          <li>Do not use <code>@luxalgo/vela-pinets</code> (AGPL). Native EMA/RSI only.</li>
+          <li>
+            Route stays <code>/labs/vela</code> — no product <code>/market</code> until the POC is ready.
+          </li>
+          <li>
+            Candles from <code>GET /api/market/ohlcv</code>. Deep-link with <code>?trade=</code> /{" "}
+            <code>?symbol=</code>.
+          </li>
+          <li>Trade overlay paints Entry / SL / TP / Exit. Native EMA/RSI only (no AGPL pinets).</li>
         </ul>
       </section>
 
       <style jsx>{`
-        .vela-lab {
+        .market-lab {
           display: flex;
           flex-direction: column;
           gap: 16px;
           max-width: 1200px;
         }
-        .vela-lab-head h1 {
-          margin: 4px 0 8px;
-          font-size: 1.65rem;
-          letter-spacing: -0.02em;
-        }
-        .eyebrow {
-          margin: 0;
-          font-size: 0.75rem;
-          text-transform: uppercase;
-          letter-spacing: 0.08em;
+        .hint {
+          margin: 0 0 6px;
+          font-size: 13px;
           color: var(--text-muted);
-        }
-        .lede {
-          margin: 0;
-          max-width: 62ch;
-          color: var(--text-secondary, var(--text-muted));
-          line-height: 1.45;
         }
         .controls {
           display: flex;
@@ -332,8 +352,8 @@ function VelaLab() {
           font-weight: 600;
         }
         .notes {
-          margin-top: 8px;
-          padding-top: 8px;
+          margin-top: 4px;
+          padding-top: 12px;
           border-top: 1px solid var(--border);
         }
         .notes h2 {

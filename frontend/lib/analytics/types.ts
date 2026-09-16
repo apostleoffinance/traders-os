@@ -2,6 +2,11 @@ import type { Evidence } from "@/lib/analytics";
 
 export type AnalyticsTier = "essential" | "deep_dive" | "quant";
 
+/** Preferred rendering library — optional enrichment for the visualization layer. */
+export type AnalyticsLibrary = "uplot" | "echarts" | "visx" | "vela" | "custom" | "svg" | "dom";
+
+export type AnalyticsComplexity = "low" | "medium" | "high";
+
 export type AnalyticsCategory =
   | "performance"
   | "edge"
@@ -71,4 +76,8 @@ export interface AnalyticsDefinition {
   emptyState?: string;
   methodology?: string;
   pages: AnalyticsPageId[];
+  /** Optional visualization-layer enrichment (see lib/visualization/registry). */
+  library?: AnalyticsLibrary;
+  complexity?: AnalyticsComplexity;
+  primary?: boolean;
 }

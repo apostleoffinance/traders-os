@@ -3,9 +3,9 @@
 import { useState } from "react";
 import { Panel, Stat } from "@/components/ui";
 import { Empty, EvidenceTag, useLiveChart } from "@/components/analytics/Charts";
-import { ChartCard } from "@/components/analytics/primitives/ChartCard";
+import { ChartCard } from "@/components/trader";
+import { ResearchTable } from "@/components/trader/tables/ResearchTable";
 import { InteractiveChart } from "@/components/analytics/primitives/InteractiveChart";
-import { EquityInteractiveChart, UnderwaterChart } from "@/components/analytics/primitives/EquityInteractive";
 import { useOptionalAnalyticsDrilldown } from "@/components/analytics/AnalyticsDrilldownContext";
 import { filterForDateRange, filterForSingleDay } from "@/lib/analytics-drilldown";
 import type { AnalyticsDashboard, HistBin } from "@/lib/analytics";
@@ -185,154 +185,6 @@ export function ConsistencyLab({ data }: { data: AnalyticsDashboard }) {
   );
 }
 
-type EqMode = "net_pnl" | "gross_pnl" | "r_multiple";
-
-export function EquityLab({ data }: { data: AnalyticsDashboard }) {
-  const eq = data.lab?.equity;
-  const [mode, setMode] = useState<EqMode>("net_pnl");
-  const drill = useOptionalAnalyticsDrilldown();
-  const currency = data.account.currency;
-  if (!eq) return null;
-
-  const netCurve = eq.net_pnl.curve;
-  if (netCurve.length < 2) {
-    return (
-      <Panel title="Equity & drawdown">
-        <Empty>No closed trades match the selected filters.</Empty>
-      </Panel>
-    );
-  }
-
-  const dd = eq.drawdown;
-  const recovered = dd.recovery_table;
-
-  function handleRecoveryClick(start: string, recovery: string) {
-    if (!drill) return;
-    const from = start.slice(0, 10);
-    const to = (recovery ?? start).slice(0, 10);
-    const label = `${from} → ${to}`;
-    drill.applyPatch(filterForDateRange(from, to), label);
-    drill.openTrades(`Drawdown recovery · ${label}`);
-  }
-
-  return (
-    <>
-      <ChartCard
-        title="Equity curve"
-        interactive
-        actions={
-          <div className="modes">
-            {(["net_pnl", "gross_pnl", "r_multiple"] as EqMode[]).map((m) => (
-              <button key={m} type="button" className={mode === m ? "on" : ""} onClick={() => setMode(m)}>
-                {m === "net_pnl" ? "Net" : m === "gross_pnl" ? "Gross" : "R"}
-              </button>
-            ))}
-          </div>
-        }
-      >
-        <EquityInteractiveChart
-          netCurve={netCurve}
-          grossCurve={eq.gross_pnl.curve}
-          markers={eq.markers ?? []}
-          mode={mode}
-          currency={currency}
-        />
-        <div className="stats">
-          <Stat label="Max DD" value={money(dd.max_drawdown, currency)} tone="neg" />
-          <Stat label="Max DD %" value={dd.max_drawdown_pct ? `${num(dd.max_drawdown_pct, 1)}%` : "—"} tone="neg" />
-          <Stat label="Current DD" value={money(dd.current_drawdown, currency)} tone="neg" />
-          <Stat label="DD periods" value={String(dd.episodes.n_episodes)} />
-        </div>
-      </ChartCard>
-
-      <ChartCard title="Underwater equity" interactive>
-        <UnderwaterChart curve={dd.curve} currency={currency} />
-      </ChartCard>
-
-      <Panel title="Drawdown recoveries">
-        {recovered.length > 0 ? (
-          <table className="tbl">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Start</th>
-                <th>Recovery</th>
-                <th>Depth</th>
-                <th>Days</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recovered.map((r) => (
-                <tr
-                  key={r.drawdown}
-                  className={drill ? "clickable" : undefined}
-                  onClick={() => r.recovery && handleRecoveryClick(r.start, r.recovery)}
-                >
-                  <td>{r.drawdown}</td>
-                  <td>{r.start.slice(0, 10)}</td>
-                  <td>{r.recovery?.slice(0, 10) ?? "—"}</td>
-                  <td>{money(r.depth, currency)}</td>
-                  <td>{r.duration_days}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <p className="muted">No completed drawdown recoveries in this sample.</p>
-        )}
-        {drill && recovered.length > 0 && <p className="muted">Click a row to filter analytics to that drawdown episode.</p>}
-      </Panel>
-
-      <style jsx>{`
-        .modes {
-          display: flex;
-          gap: 4px;
-        }
-        .modes button {
-          font-size: 11px;
-          padding: 4px 8px;
-          border: 1px solid var(--line);
-          background: transparent;
-          cursor: pointer;
-          border-radius: 999px;
-        }
-        .modes button.on {
-          background: var(--accent);
-          color: var(--accent-contrast, #fff);
-          border-color: var(--accent);
-        }
-        .stats {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 16px;
-          margin-top: 12px;
-        }
-        .tbl {
-          width: 100%;
-          font-size: 12px;
-          border-collapse: collapse;
-        }
-        .tbl th,
-        .tbl td {
-          border: 1px solid var(--line);
-          padding: 6px 8px;
-          text-align: left;
-        }
-        .tbl tr.clickable {
-          cursor: pointer;
-        }
-        .tbl tr.clickable:hover {
-          background: var(--surface-2);
-        }
-        .muted {
-          font-size: 13px;
-          margin-top: 8px;
-        }
-      `}</style>
-    </>
-  );
-}
-
 export function StreakLab({ data }: { data: AnalyticsDashboard }) {
   const s = data.lab?.streaks;
   if (!s) return null;
@@ -403,28 +255,33 @@ export function RiskAnalyticsLab({ data }: { data: AnalyticsDashboard }) {
         </div>
       </Panel>
       <Panel title="Risk vs outcome">
-        <table className="tbl">
-          <thead>
-            <tr>
-              <th>Bucket</th>
-              <th>n</th>
-              <th>Win %</th>
-              <th>Avg R</th>
-              <th>Net P&L</th>
-            </tr>
-          </thead>
-          <tbody>
-            {r.risk_vs_outcome.map((row) => (
-              <tr key={row.bucket}>
-                <td>{row.bucket}</td>
-                <td>{row.n}</td>
-                <td>{row.win_rate ? `${num(row.win_rate, 1)}%` : "—"}</td>
-                <td>{row.average_r ? `${num(row.average_r)}R` : "—"}</td>
-                <td>{row.net_pnl ? money(row.net_pnl, currency) : "—"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <ResearchTable
+          rows={r.risk_vs_outcome}
+          columns={[
+            { id: "bucket", header: "Bucket", accessor: (row) => row.bucket },
+            { id: "n", header: "n", accessor: (row) => row.n, numeric: true },
+            {
+              id: "wr",
+              header: "Win %",
+              accessor: (row) => (row.win_rate ? `${num(row.win_rate, 1)}%` : "—"),
+              numeric: true,
+            },
+            {
+              id: "avg_r",
+              header: "Avg R",
+              accessor: (row) => (row.average_r ? `${num(row.average_r)}R` : "—"),
+              numeric: true,
+            },
+            {
+              id: "pnl",
+              header: "Net P&L",
+              accessor: (row) => (row.net_pnl ? money(row.net_pnl, currency) : "—"),
+              numeric: true,
+            },
+          ]}
+          getRowId={(row) => row.bucket}
+          caption="Risk vs outcome"
+        />
       </Panel>
       {r.escalation.length > 0 && (
         <Panel title="Risk behaviour (descriptive)">
@@ -441,16 +298,6 @@ export function RiskAnalyticsLab({ data }: { data: AnalyticsDashboard }) {
           grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
           gap: 12px;
         }
-        .tbl {
-          width: 100%;
-          font-size: 12px;
-          border-collapse: collapse;
-        }
-        .tbl th,
-        .tbl td {
-          border: 1px solid var(--line);
-          padding: 6px 8px;
-        }
         .muted,
         .list {
           font-size: 13px;
@@ -466,37 +313,18 @@ export function PeriodComparisonLab({ data }: { data: AnalyticsDashboard }) {
   return (
     <Panel title="Period comparison">
       <p className="muted">{pc.disclaimer}</p>
-      <table className="tbl">
-        <thead>
-          <tr>
-            <th>Metric</th>
-            <th>Current</th>
-            <th>Previous</th>
-            <th>Change</th>
-          </tr>
-        </thead>
-        <tbody>
-          {pc.comparison.map((row) => (
-            <tr key={row.metric}>
-              <td>{row.metric}</td>
-              <td>{row.current ?? "—"}</td>
-              <td>{row.previous ?? "—"}</td>
-              <td>{row.change ?? "—"}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <ResearchTable
+        rows={pc.comparison}
+        columns={[
+          { id: "metric", header: "Metric", accessor: (r) => r.metric },
+          { id: "current", header: "Current", accessor: (r) => r.current ?? "—" },
+          { id: "previous", header: "Previous", accessor: (r) => r.previous ?? "—" },
+          { id: "change", header: "Change", accessor: (r) => r.change ?? "—" },
+        ]}
+        getRowId={(r) => r.metric}
+        caption="Period comparison"
+      />
       <style jsx>{`
-        .tbl {
-          width: 100%;
-          font-size: 12px;
-          border-collapse: collapse;
-        }
-        .tbl th,
-        .tbl td {
-          border: 1px solid var(--line);
-          padding: 6px 8px;
-        }
         .muted {
           font-size: 13px;
           margin-bottom: 8px;
@@ -506,7 +334,15 @@ export function PeriodComparisonLab({ data }: { data: AnalyticsDashboard }) {
   );
 }
 
-export function TemporalLab({ data }: { data: AnalyticsDashboard }) {
+export function TemporalLab({
+  data,
+  variant = "all",
+}: {
+  data: AnalyticsDashboard;
+  variant?: "essential" | "deep" | "all";
+}) {
+  const showEssential = variant === "essential" || variant === "all";
+  const showDeep = variant === "deep" || variant === "all";
   const t = data.lab?.temporal;
   const [calMetric, setCalMetric] = useState<"r" | "net_pnl" | "n">("r");
   const { C, resolved } = useLiveChart();
@@ -559,13 +395,16 @@ export function TemporalLab({ data }: { data: AnalyticsDashboard }) {
 
   return (
     <>
+      {showEssential && (
       <ChartCard
         title="Calendar"
+        question="Which days contributed most to my results?"
+        tier="essential"
         interactive
         actions={
-          <div className="modes">
+          <div className="modes" role="group" aria-label="Calendar metric">
             {(["r", "net_pnl", "n"] as const).map((m) => (
-              <button key={m} type="button" className={calMetric === m ? "on" : ""} onClick={() => setCalMetric(m)}>
+              <button key={m} type="button" className={calMetric === m ? "on" : ""} aria-pressed={calMetric === m} onClick={() => setCalMetric(m)}>
                 {m === "r" ? "Daily R" : m === "net_pnl" ? "Net P&L" : "Trades"}
               </button>
             ))}
@@ -610,8 +449,11 @@ export function TemporalLab({ data }: { data: AnalyticsDashboard }) {
             </div>
         )}
       </ChartCard>
+      )}
 
-      <ChartCard title="Day of week" interactive>
+      {showDeep && (
+      <>
+      <ChartCard title="Day of week" question="Which weekdays show stronger net results?" tier="deep_dive" interactive>
         {t.weekday.every((w) => w.n === 0) ? (
           <Empty>No weekday breakdown available.</Empty>
         ) : (
@@ -699,6 +541,8 @@ export function TemporalLab({ data }: { data: AnalyticsDashboard }) {
       </ChartCard>
 
       {t.period_comparison.available && <PeriodComparisonLab data={data} />}
+      </>
+      )}
 
       <style jsx>{`
         .modes {

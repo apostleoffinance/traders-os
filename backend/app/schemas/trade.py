@@ -205,6 +205,8 @@ class TradeOut(ORMModel):
     mae_r: Decimal | None = None
     mfe_mae_source: str | None = None
     mfe_mae_precision: str | None = None
+    mfe_at: datetime | None = None
+    mae_at: datetime | None = None
     created_at: datetime
     psychology: PsychologyOut | None = None
     screenshots: list[ScreenshotOut] = Field(default_factory=list)

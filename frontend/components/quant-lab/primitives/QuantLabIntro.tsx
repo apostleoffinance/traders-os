@@ -10,10 +10,20 @@ export function QuantLabIntro() {
     <header className="intro">
       <div>
         <p className="kicker">Level 4 · Research environment</p>
+        <p className="hierarchy" aria-label="Research hierarchy">
+          <span>Question</span>
+          <span className="sep">→</span>
+          <span>Evidence</span>
+          <span className="sep">→</span>
+          <span>Methodology</span>
+          <span className="sep">→</span>
+          <span>Caution</span>
+        </p>
         <h2 className="title">Quantitative research</h2>
         <p className="lead">
-          Advanced statistical tools isolated from everyday analytics. Every study includes methodology, sample context, and
-          explicit limitations — nothing here is a trading signal.
+          Advanced statistical tools isolated from everyday analytics. Every study surfaces{" "}
+          <em>What?</em> / <em>So what?</em> / sample context and explicit limitations — nothing here is a trading
+          signal.
         </p>
         <p className="meta">
           {studies.length} quant studies · bootstrap · Monte Carlo · robustness · walk-forward
@@ -42,6 +52,21 @@ export function QuantLabIntro() {
           text-transform: uppercase;
           letter-spacing: 0.06em;
           color: var(--accent);
+        }
+        .hierarchy {
+          margin: 0 0 8px;
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 0.05em;
+          text-transform: uppercase;
+          color: var(--text-muted);
+          display: flex;
+          flex-wrap: wrap;
+          gap: 4px;
+          align-items: center;
+        }
+        .sep {
+          font-weight: 500;
         }
         .title {
           margin: 0 0 6px;
