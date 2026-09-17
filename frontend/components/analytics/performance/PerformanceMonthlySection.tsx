@@ -8,6 +8,7 @@ import { filterForDateRange } from "@/lib/analytics-drilldown";
 import type { AnalyticsDashboard } from "@/lib/analytics";
 import { colorForPnl } from "@/lib/chart-colors";
 import { money } from "@/lib/format";
+import { formatSampleSize } from "@/lib/visualization";
 
 /** Monthly P&L bars — Performance owns period results (Calendar keeps the heat grid). */
 export function PerformanceMonthlySection({ data }: { data: AnalyticsDashboard }) {
@@ -19,14 +20,14 @@ export function PerformanceMonthlySection({ data }: { data: AnalyticsDashboard }
   if (rows.length === 0) return null;
 
   const chart = {
-    grid: { left: 48, right: 16, top: 16, bottom: 48 },
+    grid: { left: 48, right: 16, top: 28, bottom: 48 },
     tooltip: {
       trigger: "axis",
       formatter: (items: { dataIndex: number }[]) => {
         const i = items[0]?.dataIndex ?? 0;
         const r = rows[i];
         if (!r) return "";
-        return `${r.month}<br/>Net ${money(r.net_pnl, currency)} · n=${r.n}<br/>WR ${r.win_rate ?? "—"}% · PF ${r.profit_factor ?? "—"}`;
+        return `${r.month}<br/>Net ${money(r.net_pnl, currency)} · ${formatSampleSize(r.n)}<br/>WR ${r.win_rate ?? "—"}% · PF ${r.profit_factor ?? "—"}`;
       },
     },
     xAxis: {
@@ -38,6 +39,8 @@ export function PerformanceMonthlySection({ data }: { data: AnalyticsDashboard }
     series: [
       {
         type: "bar",
+        barMaxWidth: 36,
+        barCategoryGap: "45%",
         data: rows.map((r) => ({
           value: Number(r.net_pnl),
           itemStyle: { color: colorForPnl(C, r.net_pnl) },
@@ -45,8 +48,8 @@ export function PerformanceMonthlySection({ data }: { data: AnalyticsDashboard }
         label: {
           show: rows.length <= 8,
           position: "top",
-          fontSize: 9,
-          formatter: (p: { dataIndex: number }) => `n=${rows[p.dataIndex].n}`,
+          fontSize: 10,
+          formatter: (p: { dataIndex: number }) => formatSampleSize(rows[p.dataIndex].n),
         },
       },
     ],

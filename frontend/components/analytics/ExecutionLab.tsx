@@ -19,6 +19,7 @@ import { getAnalyticsDefinition } from "@/lib/analytics/registry";
 import { ExitEfficiencySummary } from "@/components/analytics/primitives/ExitEfficiencySummary";
 import { ScatterQuadrantGuide } from "@/components/analytics/primitives/ScatterQuadrantGuide";
 import { num, signed } from "@/lib/format";
+import { formatSampleSize } from "@/lib/visualization";
 
 export function ExecutionLab({
   data,
@@ -134,7 +135,7 @@ export function ExecutionLab({
     tooltip: {
       formatter: (p: { dataIndex: number }) => {
         const b = ex.position_size.buckets[p.dataIndex];
-        return `${b.bucket}<br/>n=${b.n}<br/>Exp ${b.expectancy_r ?? "—"}R`;
+        return `${b.bucket}<br/>${formatSampleSize(b.n)}<br/>Exp ${b.expectancy_r ?? "—"}R`;
       },
     },
     xAxis: { type: "value", splitLine: { lineStyle: { color: C.line } } },
@@ -289,7 +290,7 @@ export function ExecutionLab({
             <InteractiveChart option={sizeScatter} height={280} showHint={false} onChartClick={handleScatterClick} />
             {regression && (
               <p className="muted">
-                Descriptive trend: {num(regression.slope, 3)} R per 1% risk (n={riskPoints.length}) — not a sizing rule.
+                Descriptive trend: {num(regression.slope, 3)} R per 1% risk ({formatSampleSize(riskPoints.length)}) — not a sizing rule.
               </p>
             )}
           </>
@@ -310,7 +311,7 @@ export function ExecutionLab({
             onChartClick={(e) => {
               if (!drill || e.dataIndex == null) return;
               const bucket = ex.position_size.buckets[e.dataIndex];
-              drill.openTrades(`${bucket.bucket} · n=${bucket.n}`);
+              drill.openTrades(`${bucket.bucket} · ${formatSampleSize(bucket.n)}`);
             }}
           />
         )}
@@ -371,7 +372,7 @@ export function ExecutionLab({
                   }
                   if (drill) {
                     drill.applyPatch({ result: "win" }, `${bin.label} MFE capture`);
-                    drill.openTrades(`Winners · ${bin.label} capture (n=${bin.n})`);
+                    drill.openTrades(`Winners · ${bin.label} capture (${formatSampleSize(bin.n)})`);
                   }
                 }}
               />

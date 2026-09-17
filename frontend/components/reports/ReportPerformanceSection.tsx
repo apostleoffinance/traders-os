@@ -9,6 +9,7 @@ import { ReportChapter } from "@/components/reports/story/ReportChapter";
 import type { EquityPt } from "@/lib/analytics";
 import { colorForBinRange } from "@/lib/chart-colors";
 import { money, num } from "@/lib/format";
+import { formatSampleSize } from "@/lib/visualization";
 
 type EqPoint = { at: string; equity: string; cumulative_r?: string };
 
@@ -138,7 +139,7 @@ export function ReportPerformanceSection({
                   className="cell"
                   role="listitem"
                   style={{ background: bg }}
-                  title={`${d.date} · ${money(d.net_pnl, currency)} · n=${d.n}`}
+                  title={`${d.date} · ${money(d.net_pnl, currency)} · ${formatSampleSize(d.n)}`}
                 >
                   <span>{d.date.slice(8)}</span>
                   <span>{d.r != null ? `${num(d.r, 1)}R` : money(d.net_pnl, currency)}</span>

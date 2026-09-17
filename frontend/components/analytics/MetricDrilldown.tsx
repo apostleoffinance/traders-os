@@ -6,6 +6,7 @@ import { Panel } from "@/components/ui";
 import { useOptionalAnalyticsDrilldown } from "@/components/analytics/AnalyticsDrilldownContext";
 import { InteractiveChart } from "@/components/analytics/primitives/InteractiveChart";
 import { useLiveChart } from "@/components/analytics/Charts";
+import { formatSampleSize } from "@/lib/visualization";
 
 type DrillMetric = "win_rate" | "expectancy_r" | "profit_factor" | "average_r";
 
@@ -76,7 +77,7 @@ export function MetricDrilldown({ open, metric, data, onClose }: Props) {
           </button>
         </header>
         <p className="overall">
-          Overall <strong>{value}</strong> · n={overall.n_trades}
+          Overall <strong>{value}</strong> · {formatSampleSize(overall.n_trades)}
         </p>
 
         {metric === "profit_factor" && wl && (
@@ -211,7 +212,7 @@ function SegmentTable({
           <tr key={s.key} className={onRowClick ? "clickable" : ""} onClick={onRowClick ? () => onRowClick(s) : undefined}>
             <td>{labelFn ? labelFn(s.key) : s.key}</td>
             <td className="mono">{formatMetric(metric, s)}</td>
-            <td className="muted">n={s.n}</td>
+            <td className="muted">{formatSampleSize(s.n)}</td>
           </tr>
         ))}
       </tbody>

@@ -13,7 +13,7 @@ import {
   generateSetupInsight,
   generateTimeOfDayInsight,
 } from "@/lib/analytics/insights/generators";
-import { resolveVizCopy } from "@/lib/visualization";
+import { formatSampleSize, resolveVizCopy } from "@/lib/visualization";
 import { num, sessionLabel, signed } from "@/lib/format";
 
 function toGroupRows(rows: LabLeaderboardRow[]): GroupRow[] {
@@ -263,6 +263,7 @@ export function EdgeLabSections({
     series: [
       {
         type: "bar",
+        barMaxWidth: hourData.length <= 12 ? 32 : undefined,
         data: hourData.map((h) => ({
           value: h.expectancy_r ? Number(h.expectancy_r) : 0,
           itemStyle: { color: h.n < 5 ? C.muted : Number(h.expectancy_r) >= 0 ? C.pos : C.neg },
@@ -271,7 +272,7 @@ export function EdgeLabSections({
           show: hourData.length <= 12,
           position: "top",
           fontSize: 9,
-          formatter: (p: { dataIndex: number }) => `n=${hourData[p.dataIndex].n}`,
+          formatter: (p: { dataIndex: number }) => formatSampleSize(hourData[p.dataIndex].n),
         },
       },
     ],

@@ -11,6 +11,7 @@ import { getQuantStudy } from "@/lib/analytics/quant-studies";
 import { QuantStudyFooter } from "@/components/quant-lab/primitives/QuantStudyFooter";
 import { colorForPnl } from "@/lib/chart-colors";
 import { signed, num } from "@/lib/format";
+import { formatSampleSize } from "@/lib/visualization";
 
 const SEVERITY_CLASS: Record<string, string> = {
   warning: "warn",
@@ -120,7 +121,7 @@ export function ResearchIntelligenceLab({
               <li key={o.id} className={SEVERITY_CLASS[o.severity] ?? "info"}>
                 <div className="head">
                   <span className="type">{o.type.replace(/_/g, " ")}</span>
-                  <span className="n">n={o.sample_size}</span>
+                  <span className="n">{formatSampleSize(o.sample_size)}</span>
                 </div>
                 <h4>{o.title}</h4>
                 <p>{o.prompt}</p>

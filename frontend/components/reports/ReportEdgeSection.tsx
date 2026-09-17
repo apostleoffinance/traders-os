@@ -7,6 +7,7 @@ import { InteractiveChart } from "@/components/analytics/primitives/InteractiveC
 import { useLiveChart } from "@/components/analytics/Charts";
 import { ReportChapter } from "@/components/reports/story/ReportChapter";
 import { num } from "@/lib/format";
+import { formatSampleSize } from "@/lib/visualization";
 import type { Evidence, GroupRow } from "@/lib/analytics";
 
 type EdgeRow = {
@@ -55,7 +56,7 @@ export function ReportEdgeSection({ edge }: { edge: Record<string, unknown> }) {
 
   const topSetup = sortEdgeRows(setups, (k) => (k === "unclassified" ? "Unclassified" : k))[0];
   const takeaway = topSetup
-    ? `Strongest setup by expectancy: ${topSetup.label} (${topSetup.expectancy != null ? `${topSetup.expectancy.toFixed(2)}R` : "—"}, n=${topSetup.trades}).`
+    ? `Strongest setup by expectancy: ${topSetup.label} (${topSetup.expectancy != null ? `${topSetup.expectancy.toFixed(2)}R` : "—"}, ${formatSampleSize(topSetup.trades)}).`
     : "Not enough tagged setups to rank edge yet.";
 
   const scatter = useMemo(() => {
@@ -65,7 +66,7 @@ export function ReportEdgeSection({ edge }: { edge: Record<string, unknown> }) {
       tooltip: {
         trigger: "item",
         formatter: (p: { data: { symbol: string; n: number; value: [number, number] } }) =>
-          `${p.data.symbol}<br/>Win ${num(p.data.value[0], 1)}% · Exp ${num(p.data.value[1])}R · n=${p.data.n}`,
+          `${p.data.symbol}<br/>Win ${num(p.data.value[0], 1)}% · Exp ${num(p.data.value[1])}R · ${formatSampleSize(p.data.n)}`,
       },
       xAxis: { type: "value", name: "Win rate %", min: 0, max: 100, splitLine: { lineStyle: { color: C.line } } },
       yAxis: { type: "value", name: "Expectancy R", splitLine: { lineStyle: { color: C.line } } },
@@ -94,7 +95,7 @@ export function ReportEdgeSection({ edge }: { edge: Record<string, unknown> }) {
         tooltip: {
           formatter: (p: { data: [number, number, number, number] }) => {
             const [hour, dayIdx, exp, n] = p.data;
-            return `${days[dayIdx]} ${hour}:00 · n=${n}<br/>Expectancy ${num(exp)}R`;
+            return `${days[dayIdx]} ${hour}:00 · ${formatSampleSize(n)}<br/>Expectancy ${num(exp)}R`;
           },
         },
         xAxis: { type: "category", data: Array.from({ length: 24 }, (_, i) => `${i}`), splitArea: { show: true } },

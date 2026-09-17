@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Stat } from "@/components/ui";
 import { ChartCard } from "@/components/trader";
 import type { AnalyticsDashboard } from "@/lib/analytics";
+import { formatSampleSize } from "@/lib/visualization";
 
 export function TradeHabitsSection({
   data,
@@ -44,7 +45,7 @@ export function TradeHabitsSection({
           {data.frequency[0] && (
             <Stat
               label="Busiest frequency group"
-              value={`${data.frequency[0].key} · n=${data.frequency[0].n}`}
+              value={`${data.frequency[0].key} · ${formatSampleSize(data.frequency[0].n)}`}
             />
           )}
         </div>

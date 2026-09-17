@@ -35,6 +35,8 @@ export function CostAnalytics({ data }: { data: AnalyticsDashboard }) {
     series: [
       {
         type: "bar",
+        barMaxWidth: 40,
+        barCategoryGap: "40%",
         data: [
           { value: Number(gvn.gross_pnl ?? 0), itemStyle: { color: colorForPnl(C, gvn.gross_pnl) }, name: "Gross P&L" },
           { value: Number(gvn.commission ?? 0), itemStyle: { color: C.neg }, name: "Commission" },
@@ -53,6 +55,7 @@ export function CostAnalytics({ data }: { data: AnalyticsDashboard }) {
     series: [
       {
         type: "bar",
+        barMaxWidth: 16,
         data: comm.by_instrument.map((r) => ({
           value: Math.abs(Number(r.total)),
           symbol: r.symbol,
@@ -72,6 +75,7 @@ export function CostAnalytics({ data }: { data: AnalyticsDashboard }) {
           series: [
             {
               type: "bar",
+              barMaxWidth: 16,
               data: swap.by_instrument.map((r) => ({
                 value: Math.abs(Number(r.total)),
                 symbol: r.symbol,

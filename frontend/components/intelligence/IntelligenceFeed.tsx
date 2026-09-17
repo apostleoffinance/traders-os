@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import type { IntelligenceFeedResponse, IntelligenceInsight } from "@/lib/intelligence";
 import { PERIOD_LABELS } from "@/lib/filters";
+import { formatSampleSize } from "@/lib/visualization";
 
 function severityIcon(severity: string): string {
   if (severity === "positive") return "🟢";
@@ -30,7 +31,7 @@ function InsightCard({ insight, defaultOpen }: { insight: IntelligenceInsight; d
         <div className="body">
           {insight.why ? <p>{insight.why}</p> : null}
           <p className="meta">
-            {insight.evidence.label} · n={insight.evidence.n}
+            {insight.evidence.label} · {formatSampleSize(insight.evidence.n)}
           </p>
           {insight.comparison ? (
             <p className="meta">

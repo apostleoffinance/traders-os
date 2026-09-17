@@ -3,6 +3,7 @@ import { classifyConfidence } from "@/lib/analytics/confidence";
 import { ANALYTICS_MIN_SAMPLE } from "@/lib/analytics/sample";
 import type { GroupPerformanceRow } from "@/lib/analytics/view-models";
 import { num, signed } from "@/lib/format";
+import { formatSampleSize } from "@/lib/visualization";
 
 type GroupDimension = "instrument" | "setup" | "session";
 
@@ -48,15 +49,15 @@ export function generateGroupedInsight(
     observation = `${best.label} is the only ${DIMENSION_LABEL[dimension]} with enough trades in this sample.`;
     takeaway = "Add more trades across other groups to compare edge drivers.";
   } else if (bestExp > 0 && worstExp < 0) {
-    observation = `${best.label} shows the highest observed expectancy (${signed(bestExp)}R, n=${best.trades}), while ${worst.label} is negative (${signed(worstExp)}R, n=${worst.trades}).`;
+    observation = `${best.label} shows the highest observed expectancy (${signed(bestExp)}R, ${formatSampleSize(best.trades)}), while ${worst.label} is negative (${signed(worstExp)}R, ${formatSampleSize(worst.trades)}).`;
     takeaway = `Review whether ${worst.label} trades meet the same quality criteria as ${best.label}.`;
     direction = "mixed";
   } else if (bestExp > 0) {
-    observation = `Your strongest observed edge is ${best.label}, with an expectancy of ${signed(bestExp)}R (n=${best.trades}).`;
+    observation = `Your strongest observed edge is ${best.label}, with an expectancy of ${signed(bestExp)}R (${formatSampleSize(best.trades)}).`;
     takeaway = `Consider whether ${best.label} deserves more focused review in your playbook.`;
     direction = "positive";
   } else {
-    observation = `No ${DIMENSION_LABEL[dimension]} shows positive expectancy in this sample. ${best.label} is least negative at ${signed(bestExp)}R (n=${best.trades}).`;
+    observation = `No ${DIMENSION_LABEL[dimension]} shows positive expectancy in this sample. ${best.label} is least negative at ${signed(bestExp)}R (${formatSampleSize(best.trades)}).`;
     takeaway = "Investigate whether filters, sizing, or execution differ across groups.";
     direction = "negative";
   }
@@ -303,7 +304,7 @@ export function generateTimeOfDayInsight(
     summary: "Hourly expectancy across closed trades.",
     observation:
       best.hour === worst.hour
-        ? `${best.hour}:00 has the highest observed expectancy (${(best.expectancy ?? 0).toFixed(2)}R, n=${best.n}).`
+        ? `${best.hour}:00 has the highest observed expectancy (${(best.expectancy ?? 0).toFixed(2)}R, ${formatSampleSize(best.n)}).`
         : `${best.hour}:00 shows the strongest expectancy (${(best.expectancy ?? 0).toFixed(2)}R) vs ${worst.hour}:00 (${(worst.expectancy ?? 0).toFixed(2)}R).`,
     takeaway: "Association only — hour alone does not cause results.",
     sampleSize: totalN,
@@ -330,7 +331,7 @@ export function generateBucketInsight(
   const best = [...eligible].sort((a, b) => (b.expectancy ?? 0) - (a.expectancy ?? 0))[0];
   return {
     summary: context,
-    observation: `Strongest observed bucket: ${best.label} (${(best.expectancy ?? 0).toFixed(2)}R expectancy, n=${best.n}).`,
+    observation: `Strongest observed bucket: ${best.label} (${(best.expectancy ?? 0).toFixed(2)}R expectancy, ${formatSampleSize(best.n)}).`,
     takeaway: "Historical bucket results — not a sizing or timing recommendation.",
     sampleSize: totalN,
     strength: classifyConfidence(totalN),

@@ -10,6 +10,7 @@ import type { AnalyticsDashboard } from "@/lib/analytics";
 import { generateWinLossInsight } from "@/lib/analytics/insights/generators";
 import { getAnalyticsDefinition } from "@/lib/analytics/registry";
 import { money, num } from "@/lib/format";
+import { formatSampleSize } from "@/lib/visualization";
 
 export function HowYouWinSection({ data }: { data: AnalyticsDashboard }) {
   const lab = data.lab;
@@ -87,12 +88,14 @@ export function HowYouWinSection({ data }: { data: AnalyticsDashboard }) {
       {
         name: "Long",
         type: "bar",
+        barMaxWidth: 28,
         data: [Number(long.win_rate ?? 0), Number(long.profit_factor ?? 0), Number(long.expectancy_r ?? 0)],
         itemStyle: { color: C.long },
       },
       {
         name: "Short",
         type: "bar",
+        barMaxWidth: 28,
         data: [Number(short.win_rate ?? 0), Number(short.profit_factor ?? 0), Number(short.expectancy_r ?? 0)],
         itemStyle: { color: C.short },
       },
@@ -173,7 +176,7 @@ export function HowYouWinSection({ data }: { data: AnalyticsDashboard }) {
             title={directionDef?.title ?? "Long vs short"}
             question={directionDef?.primaryQuestion}
             tier={directionDef?.tier}
-            subtitle={`Long n=${long.n ?? 0} · Short n=${short.n ?? 0}`}
+            subtitle={`Long ${formatSampleSize(Number(long.n ?? 0))} · Short ${formatSampleSize(Number(short.n ?? 0))}`}
             interactive
           >
             <InteractiveChart

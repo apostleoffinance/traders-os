@@ -4,6 +4,7 @@ import { Panel, Stat } from "@/components/ui";
 import { Empty, EvidenceTag } from "@/components/analytics/Charts";
 import type { AnalyticsDashboard } from "@/lib/analytics";
 import { money, num, signed } from "@/lib/format";
+import { formatSampleSize } from "@/lib/visualization";
 
 export type IntelligenceLab = NonNullable<NonNullable<AnalyticsDashboard["lab"]>["intelligence"]>;
 
@@ -21,7 +22,7 @@ export function IntelligenceOverview({ intel }: { intel: IntelligenceLab }) {
               <p className="cat">{ins.category}</p>
               <h3>{ins.title}</h3>
               <p className="finding">{ins.finding}</p>
-              <p className="meta">n={ins.sample_size} · {ins.confidence}</p>
+              <p className="meta">{formatSampleSize(ins.sample_size)} · {ins.confidence}</p>
             </article>
           ))}
         </div>
@@ -151,7 +152,7 @@ export function PlaybookLab({ intel }: { intel: IntelligenceLab }) {
           <article key={p.name} className="card">
             <h3>{p.name}</h3>
             <p className="score">Edge quality {p.edge_quality.score}</p>
-            <p>n={p.trade_count} · {p.expectancy_r ? `${p.expectancy_r}R` : "—"} exp · WR {p.win_rate ? `${num(p.win_rate, 1)}%` : "—"}</p>
+            <p>{formatSampleSize(p.trade_count)} · {p.expectancy_r ? `${p.expectancy_r}R` : "—"} exp · WR {p.win_rate ? `${num(p.win_rate, 1)}%` : "—"}</p>
             <p className="drift">Recent: {p.drift.last_20?.status ?? "—"}</p>
             <p className="muted">{p.confidence.message}</p>
           </article>
@@ -348,7 +349,7 @@ export function EdgeMapPanel({ intel }: { intel: IntelligenceLab }) {
           <ul className="list">
             {weak.map((w) => (
               <li key={`${w.setup}-${w.symbol}`}>
-                {w.setup} · {w.symbol} · {w.session} — {w.expectancy_r}R (n={w.n}). Historically underperformed your baseline.
+                {w.setup} · {w.symbol} · {w.session} — {w.expectancy_r}R ({formatSampleSize(w.n)}). Historically underperformed your baseline.
               </li>
             ))}
           </ul>

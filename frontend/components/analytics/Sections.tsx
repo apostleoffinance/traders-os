@@ -12,6 +12,7 @@ import {
 import { filterForDateRange, filterForSingleDay } from "@/lib/analytics-drilldown";
 import { linearRegression } from "@/lib/chart-regression";
 import { getAnalyticsDefinition } from "@/lib/analytics/registry";
+import { formatSampleSize } from "@/lib/visualization";
 import { ScatterQuadrantGuide } from "@/components/analytics/primitives/ScatterQuadrantGuide";
 import { useOptionalAnalyticsDrilldown } from "@/components/analytics/AnalyticsDrilldownContext";
 import { ChartCard } from "@/components/trader";
@@ -354,7 +355,7 @@ export function CalendarHeat({ data }: { data: AnalyticsDashboard }) {
               type="button"
               className="cell"
               style={{ background: bg }}
-              title={`${d.date} · n=${d.n} · ${d.r ?? "-"}R · ${d.net_pnl}`}
+              title={`${d.date} · ${formatSampleSize(d.n)} · ${d.r ?? "-"}R · ${d.net_pnl}`}
               onClick={() => {
                 if (!drill) return;
                 drill.applyPatch(filterForSingleDay(d.date), d.date);
@@ -597,7 +598,7 @@ export function RiskAndObservations({ data }: { data: AnalyticsDashboard }) {
               <strong>{o.title}</strong>
               <p>{o.text}</p>
               <span className="muted">
-                {o.evidence.label} · n={o.sample_size} · {o.metric}
+                {o.evidence.label} · {formatSampleSize(o.sample_size)} · {o.metric}
               </span>
             </li>
           ))}

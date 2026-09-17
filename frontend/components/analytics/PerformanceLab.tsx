@@ -10,6 +10,7 @@ import { MiniSparkline } from "@/components/analytics/primitives/MiniSparkline";
 import { useOptionalAnalyticsDrilldown } from "@/components/analytics/AnalyticsDrilldownContext";
 import type { AnalyticsDashboard, GroupRow, LabLeaderboardRow, LabTradeRank } from "@/lib/analytics";
 import { formatWhen, holdingLabel, money, num, sessionLabel, signed, tone } from "@/lib/format";
+import { formatSampleSize } from "@/lib/visualization";
 
 type DrillMetric = "win_rate" | "expectancy_r" | "profit_factor" | "average_r";
 
@@ -60,7 +61,7 @@ export function PerformanceLab({
                 label="Net P&L"
                 value={money(kpis.net_pnl.value as string, currency)}
                 tone={tone(kpis.net_pnl.value as string)}
-                hint={`n=${kpis.net_pnl.n}`}
+                hint={formatSampleSize(kpis.net_pnl.n)}
                 spark={<MiniSparkline values={equitySpark} />}
               />
               <MetricCard
@@ -207,7 +208,7 @@ export function ProfitFactorExplorer({
           tooltip: {
             formatter: (p: { dataIndex: number }) => {
               const r = rows[p.dataIndex];
-              return `${r.label}<br/>PF ${r.pf ?? "—"}<br/>n=${r.n}`;
+              return `${r.label}<br/>PF ${r.pf ?? "—"}<br/>${formatSampleSize(r.n)}`;
             },
           },
           xAxis: { type: "value", name: "PF", splitLine: { lineStyle: { color: C.line } } },
@@ -220,11 +221,17 @@ export function ProfitFactorExplorer({
           series: [
             {
               type: "bar",
+              barMaxWidth: 16,
               data: rows.map((r) => ({
                 value: r.pf ?? 0,
                 itemStyle: { color: (r.pf ?? 0) >= 1 ? C.pos : C.neg },
               })),
-              label: { show: true, position: "right", fontSize: 10, formatter: (p: { dataIndex: number }) => `n=${rows[p.dataIndex].n}` },
+              label: {
+                show: true,
+                position: "right",
+                fontSize: 10,
+                formatter: (p: { dataIndex: number }) => formatSampleSize(rows[p.dataIndex].n),
+              },
             },
           ],
         };
@@ -566,12 +573,14 @@ function DirectionComparison({
       {
         name: "Long",
         type: "bar",
+        barMaxWidth: 28,
         data: [Number(long.win_rate ?? 0), Number(long.profit_factor ?? 0), Number(long.expectancy_r ?? 0)],
         itemStyle: { color: C.long },
       },
       {
         name: "Short",
         type: "bar",
+        barMaxWidth: 28,
         data: [Number(short.win_rate ?? 0), Number(short.profit_factor ?? 0), Number(short.expectancy_r ?? 0)],
         itemStyle: { color: C.short },
       },
@@ -611,7 +620,7 @@ function DirectionComparison({
     <ChartCard
       title="Long vs short"
       question="Which direction works better for me?"
-      subtitle={`Long n=${long.n ?? 0} · Short n=${short.n ?? 0}`}
+      subtitle={`Long ${formatSampleSize(Number(long.n ?? 0))} · Short ${formatSampleSize(Number(short.n ?? 0))}`}
       tier="essential"
       interactive
     >

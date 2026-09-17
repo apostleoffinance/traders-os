@@ -2,6 +2,7 @@
 
 import { ChartCard } from "@/components/analytics/primitives/ChartCard";
 import { money } from "@/lib/format";
+import { formatSampleSize } from "@/lib/visualization";
 
 export function ReportYearInReviewSection({
   yearInReview,
@@ -38,7 +39,7 @@ export function ReportYearInReviewSection({
               const pnl = Number(m.net_pnl ?? 0);
               const h = Math.min(100, Math.abs(pnl) / 5);
               return (
-                <div key={m.month} className="bar-col" title={`${m.month}: ${money(m.net_pnl ?? "0", currency)} · n=${m.n}`}>
+                <div key={m.month} className="bar-col" title={`${m.month}: ${money(m.net_pnl ?? "0", currency)} · ${formatSampleSize(m.n)}`}>
                   <div className={`bar ${pnl >= 0 ? "pos" : "neg"}`} style={{ height: `${Math.max(4, h)}%` }} />
                   <span>{m.month.slice(5)}</span>
                 </div>

@@ -10,6 +10,7 @@ import { ChartCard } from "@/components/analytics/primitives/ChartCard";
 import { InteractiveChart } from "@/components/analytics/primitives/InteractiveChart";
 import { useOptionalAnalyticsDrilldown } from "@/components/analytics/AnalyticsDrilldownContext";
 import { num, signed } from "@/lib/format";
+import { formatSampleSize } from "@/lib/visualization";
 
 type CompareResult = {
   conditions: Record<string, unknown>;
@@ -159,7 +160,7 @@ export function BehaviorResearchLab({
                   value: Number(c.metrics?.expectancy_r ?? 0),
                   itemStyle: { color: Number(c.metrics?.expectancy_r ?? 0) >= 0 ? C.pos : C.neg },
                 })),
-                label: { show: true, position: "right", fontSize: 10, formatter: (p: { dataIndex: number }) => `n=${comboRows[p.dataIndex].n}` },
+                label: { show: true, position: "right", fontSize: 10, formatter: (p: { dataIndex: number }) => formatSampleSize(comboRows[p.dataIndex].n) },
               },
             ],
           }
@@ -206,8 +207,8 @@ export function BehaviorResearchLab({
             <div key={i} className="card">
               <h3>{i === 0 ? "Rules followed vs broken" : i === 1 ? "Non-emotional vs emotional" : "Confirmation status"}</h3>
               <div className="row">
-                <Stat label={c.label_a} value={c.group_a.expectancy_r ? `${signed(c.group_a.expectancy_r)}R` : "—"} hint={`n=${c.group_a.n}`} />
-                <Stat label={c.label_b} value={c.group_b.expectancy_r ? `${signed(c.group_b.expectancy_r)}R` : "—"} hint={`n=${c.group_b.n}`} />
+                <Stat label={c.label_a} value={c.group_a.expectancy_r ? `${signed(c.group_a.expectancy_r)}R` : "—"} hint={formatSampleSize(c.group_a.n)} />
+                <Stat label={c.label_b} value={c.group_b.expectancy_r ? `${signed(c.group_b.expectancy_r)}R` : "—"} hint={formatSampleSize(c.group_b.n)} />
                 <Stat label="Difference" value={c.discipline_alpha_r ? `${signed(c.discipline_alpha_r)}R` : "—"} />
               </div>
             </div>
@@ -281,7 +282,7 @@ export function BehaviorResearchLab({
         {compareResult && (
           <div className="result">
             {compareResult.insufficient_sample ? (
-              <Empty>Insufficient sample (n={compareResult.n}, need {compareResult.min_n_required}).</Empty>
+              <Empty>Insufficient sample ({formatSampleSize(compareResult.n)}, need {formatSampleSize(compareResult.min_n_required)}).</Empty>
             ) : (
               <div className="row">
                 <Stat label="Trades" value={String(compareResult.metrics?.n ?? 0)} />

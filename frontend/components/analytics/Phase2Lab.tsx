@@ -11,6 +11,7 @@ import { filterForDateRange, filterForSingleDay } from "@/lib/analytics-drilldow
 import type { AnalyticsDashboard, HistBin } from "@/lib/analytics";
 import { colorForBinRange } from "@/lib/chart-colors";
 import { money, num, signed, tone } from "@/lib/format";
+import { formatSampleSize } from "@/lib/visualization";
 
 function histOption(bins: HistBin[], label: string, C: ReturnType<typeof useLiveChart>["C"]) {
   return {
@@ -432,7 +433,7 @@ export function TemporalLab({
                     type="button"
                     className="cell"
                     style={{ background: bg }}
-                    title={`${d.date} · ${d.record} · n=${d.n}`}
+                    title={`${d.date} · ${d.record} · ${formatSampleSize(d.n)}`}
                     onClick={() => {
                       if (!drill) return;
                       drill.applyPatch(filterForSingleDay(d.date), d.date);

@@ -7,6 +7,7 @@ import { InteractiveChart } from "@/components/analytics/primitives/InteractiveC
 import { useOptionalAnalyticsDrilldown } from "@/components/analytics/AnalyticsDrilldownContext";
 import type { IntelligenceLab } from "@/components/intelligence/Phase3Intelligence";
 import { money, num } from "@/lib/format";
+import { formatSampleSize } from "@/lib/visualization";
 
 type PsychRow = {
   emotion: string;
@@ -52,7 +53,7 @@ export function PsychologyBubbleMatrix({
     tooltip: {
       trigger: "item",
       formatter: (p: { data: { emotion: string; value: [number, number]; n: number } }) =>
-        `${p.data.emotion}<br/>Win ${num(p.data.value[0], 1)}% · Exp ${num(p.data.value[1])}R<br/>n=${p.data.n}`,
+        `${p.data.emotion}<br/>Win ${num(p.data.value[0], 1)}% · Exp ${num(p.data.value[1])}R<br/>${formatSampleSize(p.data.n)}`,
     },
     xAxis: { type: "value", name: "Win rate %", min: 0, max: 100, splitLine: { lineStyle: { color: C.line } } },
     yAxis: { type: "value", name: "Expectancy R", splitLine: { lineStyle: { color: C.line } } },

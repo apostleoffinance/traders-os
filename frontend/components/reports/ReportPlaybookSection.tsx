@@ -3,6 +3,7 @@
 import { ChartCard } from "@/components/trader";
 import { ReportTable } from "@/components/trader/tables/ResearchTable";
 import { useMemo } from "react";
+import { formatSampleSize } from "@/lib/visualization";
 
 type PlaybookRow = {
   key?: string;
@@ -43,7 +44,7 @@ export function ReportPlaybookSection({ playbooks }: { playbooks: Record<string,
       {best?.label ? (
         <ChartCard title="Strongest qualifying playbook" subtitle={best.disclaimer}>
           <p>
-            <strong>{best.label}</strong> · n={best.n}
+            <strong>{best.label}</strong> · {formatSampleSize(best.n ?? 0)}
           </p>
         </ChartCard>
       ) : (

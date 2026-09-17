@@ -5,6 +5,7 @@ import { api } from "@/lib/api";
 import type { AnalyticsDashboard, EdgeDetail } from "@/lib/analytics";
 import { buildAnalyticsQuery, type FilterState } from "@/lib/analytics";
 import { num, sessionLabel } from "@/lib/format";
+import { formatSampleSize } from "@/lib/visualization";
 import { Panel } from "@/components/ui";
 
 type Props = {
@@ -88,7 +89,7 @@ export function EdgeExplorer({ accountId, data, filters }: Props) {
                             {c && c.n > 0 && exp ? (
                               <>
                                 <span className="exp">{num(exp)}R</span>
-                                <span className="n">n={c.n}</span>
+                                <span className="n">{formatSampleSize(c.n)}</span>
                               </>
                             ) : (
                               <span className="dash">—</span>
@@ -106,14 +107,14 @@ export function EdgeExplorer({ accountId, data, filters }: Props) {
       </Panel>
 
       {data.edge_combos.length > 0 && (
-        <Panel title="Top combinations (n≥5)">
+        <Panel title="Top combinations (5+ trades)">
           <ul className="combos">
             {data.edge_combos.map((c) => (
               <li key={c.label}>
                 <button type="button" onClick={() => void loadDetail(c.symbol, c.session)}>
                   <strong>{c.label}</strong>
                   <span>
-                    {c.expectancy_r}R · {c.win_rate ? `${num(c.win_rate, 1)}%` : "—"} · n={c.n}
+                    {c.expectancy_r}R · {c.win_rate ? `${num(c.win_rate, 1)}%` : "—"} · {formatSampleSize(c.n)}
                   </span>
                 </button>
               </li>
@@ -162,7 +163,7 @@ export function EdgeExplorer({ accountId, data, filters }: Props) {
                 <p className="muted">Most common setup in this cell: <strong>{detail.top_setup}</strong></p>
               )}
               <p className="evidence">
-                {detail.edge.evidence.label} evidence (n={detail.edge.evidence.n}) — {detail.edge.evidence.reason}
+                {detail.edge.evidence.label} evidence ({formatSampleSize(detail.edge.evidence.n)}) — {detail.edge.evidence.reason}
               </p>
             </div>
           )}

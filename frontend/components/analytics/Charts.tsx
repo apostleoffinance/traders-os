@@ -5,6 +5,7 @@ import { num, sessionLabel } from "@/lib/format";
 import { useTheme } from "@/components/ThemeProvider";
 import { chartTheme } from "@/lib/theme";
 import { colorForPnl } from "@/lib/chart-colors";
+import { formatSampleSize } from "@/lib/visualization";
 import { InteractiveChart } from "@/components/analytics/primitives/InteractiveChart";
 
 export function useLiveChart() {
@@ -115,7 +116,7 @@ export function HorizontalBars({
       formatter: (params: { dataIndex: number }[]) => {
         const i = params[0]?.dataIndex ?? 0;
         const r = labeled[i];
-        return `${r.name}<br/>${formatMetric(metric, r.value)}<br/>n=${r.n} · ${r.evidence.label}${onRowClick ? "<br/><i>Click to filter</i>" : ""}`;
+        return `${r.name}<br/>${formatMetric(metric, r.value)}<br/>${formatSampleSize(r.n)} · ${r.evidence.label}${onRowClick ? "<br/><i>Click to filter</i>" : ""}`;
       },
     },
     xAxis: {
@@ -143,7 +144,7 @@ export function HorizontalBars({
           fontSize: 10,
           formatter: (p: { dataIndex: number }) => {
             const r = labeled[p.dataIndex];
-            return `${formatMetric(metric, r.value)}  n=${r.n}`;
+            return `${formatMetric(metric, r.value)}  · ${formatSampleSize(r.n)}`;
           },
         },
       },

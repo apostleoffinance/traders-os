@@ -4,6 +4,7 @@ import { ChartCard } from "@/components/trader/ChartCard";
 import { MetricCard } from "@/components/trader/MetricCard";
 import type { AnalyticsDashboard } from "@/lib/analytics";
 import { num } from "@/lib/format";
+import { formatSampleSize } from "@/lib/visualization";
 
 /** Execution metrics strip — sizing / hold / capture before charts. */
 export function ExecutionAnswerStrip({ data }: { data: AnalyticsDashboard }) {
@@ -27,12 +28,12 @@ export function ExecutionAnswerStrip({ data }: { data: AnalyticsDashboard }) {
         <MetricCard
           label="Best size"
           value={bestSize?.bucket ?? "—"}
-          hint={bestSize ? `n=${bestSize.n}${bestSize.expectancy_r ? ` · ${num(bestSize.expectancy_r)}R` : ""}` : undefined}
+          hint={bestSize ? `${formatSampleSize(bestSize.n)}${bestSize.expectancy_r ? ` · ${num(bestSize.expectancy_r)}R` : ""}` : undefined}
         />
         <MetricCard
           label="Best hold"
           value={bestDur?.bucket ?? "—"}
-          hint={bestDur ? `n=${bestDur.n}${bestDur.expectancy_r ? ` · ${num(bestDur.expectancy_r)}R` : ""}` : undefined}
+          hint={bestDur ? `${formatSampleSize(bestDur.n)}${bestDur.expectancy_r ? ` · ${num(bestDur.expectancy_r)}R` : ""}` : undefined}
         />
         <MetricCard
           label="MFE capture"

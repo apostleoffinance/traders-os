@@ -2,6 +2,7 @@
 
 import { Panel } from "@/components/ui";
 import type { AnalyticsDashboard } from "@/lib/analytics";
+import { formatSampleSize } from "@/lib/visualization";
 
 /** Deterministic observations — sample size on every claim. */
 export function KeyObservationsPanel({ data }: { data: AnalyticsDashboard }) {
@@ -16,7 +17,7 @@ export function KeyObservationsPanel({ data }: { data: AnalyticsDashboard }) {
               <strong>{o.title}</strong>
               <p>{o.text}</p>
               <span className="muted">
-                {o.evidence.label} · n={o.sample_size} · {o.metric}
+                {o.evidence.label} · {formatSampleSize(o.sample_size)} · {o.metric}
               </span>
             </li>
           ))}
