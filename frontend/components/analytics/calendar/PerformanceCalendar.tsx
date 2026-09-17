@@ -4,18 +4,21 @@ import { useEffect, useMemo, useState } from "react";
 import type { AnalyticsDashboard, FilterState } from "@/lib/analytics";
 import type { CalendarDay } from "@/lib/analytics/calendar-view";
 import {
+  MONTH_LABELS,
   WEEKDAY_HEADERS,
   buildMonthGrid,
+  dayDisplayValue,
   dayIntensity,
-  dayPerformanceValue,
   formatMonthTitle,
   shiftYearMonth,
+  type CalendarDisplayMetric,
 } from "@/lib/analytics/calendar-view";
 import {
   calendarNavBounds,
   clampYearMonth,
   excludeFutureCalendarDays,
   preferredCalendarMonth,
+  type YearMonth,
 } from "@/lib/analytics/calendarViewModel";
 import { formatDrillDayLabel } from "@/lib/analytics-drilldown";
 import { money, num, signed } from "@/lib/format";
@@ -40,10 +43,20 @@ export function PerformanceCalendar({
     [t?.calendar.days, timezone],
   );
 
+  const equityBase = useMemo(() => {
+    const curve = data.lab?.equity?.net_pnl?.curve ?? [];
+    for (const p of curve) {
+      const eq = Number(p.equity);
+      if (Number.isFinite(eq) && eq !== 0) return eq;
+    }
+    return null;
+  }, [data.lab?.equity?.net_pnl?.curve]);
+
   const bounds = useMemo(() => calendarNavBounds(days, timezone), [days, timezone]);
 
   const [cursor, setCursor] = useState(() => preferredCalendarMonth(days, timezone));
   const [selectedDay, setSelectedDay] = useState<CalendarDay | null>(null);
+  const [metric, setMetric] = useState<CalendarDisplayMetric>("r");
 
   // Clamp cursor when filter data changes — do NOT snap to latest trade month
   useEffect(() => {
@@ -51,36 +64,60 @@ export function PerformanceCalendar({
     setCursor((c) => clampYearMonth(c, nextBounds));
   }, [days, timezone]);
 
+  // If % unavailable, fall back to $
+  useEffect(() => {
+    if (metric === "pct" && equityBase == null) setMetric("net_pnl");
+  }, [metric, equityBase]);
+
   const maxAbs = useMemo(() => {
     let m = 0;
     for (const d of days) {
-      const v = dayPerformanceValue(d);
+      const v = dayDisplayValue(d, metric, equityBase);
       if (v != null) m = Math.max(m, Math.abs(v));
     }
     return m > 0 ? m : 1;
-  }, [days]);
+  }, [days, metric, equityBase]);
 
   const cells = useMemo(
     () => buildMonthGrid(cursor.year, cursor.month, days),
     [cursor.year, cursor.month, days],
   );
 
+  const years = useMemo(() => {
+    const list: number[] = [];
+    for (let y = bounds.min.year; y <= bounds.max.year; y++) list.push(y);
+    return list;
+  }, [bounds.min.year, bounds.max.year]);
+
+  const monthsForYear = useMemo(() => {
+    return MONTH_LABELS.map((label, i) => {
+      const month = i + 1;
+      const ym: YearMonth = { year: cursor.year, month };
+      const beforeMin =
+        ym.year < bounds.min.year || (ym.year === bounds.min.year && ym.month < bounds.min.month);
+      const afterMax =
+        ym.year > bounds.max.year || (ym.year === bounds.max.year && ym.month > bounds.max.month);
+      return { month, label, disabled: beforeMin || afterMax };
+    });
+  }, [cursor.year, bounds.min, bounds.max]);
+
   const monthStats = useMemo(() => {
     let tradingDays = 0;
     let trades = 0;
-    let netR = 0;
-    let hasR = false;
+    let sum = 0;
+    let hasValue = false;
     for (const c of cells) {
       if (!c.inMonth || !c.day || c.day.n <= 0) continue;
       tradingDays += 1;
       trades += c.day.n;
-      if (c.day.r != null) {
-        netR += Number(c.day.r);
-        hasR = true;
+      const v = dayDisplayValue(c.day, metric, equityBase);
+      if (v != null) {
+        sum += v;
+        hasValue = true;
       }
     }
-    return { tradingDays, trades, netR: hasR ? netR : null };
-  }, [cells]);
+    return { tradingDays, trades, sum: hasValue ? sum : null };
+  }, [cells, metric, equityBase]);
 
   const canPrev =
     cursor.year > bounds.min.year ||
@@ -100,6 +137,10 @@ export function PerformanceCalendar({
     if (day) openDay(day);
   }
 
+  function jumpTo(next: YearMonth) {
+    setCursor(clampYearMonth(next, bounds));
+  }
+
   useEffect(() => {
     const onJump = (e: Event) => {
       const detail = (e as CustomEvent<{ date?: string }>).detail;
@@ -110,6 +151,18 @@ export function PerformanceCalendar({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [days, bounds]);
 
+  function formatCell(value: number): string {
+    if (metric === "r") return `${value > 0 ? "+" : ""}${num(value, 2)}R`;
+    if (metric === "pct") return `${value > 0 ? "+" : ""}${num(value, 2)}%`;
+    return money(value, currency);
+  }
+
+  function formatMonthSum(sum: number): string {
+    if (metric === "r") return `${signed(sum)}R`;
+    if (metric === "pct") return `${signed(sum)}%`;
+    return money(sum, currency);
+  }
+
   if (!t) {
     return (
       <section className="hero-cal">
@@ -119,12 +172,39 @@ export function PerformanceCalendar({
     );
   }
 
+  const metricOptions: Array<{ id: CalendarDisplayMetric; label: string; disabled?: boolean }> = [
+    { id: "net_pnl", label: "$" },
+    { id: "r", label: "R" },
+    { id: "pct", label: "%", disabled: equityBase == null },
+  ];
+
   return (
     <section className="hero-cal" aria-labelledby="perf-cal-title">
       <header className="head">
         <div>
           <h2 id="perf-cal-title">Performance calendar</h2>
           <p className="lede">Click a trading day to investigate what happened.</p>
+        </div>
+        <div className="modes" role="group" aria-label="Calendar display unit">
+          {metricOptions.map((opt) => (
+            <button
+              key={opt.id}
+              type="button"
+              className={metric === opt.id ? "on" : ""}
+              aria-pressed={metric === opt.id}
+              disabled={opt.disabled}
+              title={
+                opt.id === "pct" && opt.disabled
+                  ? "Percent needs equity history for this filter"
+                  : opt.id === "pct"
+                    ? "Day P&L as % of period starting equity"
+                    : undefined
+              }
+              onClick={() => setMetric(opt.id)}
+            >
+              {opt.label}
+            </button>
+          ))}
         </div>
       </header>
 
@@ -139,12 +219,48 @@ export function PerformanceCalendar({
           ‹
         </button>
         <div className="month-block">
-          <h3 className="month-title">{formatMonthTitle(cursor.year, cursor.month)}</h3>
+          <div className="pickers">
+            <label className="sr-only" htmlFor="cal-month">
+              Month
+            </label>
+            <select
+              id="cal-month"
+              className="picker"
+              value={cursor.month}
+              aria-label="Select month"
+              onChange={(e) => jumpTo({ year: cursor.year, month: Number(e.target.value) })}
+            >
+              {monthsForYear.map((m) => (
+                <option key={m.month} value={m.month} disabled={m.disabled}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+            <label className="sr-only" htmlFor="cal-year">
+              Year
+            </label>
+            <select
+              id="cal-year"
+              className="picker"
+              value={cursor.year}
+              aria-label="Select year"
+              onChange={(e) => jumpTo({ year: Number(e.target.value), month: cursor.month })}
+            >
+              {years.map((y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              ))}
+            </select>
+          </div>
           <p className="month-meta">
             {monthStats.tradingDays} trading day{monthStats.tradingDays === 1 ? "" : "s"}
             {monthStats.trades ? ` · ${monthStats.trades} trade${monthStats.trades === 1 ? "" : "s"}` : ""}
-            {monthStats.netR != null ? ` · ${signed(monthStats.netR)}R` : ""}
+            {monthStats.sum != null ? ` · ${formatMonthSum(monthStats.sum)}` : ""}
           </p>
+          {metric === "pct" ? (
+            <p className="pct-note">% of period starting equity</p>
+          ) : null}
         </div>
         <button
           type="button"
@@ -173,16 +289,11 @@ export function PerformanceCalendar({
           }
           const day = cell.day;
           const traded = Boolean(day && day.n > 0);
-          const value = dayPerformanceValue(day);
+          const value = dayDisplayValue(day, metric, equityBase);
           const tone = value == null ? "flat" : value > 0 ? "pos" : value < 0 ? "neg" : "flat";
           const intensity = value == null ? 0 : dayIntensity(value, maxAbs);
           const selected = selectedDay?.date === cell.date;
-          const resultText =
-            value == null
-              ? ""
-              : day!.r != null
-                ? `${value > 0 ? "+" : ""}${num(value, 2)}R`
-                : money(value, currency);
+          const resultText = value == null ? "" : formatCell(value);
           const aria = traded
             ? `${formatDrillDayLabel(cell.date)}. ${day!.n} trade${day!.n === 1 ? "" : "s"}. ${
                 value != null
@@ -191,7 +302,9 @@ export function PerformanceCalendar({
                     : value < 0
                       ? `Loss of ${resultText}`
                       : `Breakeven ${resultText}`
-                  : ""
+                  : metric === "r"
+                    ? "No R recorded"
+                    : ""
               }. Open day investigation.`
             : `${formatDrillDayLabel(cell.date)}. No trades.`;
 
@@ -217,6 +330,9 @@ export function PerformanceCalendar({
             >
               <span className="dom">{String(cell.dayOfMonth).padStart(2, "0")}</span>
               {traded && value != null ? <span className={`val ${tone}`}>{resultText}</span> : null}
+              {traded && day && value == null && metric === "r" ? (
+                <span className="val flat">—</span>
+              ) : null}
               {traded && day ? (
                 <span className="n">
                   {day.n} trade{day.n === 1 ? "" : "s"}
@@ -263,6 +379,14 @@ const styles = `
     border: 1px solid var(--border);
     border-radius: 12px;
     background: var(--surface);
+    min-width: 0;
+  }
+  .head {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: flex-start;
+    flex-wrap: wrap;
   }
   .head h2 {
     margin: 0;
@@ -276,6 +400,33 @@ const styles = `
     margin: 4px 0 0;
     font-size: 13px;
     color: var(--text-muted);
+  }
+  .modes {
+    display: inline-flex;
+    gap: 4px;
+    padding: 3px;
+    border-radius: 999px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+  }
+  .modes button {
+    border: 0;
+    background: transparent;
+    color: var(--text-muted);
+    padding: 5px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    min-width: 32px;
+  }
+  .modes button.on {
+    background: var(--accent-soft, color-mix(in srgb, var(--accent) 16%, transparent));
+    color: var(--accent);
+  }
+  .modes button:disabled {
+    opacity: 0.35;
+    cursor: default;
   }
   .empty {
     margin: 0;
@@ -292,13 +443,30 @@ const styles = `
     text-align: center;
     display: grid;
     gap: 2px;
+    min-width: 0;
   }
-  .month-title {
+  .pickers {
+    display: inline-flex;
+    gap: 6px;
+    justify-content: center;
+    align-items: center;
+  }
+  .picker {
+    appearance: auto;
     margin: 0;
-    font-size: 1.15rem;
+    padding: 4px 8px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    color: var(--text-primary);
+    font-size: 1rem;
     font-weight: 700;
     letter-spacing: -0.02em;
-    color: var(--text-primary);
+    cursor: pointer;
+  }
+  .picker:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
   }
   .month-meta {
     margin: 0;
@@ -306,6 +474,21 @@ const styles = `
     font-weight: 600;
     color: var(--text-muted);
     font-variant-numeric: tabular-nums;
+  }
+  .pct-note {
+    margin: 0;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    border: 0;
   }
   .nav-btn {
     width: 36px;
@@ -317,6 +500,7 @@ const styles = `
     font-size: 20px;
     line-height: 1;
     cursor: pointer;
+    flex-shrink: 0;
   }
   .nav-btn:disabled {
     opacity: 0.35;
@@ -421,10 +605,10 @@ const styles = `
   .track .neg { flex: 1; background: var(--neg); opacity: 0.65; }
   .track .mid { flex: 0.35; background: var(--surface-2); }
   .track .pos { flex: 1; background: var(--pos); opacity: 0.65; }
-        @media (max-width: 720px) {
-          .cell { min-height: 48px; padding: 4px; }
-          .val { font-size: 10px; }
-          .n { font-size: 9px; }
-        }
+  @media (max-width: 720px) {
+    .cell { min-height: 48px; padding: 4px; }
+    .val { font-size: 10px; }
+    .n { font-size: 9px; }
+    .picker { font-size: 0.95rem; }
+  }
 `;
-

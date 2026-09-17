@@ -151,6 +151,35 @@ export function dayPerformanceValue(day: CalendarDay | null | undefined): number
   return null;
 }
 
+/** Display metric for calendar cells / intensity. */
+export type CalendarDisplayMetric = "r" | "net_pnl" | "pct";
+
+/**
+ * Value for calendar display.
+ * - r: R multiple when present
+ * - net_pnl: currency P&L
+ * - pct: day P&L as % of period starting equity (when equityBase provided)
+ */
+export function dayDisplayValue(
+  day: CalendarDay | null | undefined,
+  metric: CalendarDisplayMetric,
+  equityBase: number | null = null,
+): number | null {
+  if (!day || day.n <= 0) return null;
+  if (metric === "r") {
+    if (day.r != null && Number.isFinite(Number(day.r))) return Number(day.r);
+    return null;
+  }
+  if (metric === "net_pnl") {
+    if (day.net_pnl != null && Number.isFinite(Number(day.net_pnl))) return Number(day.net_pnl);
+    return null;
+  }
+  // pct
+  if (equityBase == null || !Number.isFinite(equityBase) || equityBase === 0) return null;
+  if (day.net_pnl == null || !Number.isFinite(Number(day.net_pnl))) return null;
+  return (Number(day.net_pnl) / Math.abs(equityBase)) * 100;
+}
+
 /** 0–1 intensity for restrained calendar fills. */
 export function dayIntensity(value: number, maxAbs: number): number {
   if (maxAbs <= 0 || !Number.isFinite(value)) return 0.2;

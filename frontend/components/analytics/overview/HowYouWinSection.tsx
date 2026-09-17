@@ -78,9 +78,9 @@ export function HowYouWinSection({ data }: { data: AnalyticsDashboard }) {
   const long = dc.long as Record<string, string | number | null>;
   const short = dc.short as Record<string, string | number | null>;
   const directionChart = {
-    grid: { left: 44, right: 16, top: 16, bottom: 32 },
+    grid: { left: 44, right: 16, top: 36, bottom: 36 },
     tooltip: { trigger: "axis" },
-    legend: { data: ["Long", "Short"], bottom: 0 },
+    legend: { data: ["Long", "Short"], top: 0, left: "center" },
     xAxis: { type: "category", data: ["Win rate %", "Profit factor", "Expectancy R"] },
     yAxis: { type: "value", splitLine: { lineStyle: { color: C.line } } },
     series: [

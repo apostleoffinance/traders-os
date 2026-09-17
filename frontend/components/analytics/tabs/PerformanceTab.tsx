@@ -5,6 +5,7 @@ import { QuantLabBridge } from "@/components/analytics/primitives/QuantLabBridge
 import { PerformanceLab, ProfitFactorExplorer } from "@/components/analytics/PerformanceLab";
 import { PerformanceEquitySection } from "@/components/analytics/performance/PerformanceEquitySection";
 import { PerformanceMonthlySection } from "@/components/analytics/performance/PerformanceMonthlySection";
+import { DailyPerformanceBars } from "@/components/analytics/calendar/DailyPerformanceBars";
 import { CostAnalytics } from "@/components/analytics/CostAnalytics";
 import { ConsistencyLab, PeriodComparisonLab } from "@/components/analytics/Phase2Lab";
 import type { AnalyticsDashboard } from "@/lib/analytics";
@@ -29,6 +30,7 @@ export function PerformanceTab({
       </DisclosureLayer>
       <DisclosureLayer kind="evidence">
         <PerformanceEquitySection data={data} />
+        <DailyPerformanceBars data={data} />
         <PerformanceMonthlySection data={data} />
         <PeriodComparisonLab data={data} />
         <CostAnalytics data={data} />

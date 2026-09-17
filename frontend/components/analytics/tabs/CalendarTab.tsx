@@ -6,6 +6,7 @@ import type { AnalyticsDashboard, FilterState } from "@/lib/analytics";
 import { buildCalendarViewModel } from "@/lib/analytics/calendarViewModel";
 import { PerformanceSnapshot } from "@/components/analytics/calendar/PerformanceSnapshot";
 import { PerformanceCalendar, jumpCalendarToDay } from "@/components/analytics/calendar/PerformanceCalendar";
+import { DailyPerformanceBars } from "@/components/analytics/calendar/DailyPerformanceBars";
 import { TradingRhythm } from "@/components/analytics/calendar/TradingRhythm";
 import { MonthlyPerformanceMatrix } from "@/components/analytics/calendar/MonthlyPerformanceMatrix";
 
@@ -81,6 +82,8 @@ export function CalendarTab({
       />
 
       <PerformanceCalendar data={data} filters={filters} />
+
+      <DailyPerformanceBars data={data} />
 
       <TradingRhythm
         weekday={model.weekdayRhythm}
