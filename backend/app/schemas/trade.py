@@ -62,7 +62,7 @@ class TradePreviewIn(BaseModel):
     take_profit: Decimal | None = Field(default=None, gt=0)
     lot_size: Decimal = Field(gt=0)
     exit_price: Decimal | None = Field(default=None, gt=0)
-    quote_to_account_rate: Decimal = Field(default=Decimal("1"), gt=0)
+    quote_to_account_rate: Decimal | None = Field(default=None, gt=0)
     trade_timestamp: datetime | None = None
 
 
@@ -96,7 +96,7 @@ class TradeCreate(BaseModel):
     stop_loss: Decimal = Field(gt=0)
     take_profit: Decimal | None = Field(default=None, gt=0)
     lot_size: Decimal = Field(gt=0)
-    quote_to_account_rate: Decimal = Field(default=Decimal("1"), gt=0)
+    quote_to_account_rate: Decimal | None = Field(default=None, gt=0)
     setup_valid: bool = True
     rules_followed: bool = True
     emotional_trade: bool = False

@@ -26,6 +26,7 @@ from app.models.account import Account
 from app.models.mt5_connection import Mt5Connection, Mt5ProcessedDeal
 from app.models.trade import Trade
 from app.models.user import User
+from app.market_data.service import conversion_rate
 from app.services.account_service import refresh_account_balances
 from app.services.mapping import parse_windows
 
@@ -137,6 +138,7 @@ def _compute_sync_metrics(
     take_profit: Decimal | None,
     lot_size: Decimal,
     account: Account,
+    quote_to_account_rate: Decimal | None,
     exit_price: Decimal | None = None,
     broker_pnl: Decimal | None = None,
 ) -> dict:
@@ -145,7 +147,7 @@ def _compute_sync_metrics(
     rate = Decimal("1")
     balance = Decimal(account.current_equity or account.starting_balance)
 
-    if resolved:
+    if resolved and quote_to_account_rate is not None:
         try:
             metrics = planned_metrics(
                 symbol=symbol,
@@ -155,7 +157,7 @@ def _compute_sync_metrics(
                 take_profit=tp,
                 lot_size=lot_size,
                 account_balance=balance,
-                quote_to_account_rate=rate,
+                quote_to_account_rate=quote_to_account_rate,
             )
         except UnknownSymbolError:
             resolved = False
@@ -204,6 +206,7 @@ def _apply_mt5_fields(
     lot_size: Decimal,
     opened_at: datetime,
     account: Account,
+    quote_to_account_rate: Decimal | None,
     exit_price: Decimal | None = None,
     exit_at: datetime | None = None,
     broker_pnl: Decimal | None = None,
@@ -224,6 +227,7 @@ def _apply_mt5_fields(
         take_profit=take_profit,
         lot_size=lot_size,
         account=account,
+        quote_to_account_rate=quote_to_account_rate,
         exit_price=exit_price,
         broker_pnl=broker_pnl,
     )
@@ -353,6 +357,7 @@ def _upsert_open_position(
         lot_size=position.volume,
         opened_at=opened_at,
         account=account,
+        quote_to_account_rate=_mt5_quote_to_account_rate(db, account, resolution.symbol),
         commission=position.commission,
         swap=position.swap,
     )
@@ -367,6 +372,15 @@ def _upsert_open_position(
         trade.realized_rr = None
     db.flush()
     return trade
+
+
+def _mt5_quote_to_account_rate(db: Session, account: Account, symbol: str) -> Decimal | None:
+    try:
+        conversion = conversion_rate(db, symbol, account.currency, allow_stale=True)
+    except Exception:
+        return None
+    raw_rate = conversion.get("rate")
+    return Decimal(str(raw_rate)) if raw_rate is not None else None
 
 
 def _deal_already_processed(db: Session, connection_id: UUID, deal_id: str) -> bool:
@@ -427,6 +441,7 @@ def _close_from_deal(
             lot_size=deal.volume,
             opened_at=opened_at,
             account=account,
+            quote_to_account_rate=_mt5_quote_to_account_rate(db, account, resolution.symbol),
         )
         db.flush()
         counters.created += 1
@@ -491,6 +506,7 @@ def _close_from_deal(
         lot_size=trade.lot_size,
         opened_at=trade.trade_timestamp,
         account=account,
+        quote_to_account_rate=_mt5_quote_to_account_rate(db, account, trade.symbol),
         exit_price=exit_px,
         exit_at=as_utc(deal.deal_time),
         broker_pnl=totals.net_pnl,

@@ -17,7 +17,7 @@ from app.core.enums import (
     TradeStatus,
 )
 from app.core.config import settings
-from app.core.exceptions import ConflictError, DomainError, NotFoundError
+from app.core.exceptions import ConflictError, ConversionUnavailable, DomainError, NotFoundError
 from app.core.time import as_utc, utcnow
 from app.engines.account_rules_engine import evaluate_submission, raise_if_blocked
 from app.engines.discipline_engine import TradeDisciplineInput, score_trade
@@ -40,6 +40,7 @@ from app.models.risk_event import RiskEvent
 from app.models.setup import Setup
 from app.models.trade import Psychology, Trade, TradeScreenshot
 from app.models.user import User
+from app.market_data.service import conversion_rate
 from app.schemas.trade import TradeClose, TradeCreate, TradePreviewIn, TradeUpdate
 from app.services.access import get_owned_account, get_owned_trade
 from app.services.account_service import refresh_account_balances
@@ -49,6 +50,24 @@ from app.services.mapping import parse_windows, profile_view, trade_to_closed
 from app.storage.factory import get_storage
 
 log = logging.getLogger(__name__)
+
+
+def _quote_to_account_rate(
+    db: Session,
+    account: Account,
+    symbol: str,
+    supplied_rate: Decimal | None,
+) -> Decimal:
+    if supplied_rate is not None:
+        return supplied_rate
+
+    conversion = conversion_rate(db, symbol, account.currency, allow_stale=False)
+    if conversion.get("rate") is None:
+        raise ConversionUnavailable(
+            conversion.get("reason")
+            or "Live conversion rate unavailable. Position-size calculation cannot be verified."
+        )
+    return Decimal(str(conversion["rate"]))
 
 
 def _load_account_trades(db: Session, account_id: UUID, user_id: UUID) -> list[Trade]:
@@ -62,15 +81,17 @@ def _load_account_trades(db: Session, account_id: UUID, user_id: UUID) -> list[T
 
 def preview(db: Session, user: User, payload: TradePreviewIn) -> dict:
     account = get_owned_account(db, user.id, payload.account_id)
+    symbol = str(payload.symbol).upper().replace("/", "")
+    rate = _quote_to_account_rate(db, account, symbol, payload.quote_to_account_rate)
     metrics = planned_metrics(
-        symbol=payload.symbol,
+        symbol=symbol,
         direction=payload.direction,
         entry=payload.entry_price,
         stop_loss=payload.stop_loss,
         take_profit=payload.take_profit,
         lot_size=payload.lot_size,
         account_balance=Decimal(account.current_equity or account.starting_balance),
-        quote_to_account_rate=payload.quote_to_account_rate,
+        quote_to_account_rate=rate,
     )
     notes = validate_side_prices(
         payload.direction, payload.entry_price, payload.stop_loss, payload.take_profit
@@ -133,12 +154,12 @@ def preview(db: Session, user: User, payload: TradePreviewIn) -> dict:
     estimated_result = None
     if payload.exit_price is not None:
         estimated_pnl = realized_pnl(
-            symbol=payload.symbol,
+            symbol=symbol,
             direction=payload.direction,
             entry=payload.entry_price,
             exit_price=payload.exit_price,
             lot_size=payload.lot_size,
-            quote_to_account_rate=payload.quote_to_account_rate,
+            quote_to_account_rate=rate,
         )
         estimated_r = realized_r(estimated_pnl, metrics["risk_amount"])
         estimated_result = classify_result(TradeStatus.CLOSED, estimated_pnl).value
@@ -167,7 +188,12 @@ def preview(db: Session, user: User, payload: TradePreviewIn) -> dict:
     }
 
 
-def _compute_fields(payload: TradeCreate | TradeUpdate, trade: Trade | None, account: Account) -> dict:
+def _compute_fields(
+    db: Session,
+    payload: TradeCreate | TradeUpdate,
+    trade: Trade | None,
+    account: Account,
+) -> dict:
     fields_set = payload.model_fields_set if hasattr(payload, "model_fields_set") else set()
 
     if isinstance(payload, TradeUpdate) and trade is not None:
@@ -178,7 +204,7 @@ def _compute_fields(payload: TradeCreate | TradeUpdate, trade: Trade | None, acc
         tp = payload.take_profit if "take_profit" in fields_set else trade.take_profit
         lots = payload.lot_size if payload.lot_size is not None else trade.lot_size
         exit_price = payload.exit_price if payload.exit_price is not None else trade.exit_price
-        rate = payload.quote_to_account_rate if payload.quote_to_account_rate is not None else Decimal("1")
+        rate = payload.quote_to_account_rate
     else:
         symbol = payload.symbol
         direction = payload.direction
@@ -187,9 +213,10 @@ def _compute_fields(payload: TradeCreate | TradeUpdate, trade: Trade | None, acc
         tp = payload.take_profit
         lots = payload.lot_size
         exit_price = payload.exit_price
-        rate = getattr(payload, "quote_to_account_rate", Decimal("1")) or Decimal("1")
+        rate = getattr(payload, "quote_to_account_rate", None)
 
     symbol = str(symbol).upper().replace("/", "")
+    rate = _quote_to_account_rate(db, account, symbol, rate)
     direction = direction if isinstance(direction, Direction) else Direction(direction)
     entry = Decimal(entry)
     sl = Decimal(sl)
@@ -242,7 +269,7 @@ def create_trade(db: Session, user: User, payload: TradeCreate) -> Trade:
     if account.risk_profile is None:
         raise DomainError("Account has no risk profile configured")
 
-    computed = _compute_fields(payload, None, account)
+    computed = _compute_fields(db, payload, None, account)
     tz = payload.timezone or user.timezone
     ts = as_utc(payload.trade_timestamp)
     exit_ts = as_utc(payload.exit_timestamp) if payload.exit_timestamp else None
@@ -599,7 +626,7 @@ def _apply_net_economics(
 def update_trade(db: Session, user: User, trade_id: UUID, payload: TradeUpdate) -> Trade:
     trade = get_trade(db, user.id, trade_id)
     account = get_owned_account(db, user.id, trade.account_id)
-    computed = _compute_fields(payload, trade, account)
+    computed = _compute_fields(db, payload, trade, account)
 
     data = payload.model_dump(exclude_unset=True, exclude={"psychology", "checklist", "quote_to_account_rate"})
     for key, value in data.items():
