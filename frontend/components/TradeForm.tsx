@@ -40,6 +40,17 @@ function toLocalInput(iso: string | null | undefined): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+function defaultLevelsFor(symbol: string, direction: string): { entry: string; stop: string; target: string } {
+  if (symbol === "USDJPY") {
+    return direction === "short"
+      ? { entry: "150.000", stop: "150.100", target: "149.800" }
+      : { entry: "150.000", stop: "149.900", target: "150.200" };
+  }
+  return direction === "short"
+    ? { entry: "1.08500", stop: "1.08600", target: "1.08300" }
+    : { entry: "1.08500", stop: "1.08400", target: "1.08700" };
+}
+
 type Props = {
   mode: TradeFormMode;
   trade?: Trade | null;
@@ -92,6 +103,16 @@ export function TradeForm({ mode, trade = null }: Props) {
   const [accountId, setAccountId] = useState<string | null>(trade?.account_id ?? null);
   const [ready, setReady] = useState(false);
   const [calcOpen, setCalcOpen] = useState(false);
+
+  function changeSymbol(nextSymbol: string) {
+    const next = nextSymbol.toUpperCase();
+    setSymbol(next);
+    if (!isCreate || trade || next === symbol) return;
+    const levels = defaultLevelsFor(next, direction);
+    setEntry(levels.entry);
+    setSl(levels.stop);
+    setTp(levels.target);
+  }
 
   const showExit = isClose || isEdit || recordClosed;
   const showPostTrade = isClose || isEdit || recordClosed;
@@ -435,7 +456,7 @@ export function TradeForm({ mode, trade = null }: Props) {
                 <select
                   value={symbol}
                   disabled={lockInitial}
-                  onChange={(e) => setSymbol(e.target.value.toUpperCase())}
+                  onChange={(e) => changeSymbol(e.target.value)}
                 >
                   {instruments.map((i) => (
                     <option key={i.symbol} value={i.symbol}>
