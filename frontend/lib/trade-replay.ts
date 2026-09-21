@@ -41,6 +41,21 @@ export type TradeReplayMetrics = {
   risk_amount: string | null;
 };
 
+export type TradeReplayMovement = {
+  unit: string;
+  label: string;
+  short_label: string;
+  precision: number;
+  risk: string | null;
+  target: string | null;
+  realized: string | null;
+  mfe: string | null;
+  mae: string | null;
+  capture_percent: string | null;
+  left_on_table: string | null;
+  status: string;
+};
+
 export type TradeReplayPriceSeriesPoint = {
   at: string;
   t: number;
@@ -83,6 +98,7 @@ export type TradeReplay = {
   };
   excursions?: TradeReplayExcursions;
   metrics?: TradeReplayMetrics;
+  movement?: TradeReplayMovement;
   /** Optional M1 OHLC path for the hold window — absent when market data unavailable. */
   price_series?: TradeReplayPriceSeries | null;
   context: {

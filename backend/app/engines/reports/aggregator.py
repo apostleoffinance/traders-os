@@ -176,6 +176,7 @@ def build_performance_report(
         },
         "edge": lab.get("edge", {}),
         "execution": lab.get("execution", {}),
+        "movement": lab.get("movement", {}),
         "costs": lab.get("costs", {}),
         "risk": {
             "analytics": lab.get("risk_analytics", {}),

@@ -53,6 +53,21 @@ class ScreenshotOut(ORMModel):
     created_at: datetime
 
 
+class MovementOut(BaseModel):
+    unit: str
+    label: str
+    short_label: str
+    precision: int
+    risk: Decimal | None = None
+    target: Decimal | None = None
+    realized: Decimal | None = None
+    mfe: Decimal | None = None
+    mae: Decimal | None = None
+    capture_percent: Decimal | None = None
+    left_on_table: Decimal | None = None
+    status: str
+
+
 class TradePreviewIn(BaseModel):
     account_id: UUID
     symbol: str = Field(default="EURUSD")
@@ -212,6 +227,7 @@ class TradeOut(ORMModel):
     screenshots: list[ScreenshotOut] = Field(default_factory=list)
     checklist: list[ChecklistResponseOut] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
+    movement: MovementOut | None = None
 
 
 class TradePreviewOut(BaseModel):
@@ -226,6 +242,7 @@ class TradePreviewOut(BaseModel):
     estimated_realized_pnl: Decimal | None = None
     estimated_realized_r: Decimal | None = None
     estimated_result: str | None = None
+    movement: MovementOut | None = None
     validation_notes: list[str]
     warnings: list[str]
     session: str | None = None

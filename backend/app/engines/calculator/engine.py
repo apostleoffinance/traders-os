@@ -19,6 +19,7 @@ from app.engines.fx_math import (
     validate_side_prices,
     ZERO,
 )
+from app.engines.price_movement import calculate_price_movement, movement_spec
 
 
 def _dir(raw: str) -> Direction:
@@ -55,6 +56,17 @@ def _fill_metrics(result: CalculatorResult, metrics: dict, *, lot: Decimal, spec
     result.reward_amount = metrics.get("planned_reward")  # type: ignore[assignment]
     result.planned_rr = metrics.get("planned_rr")  # type: ignore[assignment]
     result.risk_percent = metrics.get("risk_percent")  # type: ignore[assignment]
+    movement = movement_spec(spec)
+    result.movement_unit = movement.unit.value
+    result.movement_label = movement.label
+    if result.entry is not None and result.stop_loss is not None:
+        result.stop_movement = calculate_price_movement(
+            instrument=spec, from_price=result.entry, to_price=result.stop_loss
+        ).absolute
+    if result.entry is not None and result.take_profit is not None:
+        result.tp_movement = calculate_price_movement(
+            instrument=spec, from_price=result.entry, to_price=result.take_profit
+        ).absolute
     return result
 
 

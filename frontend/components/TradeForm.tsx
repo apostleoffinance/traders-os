@@ -522,6 +522,18 @@ export function TradeForm({ mode, trade = null }: Props) {
                   <dt>Planned R:R</dt>
                   <dd className="num">{preview.planned_rr ?? "-"}</dd>
                 </div>
+                <div>
+                  <dt>Risk distance</dt>
+                  <dd className="num">
+                    {preview.movement?.risk == null ? "—" : `${preview.movement.risk} ${preview.movement.short_label}`}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Target distance</dt>
+                  <dd className="num">
+                    {preview.movement?.target == null ? "—" : `${preview.movement.target} ${preview.movement.short_label}`}
+                  </dd>
+                </div>
               </dl>
             )}
             {!lockInitial && (

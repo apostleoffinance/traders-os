@@ -15,6 +15,7 @@ from app.engines.analytics_lab.performance import build_performance
 from app.engines.analytics_lab.risk_analytics import build_risk_analytics
 from app.engines.analytics_lab.sample_rules import with_evidence
 from app.engines.analytics_lab.intelligence import build_intelligence_lab
+from app.engines.analytics_lab.movement import build_movement_analytics
 from app.engines.analytics_lab.streaks import build_streaks_analytics
 from app.engines.analytics_lab.temporal import build_temporal
 from app.engines.analytics_lab.trade_row import AnalyticsTrade, closed_trades, trade_to_analytics
@@ -56,6 +57,7 @@ def build_analytics_lab(
         "performance": build_performance(rows, starting),
         "edge": build_edge(rows, timezone),
         "execution": build_execution(rows),
+        "movement": build_movement_analytics(rows),
         "costs": build_costs(rows),
         "distributions": build_distributions(rows, timezone=timezone),
         "consistency": build_consistency_scorecard(rows, timezone=timezone),

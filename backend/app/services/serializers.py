@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from app.engines.fx_math import UnknownSymbolError
+from app.engines.price_movement import trade_movement_metrics
 from app.models.trade import Trade
-from app.schemas.trade import ChecklistResponseOut, PsychologyOut, ScreenshotOut, TradeOut
+from app.schemas.trade import ChecklistResponseOut, MovementOut, PsychologyOut, ScreenshotOut, TradeOut
 
 
 def screenshot_url(storage_key: str) -> str:
@@ -25,6 +27,24 @@ def serialize_trade(trade: Trade, extra_warnings: list[str] | None = None) -> Tr
                 required=resp.item.required if resp.item is not None else None,
             )
         )
+    movement = None
+    try:
+        movement = MovementOut(
+            **trade_movement_metrics(
+                symbol=trade.symbol,
+                direction=trade.direction,
+                entry=trade.entry_price,
+                stop_loss=trade.stop_loss,
+                take_profit=trade.take_profit,
+                exit_price=trade.exit_price,
+                mfe_price=getattr(trade, "mfe_price", None),
+                mae_price=getattr(trade, "mae_price", None),
+            )
+        )
+    except (UnknownSymbolError, ValueError):
+        # Historical or unresolved instruments remain viewable without fabricated metrics.
+        movement = None
+
     return TradeOut(
         id=trade.id,
         user_id=trade.user_id,
@@ -93,4 +113,5 @@ def serialize_trade(trade: Trade, extra_warnings: list[str] | None = None) -> Tr
         ],
         checklist=checklist,
         warnings=extra_warnings or [],
+        movement=movement,
     )

@@ -131,6 +131,24 @@ export type Instrument = {
   symbol: string;
   quote_currency: string;
   price_decimals: number;
+  movement_unit?: string;
+  movement_increment?: string;
+  movement_precision?: number;
+};
+
+export type MovementMetrics = {
+  unit: string;
+  label: string;
+  short_label: string;
+  precision: number;
+  risk: string | null;
+  target: string | null;
+  realized: string | null;
+  mfe: string | null;
+  mae: string | null;
+  capture_percent: string | null;
+  left_on_table: string | null;
+  status: string;
 };
 
 export type Psychology = {
@@ -222,6 +240,7 @@ export type Trade = {
     required: boolean | null;
   }[];
   warnings: string[];
+  movement: MovementMetrics | null;
 };
 
 export type AutoCheck = {
@@ -246,6 +265,7 @@ export type TradePreview = {
   estimated_realized_pnl?: string | null;
   estimated_realized_r?: string | null;
   estimated_result?: string | null;
+  movement: MovementMetrics | null;
   validation_notes: string[];
   warnings: string[];
   session: string | null;

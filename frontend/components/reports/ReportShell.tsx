@@ -16,6 +16,7 @@ import { ReportDataQualitySection } from "./ReportDataQualitySection";
 import { ReportWinLossSection } from "./ReportWinLossSection";
 import { ReportYearInReviewSection } from "./ReportYearInReviewSection";
 import { ReportInterpretationSection } from "./ReportInterpretationSection";
+import { ReportMovementSection } from "./ReportMovementSection";
 import { ReportChapter } from "./story/ReportChapter";
 import type { PerformanceReport, ReportInterpretation } from "@/lib/reports";
 
@@ -27,6 +28,7 @@ const SECTIONS = [
   { id: "risk", label: "3. Risk" },
   { id: "behavior", label: "4. Behaviour" },
   { id: "execution", label: "5. Execution" },
+  { id: "movement", label: "Price movement" },
   { id: "comparison", label: "6. Evolution" },
   { id: "recommendations", label: "7. Actions" },
   { id: "win-loss", label: "Win/Loss detail" },
@@ -90,6 +92,7 @@ export function ReportShell({
         <ReportRiskSection risk={data.risk} currency={currency} />
         <ReportBehaviorSection behavior={data.behavior} />
         <ReportExecutionSection execution={data.execution} decisionQuality={data.decision_quality} />
+        <ReportMovementSection movement={data.movement} />
 
         {data.comparison && (
           <ReportChapter

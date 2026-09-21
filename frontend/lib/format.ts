@@ -91,3 +91,14 @@ export function holdingLabel(seconds: number | null): string {
   const rem = m % 60;
   return rem ? `${h}h ${rem}m` : `${h}h`;
 }
+
+export function formatMovement(
+  value: string | number | null | undefined,
+  label: string,
+  digits = 1,
+): string {
+  if (value === null || value === undefined || value === "") return "-";
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n)) return "-";
+  return `${Number(n.toFixed(digits))} ${label}`;
+}

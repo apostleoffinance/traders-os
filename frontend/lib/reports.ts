@@ -44,6 +44,7 @@ export type PerformanceReport = {
   performance: Record<string, unknown>;
   edge: Record<string, unknown>;
   execution: Record<string, unknown>;
+  movement: Record<string, unknown>;
   costs: Record<string, unknown>;
   risk: Record<string, unknown>;
   behavior: Record<string, unknown>;

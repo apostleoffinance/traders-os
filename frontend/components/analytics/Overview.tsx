@@ -5,6 +5,7 @@ import { OverviewScorecard } from "@/components/analytics/overview/OverviewScore
 import { OverviewEquityHero } from "@/components/analytics/overview/OverviewEquityHero";
 import { EdgeSnapshot } from "@/components/visualizations/edge/EdgeSnapshot";
 import { InvestigationQueue } from "@/components/trader";
+import { MovementSummary } from "@/components/analytics/MovementSummary";
 import { buildInvestigationQueue } from "@/lib/analytics/investigation";
 import type { AnalyticsDashboard } from "@/lib/analytics";
 
@@ -31,6 +32,7 @@ export function AnalyticsOverview({
       <OverviewScorecard data={data} onMetricClick={onMetricClick} />
       <OverviewEquityHero data={data} />
       <EdgeSnapshot data={data} />
+      <MovementSummary data={data} />
       {investigations.length > 0 ? (
         <InvestigationQueue items={investigations} onTabChange={onTabChange} />
       ) : null}

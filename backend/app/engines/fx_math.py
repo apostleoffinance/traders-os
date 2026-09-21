@@ -42,6 +42,9 @@ class InstrumentSpec:
     volume_precision: int = 2
     size_unit: str = "lots"
     display_symbol: str | None = None
+    movement_unit: str = "PIP"
+    movement_increment: Decimal = Decimal("0.0001")
+    movement_precision: int = 1
 
 
 def _fx(
@@ -56,6 +59,9 @@ def _fx(
     volume_min: Decimal = Decimal("0.01"),
     size_unit: str = "lots",
     display: str | None = None,
+    movement_unit: str = "PIP",
+    movement_increment: Decimal | None = None,
+    movement_precision: int = 1,
 ) -> InstrumentSpec:
     return InstrumentSpec(
         symbol=symbol,
@@ -72,6 +78,9 @@ def _fx(
         volume_precision=2 if asset_class != AssetClass.CRYPTO.value else 6,
         size_unit=size_unit,
         display_symbol=display,
+        movement_unit=movement_unit,
+        movement_increment=movement_increment or pip_size,
+        movement_precision=movement_precision,
     )
 
 
@@ -98,6 +107,9 @@ INSTRUMENTS: Mapping[str, InstrumentSpec] = {
         "XAU",
         asset_class=AssetClass.COMMODITY.value,
         size_unit="lots",
+        movement_unit="PRICE_UNIT",
+        movement_increment=Decimal("0.01"),
+        movement_precision=1,
     ),
     "BTCUSDT": _fx(
         "BTCUSDT",
@@ -110,6 +122,9 @@ INSTRUMENTS: Mapping[str, InstrumentSpec] = {
         volume_min=Decimal("0.000001"),
         size_unit="base",
         display="BTC/USDT",
+        movement_unit="CURRENCY",
+        movement_increment=Decimal("1"),
+        movement_precision=0,
     ),
     "ETHUSDT": _fx(
         "ETHUSDT",
@@ -122,6 +137,9 @@ INSTRUMENTS: Mapping[str, InstrumentSpec] = {
         volume_min=Decimal("0.0001"),
         size_unit="base",
         display="ETH/USDT",
+        movement_unit="CURRENCY",
+        movement_increment=Decimal("1"),
+        movement_precision=0,
     ),
     "SOLUSDT": _fx(
         "SOLUSDT",
@@ -134,6 +152,9 @@ INSTRUMENTS: Mapping[str, InstrumentSpec] = {
         volume_min=Decimal("0.01"),
         size_unit="base",
         display="SOL/USDT",
+        movement_unit="CURRENCY",
+        movement_increment=Decimal("1"),
+        movement_precision=0,
     ),
 }
 

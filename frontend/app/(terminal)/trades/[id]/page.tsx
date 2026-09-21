@@ -9,7 +9,7 @@ import type { Screenshot, Trade } from "@/lib/types";
 import { Alert, Badge, Panel } from "@/components/ui";
 import { IntelligenceRunner } from "@/components/IntelligenceRunner";
 import { TradeReplayView } from "@/components/trade-replay/TradeReplayView";
-import { formatWhen, holdingLabel, money, sessionLabel, signed, tone } from "@/lib/format";
+import { formatMovement, formatWhen, holdingLabel, money, sessionLabel, signed, tone } from "@/lib/format";
 
 function Shot({
   url,
@@ -313,6 +313,30 @@ export default function TradeDetailPage() {
           </table>
         </Panel>
       </div>
+
+      {trade.movement && (
+        <Panel title="Price movement">
+          <div className="movement-grid">
+            {[
+              ["Risk distance", trade.movement.risk],
+              ["Target distance", trade.movement.target],
+              ["Realized", trade.movement.realized],
+              ["MFE", trade.movement.mfe],
+              ["MAE", trade.movement.mae],
+              ["Movement capture", trade.movement.capture_percent == null ? null : `${trade.movement.capture_percent}%`],
+            ].map(([label, value]) => (
+              <div key={label}>
+                <dt>{label}</dt>
+                <dd className="num">
+                  {label === "Movement capture"
+                    ? value ?? "—"
+                    : formatMovement(value, trade.movement?.short_label ?? "", trade.movement?.precision ?? 1)}
+                </dd>
+              </div>
+            ))}
+          </div>
+        </Panel>
+      )}
 
       <Panel title="Screenshots">
         <div className="shots">

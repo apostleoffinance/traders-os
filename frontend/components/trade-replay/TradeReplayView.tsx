@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { TradeAnatomy } from "@/components/visualizations/trade-anatomy";
 import { api } from "@/lib/api";
-import { holdingLabel, sessionLabel, tone } from "@/lib/format";
+import { formatMovement, holdingLabel, sessionLabel, tone } from "@/lib/format";
 import type { TradeAnatomyFallbacks } from "@/lib/trade-anatomy";
 import type { TradeReplay, ReplayInsight } from "@/lib/trade-replay";
 
@@ -272,6 +272,19 @@ export function TradeReplayView({
       <div className="replay-grid">
         <div className="visual">
           <TradeAnatomy replay={replay} fallbacks={fallbacks} />
+          {replay.movement && (
+            <div className="movement-summary" aria-label="Price movement summary">
+              <p className="kicker">Price movement</p>
+              <div className="movement-values">
+                <span>Risk {formatMovement(replay.movement.risk, replay.movement.short_label, replay.movement.precision)}</span>
+                <span>Target {formatMovement(replay.movement.target, replay.movement.short_label, replay.movement.precision)}</span>
+                <span>Realized {formatMovement(replay.movement.realized, replay.movement.short_label, replay.movement.precision)}</span>
+                <span>MFE {formatMovement(replay.movement.mfe, replay.movement.short_label, replay.movement.precision)}</span>
+                <span>MAE {formatMovement(replay.movement.mae, replay.movement.short_label, replay.movement.precision)}</span>
+                <span>Capture {replay.movement.capture_percent == null ? "—" : `${replay.movement.capture_percent}%`}</span>
+              </div>
+            </div>
+          )}
           <Timeline events={replay.timeline} />
         </div>
         <div className="context">
@@ -355,6 +368,17 @@ export function TradeReplayView({
         .visual {
           display: grid;
           gap: 14px;
+        }
+        .movement-summary {
+          padding: 12px 14px;
+          border: 1px solid var(--line);
+          background: var(--surface);
+        }
+        .movement-values {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px 16px;
+          font-size: 13px;
         }
         .context {
           display: grid;

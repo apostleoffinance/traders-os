@@ -214,7 +214,14 @@ def library_payload() -> dict:
 def instruments_payload() -> dict:
     return {
         "instruments": [
-            {"symbol": spec.symbol, "quote_currency": spec.quote_currency, "price_decimals": spec.price_decimals}
+            {
+                "symbol": spec.symbol,
+                "quote_currency": spec.quote_currency,
+                "price_decimals": spec.price_decimals,
+                "movement_unit": spec.movement_unit,
+                "movement_increment": str(spec.movement_increment),
+                "movement_precision": spec.movement_precision,
+            }
             for spec in INSTRUMENTS.values()
         ]
     }

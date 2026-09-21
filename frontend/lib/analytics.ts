@@ -357,6 +357,22 @@ export type AnalyticsLab = {
     sample_note: string | null;
     evidence: Evidence;
   };
+  movement?: {
+    by_instrument: {
+      symbol: string;
+      unit: string;
+      label: string;
+      n: number;
+      average_risk: string | null;
+      average_target: string | null;
+      average_realized: string | null;
+      average_mfe: string | null;
+      average_mae: string | null;
+      average_capture_percent: string | null;
+    }[];
+    mixed_units: boolean;
+    note: string;
+  };
   costs: {
     commissions: {
       total: string | null;

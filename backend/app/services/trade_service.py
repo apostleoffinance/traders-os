@@ -31,6 +31,7 @@ from app.engines.fx_math import (
     validate_side_prices,
 )
 from app.engines.process_checks import auto_check_to_dict, evaluate_auto_checks, process_status
+from app.engines.price_movement import trade_movement_metrics
 from app.engines.risk_engine import RiskEventDraft, compute_risk_snapshot
 from app.engines.trade_replay import build_trade_replay
 from app.engines.session_engine import classify_session, in_preferred_window
@@ -178,6 +179,16 @@ def preview(db: Session, user: User, payload: TradePreviewIn) -> dict:
         "estimated_realized_pnl": estimated_pnl,
         "estimated_realized_r": estimated_r,
         "estimated_result": estimated_result,
+        "movement": trade_movement_metrics(
+            symbol=symbol,
+            direction=payload.direction,
+            entry=payload.entry_price,
+            stop_loss=payload.stop_loss,
+            take_profit=payload.take_profit,
+            exit_price=payload.exit_price,
+            mfe_price=None,
+            mae_price=None,
+        ),
         "validation_notes": notes,
         "warnings": warnings,
         "session": session.value,

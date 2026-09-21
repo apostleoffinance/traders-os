@@ -38,6 +38,10 @@ def list_calculator_instruments() -> list[dict]:
                 "quantity_max": str(spec.volume_max),
                 "quantity_step": str(spec.volume_step),
                 "price_precision": spec.price_decimals,
+                "movement_unit": spec.movement_unit,
+                "movement_label": spec.movement_unit.lower().replace("_", " "),
+                "movement_increment": str(spec.movement_increment),
+                "movement_precision": spec.movement_precision,
                 "quantity_precision": spec.volume_precision,
                 "size_unit": spec.size_unit,
             }

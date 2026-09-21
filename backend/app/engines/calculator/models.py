@@ -52,6 +52,10 @@ class CalculatorResult:
     reward_amount: Decimal | None = None
     planned_rr: Decimal | None = None
     risk_percent: Decimal | None = None
+    movement_unit: str | None = None
+    movement_label: str | None = None
+    stop_movement: Decimal | None = None
+    tp_movement: Decimal | None = None
     conversion_rate: Decimal | None = None
     errors: list[str] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
@@ -80,6 +84,10 @@ class CalculatorResult:
             "reward_amount": d(self.reward_amount),
             "planned_rr": d(self.planned_rr),
             "risk_percent": d(self.risk_percent),
+            "movement_unit": self.movement_unit,
+            "movement_label": self.movement_label,
+            "stop_movement": d(self.stop_movement),
+            "tp_movement": d(self.tp_movement),
             "conversion_rate": d(self.conversion_rate),
             "errors": self.errors,
             "notes": self.notes,

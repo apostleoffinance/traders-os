@@ -70,6 +70,10 @@ type CalcResult = {
     reward_amount: string | null;
     planned_rr: string | null;
     risk_percent: string | null;
+    movement_unit: string | null;
+    movement_label: string | null;
+    stop_movement: string | null;
+    tp_movement: string | null;
     errors: string[];
     notes: string[];
   };
@@ -516,6 +520,18 @@ export function TradeCalculator({ compact = false, initial, onApply }: Props) {
                 <div>
                   <span className="lbl">Take profit</span>
                   <span className="val num">{calc.take_profit ?? "—"}</span>
+                </div>
+                <div>
+                  <span className="lbl">Risk distance</span>
+                  <span className="val num">
+                    {calc.stop_movement == null ? "—" : `${calc.stop_movement} ${calc.movement_label ?? ""}`}
+                  </span>
+                </div>
+                <div>
+                  <span className="lbl">Target distance</span>
+                  <span className="val num">
+                    {calc.tp_movement == null ? "—" : `${calc.tp_movement} ${calc.movement_label ?? ""}`}
+                  </span>
                 </div>
                 <div>
                   <span className="lbl">Risk</span>

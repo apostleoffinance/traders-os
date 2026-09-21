@@ -7,8 +7,9 @@ from typing import Any
 
 from app.core.enums import Direction, SessionName, TradeResult, TradeStatus
 from app.core.time import as_utc
-from app.engines.fx_math import ZERO, money, ratio
+from app.engines.fx_math import ZERO, UnknownSymbolError, money, ratio
 from app.engines.process_checks import SESSION_DISPLAY
+from app.engines.price_movement import trade_movement_metrics
 from app.engines.risk_engine import RiskProfileView
 from app.models.trade import Trade
 
@@ -329,6 +330,20 @@ def build_trade_replay(trade: Trade, *, profile: RiskProfileView | None, timezon
     quality = _decision_quality(trade)
     if profile is not None:
         quality["process_score"] = trade.discipline_score if trade.discipline_score is not None else quality["process_score"]
+    movement = None
+    try:
+        movement = trade_movement_metrics(
+            symbol=trade.symbol,
+            direction=trade.direction,
+            entry=trade.entry_price,
+            stop_loss=trade.stop_loss,
+            take_profit=trade.take_profit,
+            exit_price=trade.exit_price,
+            mfe_price=getattr(trade, "mfe_price", None),
+            mae_price=getattr(trade, "mae_price", None),
+        )
+    except (UnknownSymbolError, ValueError):
+        pass
 
     mfe_t = None
     mae_t = None
@@ -392,6 +407,7 @@ def build_trade_replay(trade: Trade, *, profile: RiskProfileView | None, timezon
             "holding_time_seconds": trade.holding_time_seconds,
             "risk_amount": str(trade.risk_amount) if trade.risk_amount is not None else None,
         },
+        "movement": movement,
         "context": _context_cards(trade),
         "decision_replay": {
             "at_entry": at_entry,

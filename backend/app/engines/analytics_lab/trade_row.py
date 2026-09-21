@@ -65,6 +65,8 @@ class AnalyticsTrade:
     result: TradeResult
     status: TradeStatus
     emotion_before: str | None
+    stop_loss: Decimal | None = None
+    take_profit: Decimal | None = None
     # Phase 3 behaviour fields
     emotion_during: str | None = None
     emotion_after: str | None = None
@@ -145,6 +147,12 @@ def trade_to_analytics(trade: Trade) -> AnalyticsTrade:
         entry_at=trade.trade_timestamp,
         exit_at=trade.exit_timestamp,
         entry_price=Decimal(trade.entry_price),
+        stop_loss=Decimal(getattr(trade, "stop_loss", trade.entry_price)),
+        take_profit=(
+            Decimal(trade.take_profit)
+            if getattr(trade, "take_profit", None) is not None
+            else None
+        ),
         exit_price=Decimal(trade.exit_price) if trade.exit_price is not None else None,
         lot_size=Decimal(trade.lot_size),
         risk_amount=Decimal(trade.risk_amount or 0),

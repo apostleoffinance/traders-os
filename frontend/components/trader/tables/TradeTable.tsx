@@ -6,7 +6,7 @@ import { useMemo } from "react";
 import { Badge } from "@/components/ui";
 import { TraderOSTable } from "@/components/trader/TraderOSTable";
 import type { Trade } from "@/lib/types";
-import { formatDate, formatTime, money, sessionLabel, signed, tone } from "@/lib/format";
+import { formatDate, formatMovement, formatTime, money, sessionLabel, signed, tone } from "@/lib/format";
 
 const col = createColumnHelper<Trade>();
 
@@ -69,6 +69,18 @@ export function TradeTable({
       col.accessor("risk_amount", {
         header: "Risk",
         cell: (info) => <span className="num">{money(info.getValue())}</span>,
+      }),
+      col.accessor((t) => t.movement?.realized ?? null, {
+        id: "movement",
+        header: "Move",
+        cell: (info) => {
+          const movement = info.row.original.movement;
+          return (
+            <span className={`num ${tone(info.getValue())}`}>
+              {movement ? formatMovement(info.getValue(), movement.short_label, movement.precision) : "—"}
+            </span>
+          );
+        },
       }),
       col.accessor("status", {
         header: "Status",
