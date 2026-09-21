@@ -61,7 +61,9 @@ def _quote_to_account_rate(
     if supplied_rate is not None:
         return supplied_rate
 
-    conversion = conversion_rate(db, symbol, account.currency, allow_stale=False)
+    # Journal risk must remain calculable during short provider outages. A stale
+    # quote is still converted correctly and is safer than treating JPY as USD.
+    conversion = conversion_rate(db, symbol, account.currency, allow_stale=True)
     if conversion.get("rate") is None:
         raise ConversionUnavailable(
             conversion.get("reason")
