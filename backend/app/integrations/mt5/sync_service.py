@@ -361,6 +361,10 @@ def _upsert_open_position(
         commission=position.commission,
         swap=position.swap,
     )
+    if trade.risk_amount in (None, Decimal("0")):
+        from app.services.risk_metrics_backfill import backfill_risk_metrics_for_trade
+
+        backfill_risk_metrics_for_trade(db, trade, account)
     if _sync_mt5_economics_from_deals(db, trade):
         _mark_mt5_partial_open(trade)
     elif trade.status == TradeStatus.CLOSED.value and position.volume > 0:
@@ -377,7 +381,15 @@ def _upsert_open_position(
 def _mt5_quote_to_account_rate(db: Session, account: Account, symbol: str) -> Decimal | None:
     try:
         conversion = conversion_rate(db, symbol, account.currency, allow_stale=True)
-    except Exception:
+    except Exception as exc:
+        # Non-USD-quoted pairs (e.g. USDJPY) need a live/cached quote for this; when it's
+        # unavailable the trade still saves but risk/R fields fall back to zero (see backfill).
+        logger.warning(
+            "MT5 conversion rate unavailable symbol=%s account_currency=%s: %s",
+            symbol,
+            account.currency,
+            exc,
+        )
         return None
     raw_rate = conversion.get("rate")
     return Decimal(str(raw_rate)) if raw_rate is not None else None
@@ -527,6 +539,11 @@ def _close_from_deal(
         from app.services.mfe_mae_backfill import backfill_mfe_mae_for_trade
 
         backfill_mfe_mae_for_trade(db, trade)
+
+    if trade.risk_amount in (None, Decimal("0")):
+        from app.services.risk_metrics_backfill import backfill_risk_metrics_for_trade
+
+        backfill_risk_metrics_for_trade(db, trade, account)
 
     db.flush()
     logger.info("MT5 trade closed position_id=%s deal_id=%s", deal.external_position_id, deal.external_deal_id)
