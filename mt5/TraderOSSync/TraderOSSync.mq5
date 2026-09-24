@@ -3,7 +3,7 @@
 //| OBSERVE · COLLECT · SEND — no trade execution functions.         |
 //+------------------------------------------------------------------+
 #property copyright "Trader OS"
-#property version   "0.102"
+#property version   "0.103"
 #property strict
 
 input string ApiBaseUrl          = "http://127.0.0.1:8000";
@@ -192,8 +192,11 @@ bool PositionStillOpen(ulong position_id)
 //+------------------------------------------------------------------+
 string IsoUtc(datetime t)
   {
+   // DEAL_TIME/POSITION_TIME are broker server time, not UTC — correct by the
+   // server's live GMT offset (DST-aware) before formatting, or dates shift near midnight.
+   datetime utc = t - TimeGMTOffset();
    MqlDateTime dt;
-   TimeToStruct(t, dt);
+   TimeToStruct(utc, dt);
    return StringFormat("%04d-%02d-%02dT%02d:%02d:%02dZ",
                        dt.year, dt.mon, dt.day, dt.hour, dt.min, dt.sec);
   }

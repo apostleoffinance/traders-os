@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
 from uuid import UUID
 
@@ -43,11 +43,47 @@ class SyncCounters:
     closed: int = 0
 
 
+MAX_PLAUSIBLE_UTC_OFFSET_SECONDS = 14 * 3600  # real-world UTC offsets max out at ±14h
+
+
+def _detect_broker_offset(connection: Mt5Connection, sync_timestamp: datetime, now: datetime) -> None:
+    """Estimate broker server UTC offset from EA-reported sync_timestamp drift.
+
+    The EA labels broker server time as UTC ("Z"), so the gap between what it claims
+    is "now" and the server's real now is (approximately) the broker's GMT offset.
+    Rounded to the nearest 15 minutes since UTC offsets fall on that grid; small gaps
+    (network latency/clock skew) are treated as no offset. Implausibly large drift
+    (EA/system clock badly wrong) is ignored rather than corrupting timestamps.
+    """
+    drift = (as_utc(sync_timestamp) - now).total_seconds()
+    if abs(drift) < 60:
+        connection.broker_utc_offset_seconds = 0
+        return
+    if abs(drift) > MAX_PLAUSIBLE_UTC_OFFSET_SECONDS:
+        logger.warning(
+            "MT5 sync_timestamp drift implausible for a UTC offset connection=%s drift=%ss",
+            connection.id,
+            int(drift),
+        )
+        return
+    connection.broker_utc_offset_seconds = int(round(drift / 900) * 900)
+
+
+def _correct_broker_time(dt: datetime, connection: Mt5Connection) -> datetime:
+    """Undo the EA mislabeling broker server time as UTC."""
+    corrected = as_utc(dt)
+    offset = connection.broker_utc_offset_seconds
+    if not offset:
+        return corrected
+    return corrected - timedelta(seconds=offset)
+
+
 def apply_sync(db: Session, connection: Mt5Connection, payload: Mt5SyncIn) -> Mt5SyncOut:
     user = db.query(User).filter(User.id == connection.user_id).one()
     account = db.query(Account).filter(Account.id == connection.account_id).one()
     now = utcnow()
 
+    _detect_broker_offset(connection, payload.sync_timestamp, now)
     connection.last_seen_at = now
     if payload.event_type == "sync":
         connection.last_sync_at = now
@@ -320,7 +356,7 @@ def _upsert_open_position(
 ) -> Trade:
     resolution = resolve_mt5_symbol(position.symbol_raw)
     direction = Direction.LONG if position.direction == "LONG" else Direction.SHORT
-    opened_at = as_utc(position.opened_at)
+    opened_at = _correct_broker_time(position.opened_at, connection)
 
     trade = _find_mt5_trade(db, account.id, position.external_position_id)
     if trade is None:
@@ -425,7 +461,7 @@ def _close_from_deal(
     if trade is None:
         resolution = resolve_mt5_symbol(deal.symbol_raw)
         direction = Direction.LONG if deal.direction == "LONG" else Direction.SHORT
-        opened_at = as_utc(deal.deal_time)
+        opened_at = _correct_broker_time(deal.deal_time, connection)
         trade = Trade(
             user_id=user.id,
             account_id=account.id,
@@ -520,7 +556,7 @@ def _close_from_deal(
         account=account,
         quote_to_account_rate=_mt5_quote_to_account_rate(db, account, trade.symbol),
         exit_price=exit_px,
-        exit_at=as_utc(deal.deal_time),
+        exit_at=_correct_broker_time(deal.deal_time, connection),
         broker_pnl=totals.net_pnl,
         commission=totals.commission,
         swap=totals.swap,

@@ -33,6 +33,12 @@ There are **no** calls to `OrderSend`, `CTrade`, `PositionClose`, `PositionModif
 
 **Developers:** compile from source with MetaEditor (F7) if you change `TraderOSSync.mq5`. Run `npm run package:mt5` in `frontend/` to refresh the downloadable zip before deploy.
 
+> **v0.103:** fixed a bug where deal/position timestamps were sent as broker
+> server time mislabeled `Z` (UTC), which could shift trades onto the wrong
+> calendar day. Recompile and reattach the EA to pick up the fix; trades
+> synced before this fix keep their original (possibly off-by-a-few-hours)
+> timestamps.
+
 ## WebRequest URL allowlist
 
 MT5 blocks HTTP unless the URL is explicitly allowed:

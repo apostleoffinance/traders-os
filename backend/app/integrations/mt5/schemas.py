@@ -84,6 +84,7 @@ class Mt5ConnectionOut(BaseModel):
     broker_name: str | None = None
     last_seen_at: datetime | None = None
     last_sync_at: datetime | None = None
+    broker_utc_offset_seconds: int | None = None
     created_at: datetime
     revoked_at: datetime | None = None
 

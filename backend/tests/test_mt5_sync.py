@@ -467,3 +467,32 @@ def test_revoked_connector_rejected(client: TestClient) -> None:
         json=_sync_body(),
     )
     assert sync.status_code == 403
+
+
+def test_broker_offset_detected_and_corrects_timestamps(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    """EA mislabels broker server time as UTC; server should detect and undo the offset."""
+    from datetime import datetime, timedelta, timezone
+    from app.integrations.mt5 import sync_service
+
+    auth = _register(client, "mt5offset@example.com")
+    account_id = _account(client, auth["access_token"])
+    connector_token, _ = _connect(client, auth["access_token"], account_id)
+    headers = {"Authorization": f"Bearer {connector_token}"}
+
+    # Broker server is 3h ahead of real UTC; EA reports server time as "...Z".
+    real_now = datetime(2026, 8, 24, 7, 0, 0, tzinfo=timezone.utc)
+    monkeypatch.setattr(sync_service, "utcnow", lambda: real_now)
+
+    sync = client.post("/api/integrations/mt5/sync", headers=headers, json=_sync_body())
+    assert sync.status_code == 200, sync.text
+
+    trade = client.get(
+        f"/api/trades?account_id={account_id}",
+        headers={"Authorization": f"Bearer {auth['access_token']}"},
+    ).json()[0]
+    corrected = datetime.fromisoformat("2026-08-24T09:30:00+00:00") - timedelta(hours=3)
+    actual = datetime.fromisoformat(trade["trade_timestamp"].replace("Z", "+00:00"))
+    if actual.tzinfo is None:
+        actual = actual.replace(tzinfo=timezone.utc)
+    assert actual == corrected
+

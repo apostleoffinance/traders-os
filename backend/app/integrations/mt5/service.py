@@ -31,6 +31,7 @@ def _serialize(connection: Mt5Connection) -> Mt5ConnectionOut:
         broker_name=connection.broker_name,
         last_seen_at=connection.last_seen_at,
         last_sync_at=connection.last_sync_at,
+        broker_utc_offset_seconds=connection.broker_utc_offset_seconds,
         created_at=connection.created_at,
         revoked_at=connection.revoked_at,
     )
