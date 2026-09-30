@@ -97,16 +97,36 @@ export class ApiError extends Error {
   status: number;
   body: unknown;
   constructor(status: number, body: unknown) {
-    super(
-      typeof body === "object" && body && "message" in body
-        ? String((body as { message: string }).message)
-        : typeof body === "object" && body && "detail" in body
-          ? String((body as { detail: unknown }).detail)
-          : `HTTP ${status}`,
-    );
+    super(extractErrorMessage(body, status));
     this.status = status;
     this.body = body;
   }
+}
+
+/** Extract a human-readable message from an API error body, including FastAPI's
+ * validation error shape (`detail` as an array of {loc, msg, type} objects). */
+function extractErrorMessage(body: unknown, status: number): string {
+  if (typeof body !== "object" || body === null) return `HTTP ${status}`;
+  const record = body as Record<string, unknown>;
+  if (typeof record.message === "string" && record.message.trim()) return record.message;
+  const detail = record.detail;
+  if (typeof detail === "string" && detail.trim()) return detail;
+  if (Array.isArray(detail)) {
+    const messages = detail
+      .map((item) => {
+        if (item && typeof item === "object" && "msg" in item) {
+          return String((item as { msg: unknown }).msg).replace(/^Value error,\s*/, "");
+        }
+        return typeof item === "string" ? item : null;
+      })
+      .filter((m): m is string => Boolean(m));
+    if (messages.length) return messages.join(" ");
+  }
+  if (detail && typeof detail === "object" && "message" in detail) {
+    const nested = (detail as { message: unknown }).message;
+    if (typeof nested === "string" && nested.trim()) return nested;
+  }
+  return `HTTP ${status}`;
 }
 
 export class AuthError extends Error {

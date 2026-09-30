@@ -52,6 +52,7 @@ class AccountRiskProfile(Base):
     risk_per_trade: Mapped[Decimal] = mapped_column(MONEY, nullable=False)
     personal_daily_loss_limit: Mapped[Decimal] = mapped_column(MONEY, nullable=False)
     personal_max_drawdown: Mapped[Decimal] = mapped_column(MONEY, nullable=False)
+    # 0 means the firm does not enforce a daily drawdown limit ("None" in the UI).
     firm_daily_drawdown_limit: Mapped[Decimal] = mapped_column(MONEY, nullable=False)
     firm_max_drawdown_limit: Mapped[Decimal] = mapped_column(MONEY, nullable=False)
     max_trades_per_day: Mapped[int] = mapped_column(Integer, nullable=False, default=2)

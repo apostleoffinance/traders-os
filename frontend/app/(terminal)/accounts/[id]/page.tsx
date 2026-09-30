@@ -8,6 +8,23 @@ import { Alert, Button, Field, Panel } from "@/components/ui";
 import { Mt5ConnectionPanel } from "@/components/Mt5ConnectionPanel";
 import { money } from "@/lib/format";
 
+/** A firm daily drawdown limit of 0 means the firm does not enforce one ("None"). */
+function isNoFirmDailyLimit(value: string | null | undefined): boolean {
+  if (value == null) return true;
+  const trimmed = value.trim();
+  if (trimmed === "" || /^none$/i.test(trimmed)) return true;
+  const n = Number(trimmed);
+  return !Number.isNaN(n) && n === 0;
+}
+
+function firmDailyLimitDisplayValue(value: string | null | undefined): string {
+  return isNoFirmDailyLimit(value) ? "" : String(value);
+}
+
+function firmDailyLimitPayloadValue(value: string | null | undefined): string {
+  return isNoFirmDailyLimit(value) ? "0" : String(value).trim();
+}
+
 export default function AccountDetailPage() {
   const params = useParams<{ id: string }>();
   const searchParams = useSearchParams();
@@ -40,7 +57,7 @@ export default function AccountDetailPage() {
           risk_per_trade: form.risk_per_trade,
           personal_daily_loss_limit: form.personal_daily_loss_limit,
           personal_max_drawdown: form.personal_max_drawdown,
-          firm_daily_drawdown_limit: form.firm_daily_drawdown_limit,
+          firm_daily_drawdown_limit: firmDailyLimitPayloadValue(form.firm_daily_drawdown_limit),
           firm_max_drawdown_limit: form.firm_max_drawdown_limit,
           max_trades_per_day: Number(form.max_trades_per_day),
           preferred_min_rr: form.preferred_min_rr,
@@ -93,9 +110,10 @@ export default function AccountDetailPage() {
               onChange={(e) => set("personal_max_drawdown", e.target.value)}
             />
           </Field>
-          <Field label="Firm daily drawdown">
+          <Field label="Firm daily drawdown (blank = none)">
             <input
-              value={String(form.firm_daily_drawdown_limit ?? "")}
+              placeholder="None"
+              value={firmDailyLimitDisplayValue(form.firm_daily_drawdown_limit)}
               onChange={(e) => set("firm_daily_drawdown_limit", e.target.value)}
             />
           </Field>

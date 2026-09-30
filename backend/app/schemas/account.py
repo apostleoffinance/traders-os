@@ -4,7 +4,7 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from app.core.enums import AccountStatus, DrawdownBasis, EnforcementMode
 from app.schemas.auth import ORMModel
@@ -21,7 +21,8 @@ class RiskProfileIn(BaseModel):
     risk_per_trade: Decimal = Field(gt=0)
     personal_daily_loss_limit: Decimal = Field(gt=0)
     personal_max_drawdown: Decimal = Field(gt=0)
-    firm_daily_drawdown_limit: Decimal = Field(gt=0)
+    # 0 means "no firm daily drawdown limit" (e.g. firm does not enforce one).
+    firm_daily_drawdown_limit: Decimal = Field(ge=0)
     firm_max_drawdown_limit: Decimal = Field(gt=0)
     max_trades_per_day: int = Field(ge=1, default=2)
     preferred_min_rr: Decimal = Field(gt=0, default=Decimal("1.50"))
@@ -36,6 +37,22 @@ class RiskProfileIn(BaseModel):
     preferred_windows: list[PreferredWindowIn] = Field(default_factory=list)
     extra_restrictions: dict = Field(default_factory=dict)
     notes: str | None = None
+
+    @model_validator(mode="after")
+    def _validate_policy(self) -> "RiskProfileIn":
+        errors: list[str] = []
+        if self.hard_risk_per_trade is not None and self.risk_per_trade >= self.hard_risk_per_trade:
+            errors.append("Risk per trade must be below the hard risk cap.")
+        if self.personal_max_drawdown >= self.firm_max_drawdown_limit:
+            errors.append("Personal max drawdown must be below the firm max drawdown.")
+        # firm_daily_drawdown_limit of 0 means "no firm daily limit", so nothing to compare against.
+        if self.firm_daily_drawdown_limit > 0 and self.personal_daily_loss_limit >= self.firm_daily_drawdown_limit:
+            errors.append("Personal daily loss must be below the firm daily drawdown.")
+        if self.preferred_rr < self.preferred_min_rr:
+            errors.append("Preferred R:R must be greater than or equal to the minimum R:R.")
+        if errors:
+            raise ValueError(" ".join(errors))
+        return self
 
 
 class RiskProfileOut(ORMModel, RiskProfileIn):

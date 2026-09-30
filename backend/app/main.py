@@ -61,6 +61,27 @@ async def database_unreachable(_request: Request, _exc: OperationalError) -> JSO
     return JSONResponse(status_code=503, content={"detail": _DB_DOWN})
 
 
+@app.exception_handler(RequestValidationError)
+async def validation_error_handler(_request: Request, exc: RequestValidationError) -> DecimalJSONResponse:
+    # FastAPI's default detail is a list of {loc, msg, type} objects, which is unreadable
+    # when rendered directly in the UI. Flatten it into one human-readable message.
+    messages: list[str] = []
+    for error in exc.errors():
+        msg = str(error.get("msg", "Invalid value"))
+        if msg.startswith("Value error, "):
+            msg = msg[len("Value error, ") :]
+        loc = [str(part) for part in error.get("loc", ()) if part not in ("body", "query", "path")]
+        if loc:
+            field = str(loc[-1]).replace("_", " ").capitalize()
+            messages.append(f"{field}: {msg}")
+        else:
+            messages.append(msg)
+    return DecimalJSONResponse(
+        status_code=422,
+        content={"code": "validation_error", "message": " ".join(messages) or "Invalid request."},
+    )
+
+
 @app.exception_handler(Exception)
 async def unhandled_error(_request: Request, exc: Exception) -> JSONResponse:
     if isinstance(exc, (HTTPException, StarletteHTTPException, RequestValidationError)):
