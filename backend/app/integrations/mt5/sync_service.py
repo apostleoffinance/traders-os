@@ -111,6 +111,7 @@ def apply_sync(db: Session, connection: Mt5Connection, payload: Mt5SyncIn) -> Mt
             user_id=user.id,
             account_id=account.id,
             sync_timestamp=as_utc(payload.sync_timestamp),
+            sync_timestamp_utc=_correct_broker_time(payload.sync_timestamp, connection),
             positions_count=len(payload.positions),
             deals_count=len(payload.recent_deals),
             payload=payload.model_dump(mode="json"),
@@ -149,6 +150,7 @@ def apply_sync(db: Session, connection: Mt5Connection, payload: Mt5SyncIn) -> Mt
                     commission=deal.commission,
                     swap=deal.swap,
                     deal_time=as_utc(deal.deal_time),
+                    deal_time_utc=_correct_broker_time(deal.deal_time, connection),
                     payload=deal.model_dump(mode="json"),
                 )
             )

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from uuid import UUID
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -10,6 +12,7 @@ from app import models  # noqa: F401
 from app.core.security import get_db
 from app.db.base import Base
 from app.main import app
+from app.models.mt5_connection import Mt5Connection, Mt5SourceDeal, Mt5SyncSnapshot
 
 
 @pytest.fixture()
@@ -211,3 +214,65 @@ def test_reconciliation_flags_inout_reversal_as_lifecycle_ambiguity(client):
     assert findings[0]["source_deal_row_id"]
     assert findings[0]["processed_deal_row_id"]
     assert findings[0]["trade_id"]
+
+
+
+def test_new_mt5_evidence_stores_normalized_utc_without_overwriting_broker_time(client):
+    auth = _register(client, "mt5normalizedtime@example.com")
+    account_id = _account(client, auth["access_token"])
+    connector_token, connection_id = _connect(client, auth["access_token"], account_id)
+
+    db_generator = app.dependency_overrides[get_db]()
+    db = next(db_generator)
+    try:
+        connection = db.query(Mt5Connection).filter(Mt5Connection.id == UUID(connection_id)).one()
+        connection.broker_utc_offset_seconds = 7200
+        db.commit()
+    finally:
+        db_generator.close()
+
+    sync = client.post(
+        "/api/integrations/mt5/sync",
+        headers={"Authorization": f"Bearer {connector_token}"},
+        json=_sync_body(recent_deals=[{
+            "external_deal_id": "normalized-time-1",
+            "external_position_id": "10001",
+            "symbol_raw": "EURUSD.a",
+            "direction": "SHORT",
+            "entry_type": "IN",
+            "volume": "0.01",
+            "price": "1.16646",
+            "profit": "0",
+            "commission": "-0.02",
+            "swap": "0",
+            "deal_time": "2026-08-24T09:30:00+00:00",
+        }]),
+    )
+    assert sync.status_code == 200, sync.text
+
+    db_generator = app.dependency_overrides[get_db]()
+    db = next(db_generator)
+    try:
+        source = db.query(Mt5SourceDeal).filter(
+            Mt5SourceDeal.external_deal_id == "normalized-time-1"
+        ).one()
+        snapshot = db.query(Mt5SyncSnapshot).one()
+        assert source.deal_time.hour == 9
+        assert source.deal_time_utc.hour == 7
+        assert source.deal_time_utc.minute == 30
+        assert snapshot.sync_timestamp.hour == 10
+        assert snapshot.sync_timestamp_utc.hour == 8
+    finally:
+        db_generator.close()
+
+    timeline = client.get(
+        f"/api/integrations/mt5/connections/{connection_id}/lifecycle?position_id=10001",
+        headers={"Authorization": f"Bearer {auth['access_token']}"},
+    )
+    assert timeline.status_code == 200, timeline.text
+    deal_event = next(
+        event for event in timeline.json()["positions"][0]["events"]
+        if event.get("external_deal_id") == "normalized-time-1"
+    )
+    assert deal_event["occurred_at"].startswith("2026-08-24T07:30:00")
+    assert deal_event["timestamp_basis"] == "normalized_utc"

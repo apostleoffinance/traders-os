@@ -169,6 +169,7 @@ def get_mt5_snapshot_evidence(
         "account_id": str(snapshot.account_id),
         "received_at": snapshot.received_at.isoformat() if snapshot.received_at else None,
         "sync_timestamp": snapshot.sync_timestamp.isoformat() if snapshot.sync_timestamp else None,
+        "sync_timestamp_utc": snapshot.sync_timestamp_utc.isoformat() if snapshot.sync_timestamp_utc else None,
         "positions_count": snapshot.positions_count,
         "deals_count": snapshot.deals_count,
         "payload": snapshot.payload,

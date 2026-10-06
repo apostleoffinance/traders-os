@@ -274,7 +274,7 @@ export function Mt5ConnectionPanel({ accountId, autoOpen = false }: Props) {
                         {issue.snapshot_id && (
                           <div className="recon-snapshot-action">
                             <small className="muted">
-                              Snapshot {issue.snapshot_id} · received {issue.snapshot_received_at ? formatWhen(issue.snapshot_received_at) : "unknown"} · broker sync {issue.snapshot_sync_timestamp ? formatWhen(issue.snapshot_sync_timestamp) : "unknown"}
+                              Snapshot {issue.snapshot_id} · received {issue.snapshot_received_at ? formatWhen(issue.snapshot_received_at) : "unknown"} · broker-reported sync {issue.snapshot_sync_timestamp ? formatWhen(issue.snapshot_sync_timestamp) : "unknown"} · normalized UTC {issue.snapshot_sync_timestamp_utc ? formatWhen(issue.snapshot_sync_timestamp_utc) : "unavailable for legacy snapshot"}
                             </small>
                             <Button type="button" kind="ghost" disabled={snapshotLoadingId === issue.snapshot_id} onClick={() => void onViewSnapshot(issue.snapshot_id!)}>
                               {snapshotLoadingId === issue.snapshot_id ? "Loading payload…" : "View sync payload"}
@@ -293,7 +293,7 @@ export function Mt5ConnectionPanel({ accountId, autoOpen = false }: Props) {
                     <strong>Retained sync payload</strong>
                     <Button type="button" kind="ghost" onClick={() => setSnapshotEvidence(null)}>Close payload</Button>
                   </div>
-                  <p className="muted">Snapshot {snapshotEvidence.snapshot_id} · received {snapshotEvidence.received_at ? formatWhen(snapshotEvidence.received_at) : "unknown"} · broker sync {snapshotEvidence.sync_timestamp ? formatWhen(snapshotEvidence.sync_timestamp) : "unknown"}</p>
+                  <p className="muted">Snapshot {snapshotEvidence.snapshot_id} · received {snapshotEvidence.received_at ? formatWhen(snapshotEvidence.received_at) : "unknown"} · broker-reported sync {snapshotEvidence.sync_timestamp ? formatWhen(snapshotEvidence.sync_timestamp) : "unknown"} · normalized UTC {snapshotEvidence.sync_timestamp_utc ? formatWhen(snapshotEvidence.sync_timestamp_utc) : "unavailable for legacy snapshot"}</p>
                   <pre>{JSON.stringify(snapshotEvidence.payload, null, 2)}</pre>
                 </div>
               )}

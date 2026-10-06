@@ -8,6 +8,7 @@ import { formatWhen } from "@/lib/format";
 type LifecycleEvent = {
   event_type: "source_deal" | "snapshot_position_observation" | string;
   occurred_at: string | null;
+  timestamp_basis?: "normalized_utc" | "legacy_broker_reported_time";
   received_at: string | null;
   external_deal_id?: string;
   source_deal_row_id?: string;
@@ -142,6 +143,7 @@ export function Mt5PositionLifecyclePanel({ connectionId }: { connectionId: stri
                                 <strong>{title}</strong>
                                 <time>{event.occurred_at ? formatWhen(event.occurred_at) : "Time unavailable"}</time>
                               </div>
+                              <small className="muted">Time basis: {event.timestamp_basis === "normalized_utc" ? "normalized UTC" : "legacy broker-reported time (not normalized)"}</small>
                               {isDeal ? (
                                 <>
                                   <p className="muted">

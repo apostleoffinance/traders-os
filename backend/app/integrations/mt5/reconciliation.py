@@ -118,7 +118,7 @@ def build_reconciliation_report(db: Session, user_id: UUID, connection_id: UUID)
             source_deal_row_id=str(source.id),
             processed_deal_row_id=str(processed.id) if processed else None,
             trade_id=str(processed.trade_id) if processed and processed.trade_id else None,
-            deal_time=source.deal_time.isoformat() if source.deal_time else None,
+            deal_time=(source.deal_time_utc or source.deal_time).isoformat() if (source.deal_time_utc or source.deal_time) else None,
             volume=str(source.volume),
             direction=source.direction,
         )
@@ -146,6 +146,7 @@ def build_reconciliation_report(db: Session, user_id: UUID, connection_id: UUID)
                 "snapshot_id": str(snapshot.id),
                 "snapshot_received_at": snapshot.received_at.isoformat() if snapshot.received_at else None,
                 "snapshot_sync_timestamp": snapshot.sync_timestamp.isoformat() if snapshot.sync_timestamp else None,
+                "snapshot_sync_timestamp_utc": snapshot.sync_timestamp_utc.isoformat() if snapshot.sync_timestamp_utc else None,
             }
             if source is None:
                 issue("snapshot_deal_missing_from_source_ledger", "warning",
@@ -337,6 +338,7 @@ def build_reconciliation_report(db: Session, user_id: UUID, connection_id: UUID)
             "id": str(latest_snapshot.id),
             "received_at": latest_snapshot.received_at.isoformat() if latest_snapshot.received_at else None,
             "sync_timestamp": latest_snapshot.sync_timestamp.isoformat() if latest_snapshot.sync_timestamp else None,
+            "sync_timestamp_utc": latest_snapshot.sync_timestamp_utc.isoformat() if latest_snapshot.sync_timestamp_utc else None,
             "positions_count": latest_snapshot.positions_count,
             "deals_count": latest_snapshot.deals_count,
         } if latest_snapshot else None,
