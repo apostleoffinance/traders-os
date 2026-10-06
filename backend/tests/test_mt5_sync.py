@@ -14,7 +14,7 @@ from app import models  # noqa: F401
 from app.core.security import get_db
 from app.db.base import Base
 from app.main import app
-from app.models.mt5_connection import Mt5SyncSnapshot
+from app.models.mt5_connection import Mt5SourceDeal, Mt5SyncSnapshot
 
 
 @pytest.fixture()
@@ -536,5 +536,45 @@ def test_sync_retains_source_payload_for_reconciliation(client: TestClient) -> N
         assert snapshot.deals_count == 1
         assert snapshot.payload["recent_deals"][0]["entry_type"] == "IN"
         assert snapshot.payload["recent_deals"][0]["symbol_raw"] == "EURUSD.a"
+    finally:
+        db_generator.close()
+
+
+def test_source_deal_ledger_retains_opening_deals_once(client: TestClient) -> None:
+    auth = _register(client, "mt5ledger@example.com")
+    account_id = _account(client, auth["access_token"])
+    connector_token, _ = _connect(client, auth["access_token"], account_id)
+    headers = {"Authorization": f"Bearer {connector_token}"}
+    body = _sync_body(
+        recent_deals=[
+            {
+                "external_deal_id": "8101",
+                "external_position_id": "10001",
+                "symbol_raw": "EURUSD.a",
+                "direction": "SHORT",
+                "entry_type": "IN",
+                "volume": "0.01",
+                "price": "1.16646",
+                "profit": "0",
+                "commission": "-0.02",
+                "swap": "0",
+                "deal_time": "2026-08-24T09:30:00+00:00",
+            }
+        ]
+    )
+
+    for _ in range(2):
+        response = client.post("/api/integrations/mt5/sync", headers=headers, json=body)
+        assert response.status_code == 200, response.text
+
+    db_generator = app.dependency_overrides[get_db]()
+    db = next(db_generator)
+    try:
+        rows = db.query(Mt5SourceDeal).filter(Mt5SourceDeal.account_id == account_id).all()
+        assert len(rows) == 1
+        assert rows[0].external_deal_id == "8101"
+        assert rows[0].entry_type == "IN"
+        assert rows[0].symbol_raw == "EURUSD.a"
+        assert rows[0].payload["price"] == "1.16646"
     finally:
         db_generator.close()
