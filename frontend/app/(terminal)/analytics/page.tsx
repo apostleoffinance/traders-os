@@ -57,6 +57,7 @@ function AnalyticsLab() {
   const [data, setData] = useState<AnalyticsDashboard | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [retryVersion, setRetryVersion] = useState(0);
+  const loadRequestRef = useRef(0);
   const [drillMetric, setDrillMetric] = useState<"win_rate" | "expectancy_r" | "profit_factor" | "average_r" | null>(null);
   const aiStatus = useAiStatus();
 
@@ -65,10 +66,14 @@ function AnalyticsLab() {
   }, [urlTab]);
 
   const load = useCallback(async (id: string, filters: FilterState) => {
+    const requestId = ++loadRequestRef.current;
     setError(null);
     try {
-      setData(await api<AnalyticsDashboard>(`/api/analytics/dashboard?${buildAnalyticsQuery(id, filters)}`));
+      const result = await api<AnalyticsDashboard>(`/api/analytics/dashboard?${buildAnalyticsQuery(id, filters)}`);
+      if (requestId !== loadRequestRef.current) return;
+      setData(result);
     } catch (err) {
+      if (requestId !== loadRequestRef.current) return;
       setError(err instanceof Error ? err.message : "Could not load analytics.");
       setData(null);
     }
