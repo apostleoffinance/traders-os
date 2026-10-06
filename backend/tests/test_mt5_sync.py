@@ -13,7 +13,8 @@ from sqlalchemy.pool import StaticPool
 from app import models  # noqa: F401
 from app.core.security import get_db
 from app.db.base import Base
-from app.main import app\nfrom app.models.mt5_connection import Mt5SyncSnapshot
+from app.main import app
+from app.models.mt5_connection import Mt5SyncSnapshot
 
 
 @pytest.fixture()
