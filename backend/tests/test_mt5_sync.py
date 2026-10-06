@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
+from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
@@ -570,7 +571,7 @@ def test_source_deal_ledger_retains_opening_deals_once(client: TestClient) -> No
     db_generator = app.dependency_overrides[get_db]()
     db = next(db_generator)
     try:
-        rows = db.query(Mt5SourceDeal).filter(Mt5SourceDeal.account_id == account_id).all()
+        rows = db.query(Mt5SourceDeal).filter(Mt5SourceDeal.account_id == UUID(account_id)).all()
         assert len(rows) == 1
         assert rows[0].external_deal_id == "8101"
         assert rows[0].entry_type == "IN"
