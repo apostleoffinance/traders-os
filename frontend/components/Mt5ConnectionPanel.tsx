@@ -5,13 +5,14 @@ import {
   createMt5Connection,
   fetchMt5Connection,
   fetchMt5Reconciliation,
+  fetchMt5SnapshotEvidence,
   mt5NeedsSetup,
   mt5StatusLabel,
   regenerateMt5Connection,
   revokeMt5Connection,
 } from "@/lib/mt5";
 import type { Mt5Connection } from "@/lib/types";
-import type { Mt5ReconciliationReport } from "@/lib/mt5";
+import type { Mt5ReconciliationReport, Mt5SnapshotEvidence } from "@/lib/mt5";
 import { formatWhen } from "@/lib/format";
 import { Alert, Button, Panel } from "@/components/ui";
 import { Mt5ConnectDrawer } from "@/components/Mt5ConnectDrawer";
@@ -31,6 +32,9 @@ export function Mt5ConnectionPanel({ accountId, autoOpen = false }: Props) {
   const [reconciliation, setReconciliation] = useState<Mt5ReconciliationReport | null>(null);
   const [reconciliationLoading, setReconciliationLoading] = useState(false);
   const [reconciliationError, setReconciliationError] = useState<string | null>(null);
+  const [snapshotEvidence, setSnapshotEvidence] = useState<Mt5SnapshotEvidence | null>(null);
+  const [snapshotLoadingId, setSnapshotLoadingId] = useState<string | null>(null);
+  const [snapshotError, setSnapshotError] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
     setError(null);
@@ -71,6 +75,19 @@ export function Mt5ConnectionPanel({ accountId, autoOpen = false }: Props) {
       setReconciliationError(err instanceof Error ? err.message : "Could not reconcile MT5 records");
     } finally {
       setReconciliationLoading(false);
+    }
+  }
+
+  async function onViewSnapshot(snapshotId: string) {
+    if (!connection) return;
+    setSnapshotLoadingId(snapshotId);
+    setSnapshotError(null);
+    try {
+      setSnapshotEvidence(await fetchMt5SnapshotEvidence(connection.id, snapshotId));
+    } catch (err) {
+      setSnapshotError(err instanceof Error ? err.message : "Could not load snapshot evidence");
+    } finally {
+      setSnapshotLoadingId(null);
     }
   }
 
@@ -246,13 +263,29 @@ export function Mt5ConnectionPanel({ accountId, autoOpen = false }: Props) {
                           </small>
                         )}
                         {issue.snapshot_id && (
-                          <small className="muted">
-                            Snapshot {issue.snapshot_id} · received {issue.snapshot_received_at ? formatWhen(issue.snapshot_received_at) : "unknown"} · broker sync {issue.snapshot_sync_timestamp ? formatWhen(issue.snapshot_sync_timestamp) : "unknown"}
-                          </small>
+                          <div className="recon-snapshot-action">
+                            <small className="muted">
+                              Snapshot {issue.snapshot_id} · received {issue.snapshot_received_at ? formatWhen(issue.snapshot_received_at) : "unknown"} · broker sync {issue.snapshot_sync_timestamp ? formatWhen(issue.snapshot_sync_timestamp) : "unknown"}
+                            </small>
+                            <Button type="button" kind="ghost" disabled={snapshotLoadingId === issue.snapshot_id} onClick={() => void onViewSnapshot(issue.snapshot_id!)}>
+                              {snapshotLoadingId === issue.snapshot_id ? "Loading payload…" : "View sync payload"}
+                            </Button>
+                          </div>
                         )}
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+              {snapshotError && <Alert kind="danger">{snapshotError}</Alert>}
+              {snapshotEvidence && (
+                <div className="recon-payload">
+                  <div className="recon-payload-header">
+                    <strong>Retained sync payload</strong>
+                    <Button type="button" kind="ghost" onClick={() => setSnapshotEvidence(null)}>Close payload</Button>
+                  </div>
+                  <p className="muted">Snapshot {snapshotEvidence.snapshot_id} · received {snapshotEvidence.received_at ? formatWhen(snapshotEvidence.received_at) : "unknown"} · broker sync {snapshotEvidence.sync_timestamp ? formatWhen(snapshotEvidence.sync_timestamp) : "unknown"}</p>
+                  <pre>{JSON.stringify(snapshotEvidence.payload, null, 2)}</pre>
                 </div>
               )}
               <p className="recon-caveat">{reconciliation.coverage.historical_source_coverage}</p>
@@ -322,6 +355,10 @@ export function Mt5ConnectionPanel({ accountId, autoOpen = false }: Props) {
           border-color: var(--muted);
           color: var(--muted);
         }
+        .recon-snapshot-action { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; margin-top: 5px; }
+        .recon-payload { margin-top: 14px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); }
+        .recon-payload-header { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+        .recon-payload pre { max-height: 360px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 11px; }
       `}</style>
     </>
   );
