@@ -20,6 +20,12 @@ export default function TradeHistoryPage() {
   const [reloadVersion, setReloadVersion] = useState(0);
 
   useEffect(() => {
+    const refreshForAccount = () => setReloadVersion((version) => version + 1);
+    window.addEventListener("traderos-account", refreshForAccount);
+    return () => window.removeEventListener("traderos-account", refreshForAccount);
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
     void api<Setup[]>("/api/setups")
       .then((rows) => {
