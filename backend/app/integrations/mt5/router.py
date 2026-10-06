@@ -24,7 +24,7 @@ from app.integrations.mt5.service import (
     revoke_connection,
 )
 from app.integrations.mt5.sync_service import apply_sync
-from app.models.mt5_connection import Mt5Connection
+from app.models.mt5_connection import Mt5Connection, Mt5SyncSnapshot
 from app.services.auth_service import get_user
 
 router = APIRouter(prefix="/integrations/mt5", tags=["mt5"])
@@ -118,3 +118,42 @@ def get_mt5_reconciliation(
 
     report["generated_at"] = utcnow().isoformat()
     return report
+
+
+@router.get("/connections/{connection_id}/snapshots/{snapshot_id}")
+def get_mt5_snapshot_evidence(
+    connection_id: UUID,
+    snapshot_id: UUID,
+    db: Session = Depends(get_db),
+    user_id: UUID = Depends(get_current_user_id),
+):
+    """Return one retained sync payload, scoped to its authenticated connection owner."""
+    connection = (
+        db.query(Mt5Connection)
+        .filter(Mt5Connection.id == connection_id, Mt5Connection.user_id == user_id)
+        .one_or_none()
+    )
+    if connection is None:
+        raise HTTPException(status_code=404, detail="MT5 snapshot not found")
+    snapshot = (
+        db.query(Mt5SyncSnapshot)
+        .filter(
+            Mt5SyncSnapshot.id == snapshot_id,
+            Mt5SyncSnapshot.connection_id == connection.id,
+            Mt5SyncSnapshot.user_id == user_id,
+            Mt5SyncSnapshot.account_id == connection.account_id,
+        )
+        .one_or_none()
+    )
+    if snapshot is None:
+        raise HTTPException(status_code=404, detail="MT5 snapshot not found")
+    return {
+        "snapshot_id": str(snapshot.id),
+        "connection_id": str(snapshot.connection_id),
+        "account_id": str(snapshot.account_id),
+        "received_at": snapshot.received_at.isoformat() if snapshot.received_at else None,
+        "sync_timestamp": snapshot.sync_timestamp.isoformat() if snapshot.sync_timestamp else None,
+        "positions_count": snapshot.positions_count,
+        "deals_count": snapshot.deals_count,
+        "payload": snapshot.payload,
+    }
