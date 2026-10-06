@@ -62,7 +62,7 @@ const NAV: NavItem[] = [
   { href: "/intelligence", label: "Intelligence", icon: BrainCircuit, group: "research", match: "prefix" },
   { href: "/quant-lab", label: "Quant Lab", icon: FlaskConical, group: "research", match: "prefix" },
   { href: "/reports", label: "Reports", icon: FileText, group: "research", match: "prefix" },
-  { href: "/labs/vela", label: "Market Lab", icon: CandlestickChart, group: "market", match: "prefix" },
+  { href: "/labs/vela", label: "Market Workstation", icon: CandlestickChart, group: "market", match: "prefix" },
   { href: "/risk", label: "Risk", icon: ShieldAlert, group: "risk", match: "prefix" },
   { href: "/accounts", label: "Accounts", icon: WalletCards, group: "manage", match: "prefix" },
   { href: "/settings", label: "Settings", icon: Settings, group: "manage", match: "prefix" },
@@ -229,7 +229,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
               </button>
             )}
           </div>
-          {!collapsedMode && <p className="brand-tag">Better data. Smarter trades.</p>}
+          {!collapsedMode && <p className="brand-tag">Trading intelligence workspace</p>}
         </div>
         <nav aria-label="Main">
           {navGroups.map((group, gi) => {
@@ -341,10 +341,10 @@ export function Shell({ children }: { children: React.ReactNode }) {
       <style jsx>{`
         .shell-wrap {
           min-height: 100vh;
-          font-size: 17px;
-          font-weight: 500;
+          font-size: 15px;
+          font-weight: 450;
           line-height: 1.55;
-          --rail-width: 260px;
+          --rail-width: 244px;
           --rail-width-collapsed: 68px;
         }
         .shell-wrap.is-collapsed {
@@ -363,7 +363,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
           color: var(--rail-text);
           display: flex;
           flex-direction: column;
-          padding: 20px 12px 14px;
+          padding: 22px 12px 16px;
+          border-right: 1px solid var(--rail-border);
           position: sticky;
           top: 0;
           height: 100vh;
@@ -466,7 +467,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           gap: 12px;
           width: 100%;
           box-sizing: border-box;
-          padding: 11px 12px;
+          padding: 10px 12px;
           color: var(--rail-text);
           border-left: 2px solid transparent;
           border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
@@ -511,14 +512,18 @@ export function Shell({ children }: { children: React.ReactNode }) {
           background: var(--bg);
         }
         .top {
-          min-height: 48px;
+          min-height: 64px;
           border-bottom: 1px solid var(--border);
-          background: var(--surface);
+          background: color-mix(in srgb, var(--surface) 94%, transparent);
+          backdrop-filter: blur(12px);
+          position: sticky;
+          top: 0;
+          z-index: 5;
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 0 20px;
-          gap: 12px;
+          padding: 0 24px;
+          gap: 14px;
         }
         .top-left,
         .top-right {
@@ -617,13 +622,14 @@ export function Shell({ children }: { children: React.ReactNode }) {
           font-size: 14px;
         }
         .page {
-          padding: 20px 24px 48px;
+          padding: 26px clamp(18px, 2.4vw, 36px) 56px;
           position: relative;
           z-index: 0;
           color: var(--text-primary);
         }
         .page :global(h1) {
-          font-size: 30px;
+          font-size: clamp(26px, 2.2vw, 34px);
+          letter-spacing: -0.035em;
           font-weight: 700;
         }
         .page :global(.page-kicker) {
