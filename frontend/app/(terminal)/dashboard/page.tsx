@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { api, getActiveAccountId, getStoredUser } from "@/lib/api";
 import type { Dashboard, Trade, User } from "@/lib/types";
@@ -15,8 +15,10 @@ export default function DashboardPage() {
   const [tradesError, setTradesError] = useState<string | null>(null);
   const [hello, setHello] = useState("Good afternoon");
   const [name, setName] = useState("Trader");
+  const loadRequestRef = useRef(0);
 
   const load = useCallback(async () => {
+    const requestId = ++loadRequestRef.current;
     const id = getActiveAccountId();
     if (!id) {
       setError("Create an account to begin.");
@@ -28,16 +30,20 @@ export default function DashboardPage() {
     setTradesError(null);
     try {
       const dash = await api<Dashboard>(`/api/dashboard?account_id=${id}`);
+      if (requestId !== loadRequestRef.current) return;
       setData(dash);
     } catch (err) {
+      if (requestId !== loadRequestRef.current) return;
       setError(err instanceof Error ? err.message : "Unable to load command center.");
       setData(null);
       return;
     }
     try {
       const list = await api<Trade[]>(`/api/trades?account_id=${id}`);
+      if (requestId !== loadRequestRef.current) return;
       setTrades(list);
     } catch (err) {
+      if (requestId !== loadRequestRef.current) return;
       setTrades([]);
       setTradesError(err instanceof Error ? err.message : "Unable to load recent trades.");
     }
