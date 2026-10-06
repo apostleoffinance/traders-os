@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { api, getActiveAccountId } from "@/lib/api";
 import type { Setup, Trade } from "@/lib/types";
 import { Field, Panel } from "@/components/ui";
@@ -100,7 +101,44 @@ export default function TradeHistoryPage() {
         </div>
       </Panel>
       <div className="table-wrap">
-        {trades == null ? <LoadingState /> : <TradeTable trades={rows} />}
+        {trades == null ? (
+          <LoadingState label="Loading your journal…" />
+        ) : rows.length > 0 ? (
+          <TradeTable trades={rows} />
+        ) : session || setupId || direction || result ? (
+          <section className="journal-empty">
+            <h2>No trades match these filters</h2>
+            <p className="muted">Clear the filters to see your full journal, or log a new trade.</p>
+            <div className="empty-actions">
+              <button
+                type="button"
+                className="btn ghost"
+                onClick={() => {
+                  setSession("");
+                  setSetupId("");
+                  setDirection("");
+                  setResult("");
+                }}
+              >
+                Clear filters
+              </button>
+              <Link href="/trades/new" className="btn primary">New trade</Link>
+            </div>
+          </section>
+        ) : (
+          <section className="journal-empty">
+            <p className="eyebrow">YOUR JOURNAL STARTS HERE</p>
+            <h2>No trades recorded yet</h2>
+            <p className="muted">
+              Record a trade manually or connect MT5 to import your history. Once trades are captured,
+              you can review execution, discipline and performance in one place.
+            </p>
+            <div className="empty-actions">
+              <Link href="/trades/new" className="btn primary">Log your first trade</Link>
+              <Link href="/accounts" className="btn ghost">Connect MT5</Link>
+            </div>
+          </section>
+        )}
       </div>
       <style jsx>{`
         .filters {
@@ -110,6 +148,36 @@ export default function TradeHistoryPage() {
         }
         .table-wrap {
           margin-top: 12px;
+        }
+        .journal-empty {
+          padding: 28px;
+          border: 1px solid var(--line);
+          border-radius: var(--radius-lg, 14px);
+          background: var(--surface, transparent);
+        }
+        .journal-empty h2 {
+          margin: 0 0 8px;
+          font-size: 18px;
+          font-weight: 650;
+        }
+        .journal-empty .muted {
+          max-width: 58ch;
+          margin: 0;
+          font-size: 13px;
+          line-height: 1.6;
+        }
+        .eyebrow {
+          margin: 0 0 6px;
+          color: var(--accent);
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 0.1em;
+        }
+        .empty-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          margin-top: 16px;
         }
         @media (max-width: 800px) {
           .filters {
