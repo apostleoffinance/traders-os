@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from uuid import UUID
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -223,7 +225,7 @@ def test_new_mt5_evidence_stores_normalized_utc_without_overwriting_broker_time(
     db_generator = app.dependency_overrides[get_db]()
     db = next(db_generator)
     try:
-        connection = db.query(Mt5Connection).filter(Mt5Connection.id == connection_id).one()
+        connection = db.query(Mt5Connection).filter(Mt5Connection.id == UUID(connection_id)).one()
         connection.broker_utc_offset_seconds = 7200
         db.commit()
     finally:
