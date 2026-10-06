@@ -1,7 +1,7 @@
 "use client";
 
 import { AnalyticsFilters, DrilldownFilterBar, LoadingState } from "@/components/trader";
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { api, getActiveAccountId } from "@/lib/api";
