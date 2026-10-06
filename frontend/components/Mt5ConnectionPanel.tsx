@@ -16,6 +16,7 @@ import type { Mt5ReconciliationReport, Mt5SnapshotEvidence } from "@/lib/mt5";
 import { formatWhen } from "@/lib/format";
 import { Alert, Button, Panel } from "@/components/ui";
 import { Mt5ConnectDrawer } from "@/components/Mt5ConnectDrawer";
+import { Mt5PositionLifecyclePanel } from "@/components/Mt5PositionLifecyclePanel";
 
 type Props = {
   accountId: string;
@@ -301,6 +302,9 @@ export function Mt5ConnectionPanel({ accountId, autoOpen = false }: Props) {
             </>
           )}
         </Panel>
+      )}
+      {connection && connection.status !== "revoked" && (
+        <Mt5PositionLifecyclePanel connectionId={connection.id} />
       )}
       <Mt5ConnectDrawer
         open={drawerOpen}
