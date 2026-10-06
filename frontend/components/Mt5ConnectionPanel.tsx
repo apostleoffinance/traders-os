@@ -228,7 +228,7 @@ export function Mt5ConnectionPanel({ accountId, autoOpen = false }: Props) {
                     <div className="recon-issue" key={`${issue.code}-${issue.external_deal_id ?? issue.external_position_id ?? index}`}>
                       <span className={`recon-severity ${issue.severity}`}>{issue.severity}</span>
                       <div>
-                        <strong>{issue.code.replaceAll("_", " ")}</strong>
+                        <strong>{issue.code.replace(/_/g, " ")}</strong>
                         <p>{issue.message}</p>
                         {(issue.external_deal_id || issue.external_position_id) && (
                           <small className="muted">
