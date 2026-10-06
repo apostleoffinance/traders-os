@@ -137,23 +137,69 @@ function ChartSlot({
 export default function TradeDetailPage() {
   const params = useParams<{ id: string }>();
   const [trade, setTrade] = useState<Trade | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
   const [uploadWarning, setUploadWarning] = useState<string | null>(null);
   const aiStatus = useAiStatus();
 
   const reload = useCallback(() => {
-    void api<Trade>(`/api/trades/${params.id}`).then(setTrade);
+    let active = true;
+    setLoading(true);
+    setLoadError(null);
+    void api<Trade>(`/api/trades/${params.id}`)
+      .then((loadedTrade) => {
+        if (active) setTrade(loadedTrade);
+      })
+      .catch((err: unknown) => {
+        if (active) {
+          setLoadError(err instanceof Error ? err.message : "Could not load this trade.");
+        }
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
   }, [params.id]);
 
-  useEffect(() => {
-    reload();
-  }, [reload]);
+  useEffect(() => reload(), [reload, retryCount]);
 
   useEffect(() => {
     const warning = consumeUploadWarning();
     if (warning) setUploadWarning(warning);
   }, []);
 
-  if (!trade) return <p className="muted">Loading…</p>;
+  if (!trade) {
+    return (
+      <section className="trade-load-state" aria-live="polite">
+        {loadError ? (
+          <>
+            <Alert kind="danger">{loadError}</Alert>
+            <p className="muted">The trade may be temporarily unavailable. Your journal data has not been changed.</p>
+            <div className="trade-load-actions">
+              <button type="button" className="btn" onClick={() => setRetryCount((n) => n + 1)}>
+                Try again
+              </button>
+              <Link href="/trades" className="btn ghost">Back to journal</Link>
+            </div>
+          </>
+        ) : (
+          <p className="muted">{loading ? "Loading trade details…" : "Trade details unavailable."}</p>
+        )}
+        <style jsx>{`
+          .trade-load-state { max-width: 620px; padding: 18px 0; }
+          .trade-load-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+          .trade-load-actions :global(.btn) {
+            display: inline-flex; align-items: center; padding: 8px 12px;
+            border: 1px solid var(--line-strong); background: var(--surface);
+            color: var(--text); text-decoration: none; font-size: 13px; font-weight: 600;
+          }
+        `}</style>
+      </section>
+    );
+  }
 
   const isOpen = trade.status === "open";
   const editHref = `/trades/${trade.id}/edit`;
