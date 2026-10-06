@@ -579,3 +579,65 @@ def test_source_deal_ledger_retains_opening_deals_once(client: TestClient) -> No
         assert rows[0].payload["price"] == "1.16646"
     finally:
         db_generator.close()
+
+
+
+def test_reconciliation_report_matches_processed_close_deal(client: TestClient) -> None:
+    auth = _register(client, "mt5reconcile@example.com")
+    account_id = _account(client, auth["access_token"])
+    connector_token, connection_id = _connect(client, auth["access_token"], account_id)
+    headers = {"Authorization": f"Bearer {connector_token}"}
+    user_headers = {"Authorization": f"Bearer {auth['access_token']}"}
+
+    opened = client.post("/api/integrations/mt5/sync", headers=headers, json=_sync_body())
+    assert opened.status_code == 200, opened.text
+    closed = client.post(
+        "/api/integrations/mt5/sync",
+        headers=headers,
+        json=_sync_body(
+            positions=[],
+            recent_deals=[
+                {
+                    "external_deal_id": "99001",
+                    "external_position_id": "10001",
+                    "symbol_raw": "EURUSD.a",
+                    "direction": "SHORT",
+                    "entry_type": "OUT",
+                    "volume": "0.01",
+                    "price": "1.16500",
+                    "profit": "1.46",
+                    "commission": "-0.04",
+                    "swap": "0",
+                    "deal_time": "2026-08-24T11:00:00+00:00",
+                }
+            ],
+        ),
+    )
+    assert closed.status_code == 200, closed.text
+
+    report = client.get(
+        f"/api/integrations/mt5/connections/{connection_id}/reconciliation",
+        headers=user_headers,
+    )
+    assert report.status_code == 200, report.text
+    body = report.json()
+    assert body["summary"]["status"] == "consistent"
+    assert body["summary"]["error_count"] == 0
+    assert body["coverage"]["source_closing_deals"] == 1
+    assert body["coverage"]["processed_deals"] == 1
+    assert body["latest_snapshot"]["positions_count"] == 0
+    assert body["issues"] == []
+
+
+def test_reconciliation_report_does_not_disclose_other_users_connection(client: TestClient) -> None:
+    owner = _register(client, "mt5reconcileowner@example.com")
+    account_id = _account(client, owner["access_token"])
+    _, connection_id = _connect(client, owner["access_token"], account_id)
+    stranger = _register(client, "mt5reconcilenobody@example.com")
+
+    response = client.get(
+        f"/api/integrations/mt5/connections/{connection_id}/reconciliation",
+        headers={"Authorization": f"Bearer {stranger['access_token']}"},
+    )
+    assert response.status_code == 404
+    assert response.json()["detail"] == "MT5 connection not found"
