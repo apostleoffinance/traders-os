@@ -72,6 +72,9 @@ export function MetricDrilldown({ open, metric, data, onClose }: Props) {
         <p className="overall">
           Overall <strong>{value}</strong> · {formatSampleSize(overall.n_trades)}
         </p>
+        <p className="evidence-note">
+          <strong>{overall.evidence.label} evidence.</strong> {overall.evidence.reason}
+        </p>
 
         {metric === "profit_factor" && wl && (
           <Panel title="Gross profit vs gross loss">
@@ -161,6 +164,18 @@ export function MetricDrilldown({ open, metric, data, onClose }: Props) {
         .muted {
           font-size: 13px;
           margin-bottom: 8px;
+        }
+        .evidence-note {
+          margin: -6px 0 16px;
+          padding: 10px 12px;
+          border-left: 2px solid var(--line-strong);
+          background: var(--surface-2);
+          color: var(--text-muted);
+          font-size: 12px;
+          line-height: 1.5;
+        }
+        .evidence-note strong {
+          color: var(--text);
         }
         .view-trades {
           margin-top: 16px;
