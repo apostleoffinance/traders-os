@@ -75,9 +75,9 @@ function navActive(item: NavItem, pathname: string, search: string): boolean {
   if (item.match === "analytics-tab") {
     return pathname === "/analytics" && tab === item.tab;
   }
-  // Analytics is active for all analytics tabs except Calendar (separate nav item).
+  // Analytics remains the active research destination for every analytics tab.
   if (item.href === "/analytics") {
-    return pathname === "/analytics" && tab !== "calendar";
+    return pathname === "/analytics";
   }
   if (item.match === "exact") {
     if (item.href === "/trades") {
