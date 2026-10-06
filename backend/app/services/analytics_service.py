@@ -805,7 +805,8 @@ def list_filtered_trades(
     psychology: str | None = None,
     result: str | None = None,
     hour: int | None = None,
-    limit: int = 200,
+    limit: int = 100,
+    offset: int = 0,
 ) -> dict:
     from app.core.enums import TradeStatus
 
@@ -829,7 +830,7 @@ def list_filtered_trades(
     closed = [t for t in filtered if t.status == TradeStatus.CLOSED]
     closed.sort(key=lambda t: t.trade_timestamp, reverse=True)
     rows = []
-    for t in closed[:limit]:
+    for t in closed[offset : offset + limit]:
         rows.append(
             {
                 "id": str(t.id),
