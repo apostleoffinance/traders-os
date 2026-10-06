@@ -23,7 +23,7 @@ from app.engines.session_engine import classify_session, in_preferred_window
 from app.integrations.mt5.normalizer import resolve_mt5_symbol
 from app.integrations.mt5.schemas import Mt5DealIn, Mt5PositionIn, Mt5SyncIn, Mt5SyncOut
 from app.models.account import Account
-from app.models.mt5_connection import Mt5Connection, Mt5ProcessedDeal, Mt5SyncSnapshot
+from app.models.mt5_connection import Mt5Connection, Mt5ProcessedDeal, Mt5SourceDeal, Mt5SyncSnapshot
 from app.models.trade import Trade
 from app.models.user import User
 from app.market_data.service import conversion_rate
@@ -116,6 +116,42 @@ def apply_sync(db: Session, connection: Mt5Connection, payload: Mt5SyncIn) -> Mt
             payload=payload.model_dump(mode="json"),
         )
     )
+
+    # Preserve each broker deal independently from the derived trade lifecycle.
+    # Opening deals are important source evidence even when they do not close a trade.
+    seen_deal_ids: set[str] = set()
+    for deal in payload.recent_deals:
+        if deal.external_deal_id in seen_deal_ids:
+            continue
+        seen_deal_ids.add(deal.external_deal_id)
+        existing_source_deal = (
+            db.query(Mt5SourceDeal)
+            .filter(
+                Mt5SourceDeal.connection_id == connection.id,
+                Mt5SourceDeal.external_deal_id == deal.external_deal_id,
+            )
+            .one_or_none()
+        )
+        if existing_source_deal is None:
+            db.add(
+                Mt5SourceDeal(
+                    connection_id=connection.id,
+                    user_id=user.id,
+                    account_id=account.id,
+                    external_deal_id=deal.external_deal_id,
+                    external_position_id=deal.external_position_id,
+                    symbol_raw=deal.symbol_raw,
+                    direction=deal.direction,
+                    entry_type=deal.entry_type,
+                    volume=deal.volume,
+                    price=deal.price,
+                    profit=deal.profit,
+                    commission=deal.commission,
+                    swap=deal.swap,
+                    deal_time=as_utc(deal.deal_time),
+                    payload=deal.model_dump(mode="json"),
+                )
+            )
 
     open_ids: set[str] = set()
     for position in payload.positions:

@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Integer, Numeric, String, func
+from sqlalchemy import JSON, DateTime, ForeignKey, Integer, Numeric, String, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.enums import Mt5ConnectionStatus
@@ -84,4 +84,37 @@ class Mt5SyncSnapshot(Base):
     )
     positions_count: Mapped[int] = mapped_column(Integer, nullable=False)
     deals_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    payload: Mapped[dict] = mapped_column(JSON, nullable=False)
+
+
+class Mt5SourceDeal(Base):
+    """First-seen source record for each broker deal, independent of trade projection."""
+
+    __tablename__ = "mt5_source_deals"
+    __table_args__ = (UniqueConstraint("connection_id", "external_deal_id", name="uq_mt5_source_deal"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID_PK, primary_key=True, default=uuid.uuid4)
+    connection_id: Mapped[uuid.UUID] = mapped_column(
+        UUID_PK, ForeignKey("mt5_connections.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID_PK, ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        UUID_PK, ForeignKey("accounts.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    external_deal_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    external_position_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    symbol_raw: Mapped[str] = mapped_column(String(64), nullable=False)
+    direction: Mapped[str] = mapped_column(String(8), nullable=False)
+    entry_type: Mapped[str] = mapped_column(String(16), nullable=False)
+    volume: Mapped[Decimal] = mapped_column(QTY, nullable=False)
+    price: Mapped[Decimal] = mapped_column(PRICE, nullable=False)
+    profit: Mapped[Decimal] = mapped_column(MONEY, nullable=False)
+    commission: Mapped[Decimal] = mapped_column(MONEY, nullable=False)
+    swap: Mapped[Decimal] = mapped_column(MONEY, nullable=False)
+    deal_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    received_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
     payload: Mapped[dict] = mapped_column(JSON, nullable=False)
