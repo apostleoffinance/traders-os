@@ -89,6 +89,8 @@ export type Mt5ReconciliationIssue = {
   snapshot_id?: string;
   snapshot_received_at?: string | null;
   snapshot_sync_timestamp?: string | null;
+  source_deal_row_id?: string;
+  processed_deal_row_id?: string;
 };
 
 export type Mt5ReconciliationReport = {
@@ -128,5 +130,22 @@ export type Mt5ReconciliationReport = {
 export function fetchMt5Reconciliation(connectionId: string): Promise<Mt5ReconciliationReport> {
   return api<Mt5ReconciliationReport>(
     `/api/integrations/mt5/connections/${connectionId}/reconciliation`,
+  );
+}
+
+export type Mt5SnapshotEvidence = {
+  snapshot_id: string;
+  connection_id: string;
+  account_id: string;
+  received_at: string | null;
+  sync_timestamp: string | null;
+  positions_count: number;
+  deals_count: number;
+  payload: Record<string, unknown>;
+};
+
+export function fetchMt5SnapshotEvidence(connectionId: string, snapshotId: string): Promise<Mt5SnapshotEvidence> {
+  return api<Mt5SnapshotEvidence>(
+    "/api/integrations/mt5/connections/" + connectionId + "/snapshots/" + snapshotId,
   );
 }
