@@ -207,7 +207,7 @@ export function CommandCenterView({ data, trades, openTrades }: Props) {
             <p className="muted daily-brief-summary">{cc.today_story.headline}</p>
           </div>
           <div className="daily-brief-actions">
-            <Link href="/trades?period=today" className="btn ghost">Review trades</Link>
+            <Link href="/trades" className="btn ghost">Review trades</Link>
             <Link href="/risk" className="btn ghost">Risk status</Link>
           </div>
         </div>
