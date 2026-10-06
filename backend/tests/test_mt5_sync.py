@@ -779,8 +779,8 @@ def test_reconciliation_detects_deal_economics_mismatch(client: TestClient) -> N
     assert any(
         issue["external_deal_id"] == "99003"
         and issue["field"] == "profit"
-        and issue["source_value"] == "1.46"
-        and issue["processed_value"] == "999.00"
+        and Decimal(issue["source_value"]) == Decimal("1.46")
+        and Decimal(issue["processed_value"]) == Decimal("999.00")
         for issue in mismatches
     )
 
