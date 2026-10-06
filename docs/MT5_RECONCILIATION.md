@@ -46,6 +46,7 @@ Heartbeats are not sync snapshots and are excluded from these comparisons.
 - `deal_economics_mismatch`: a source deal and its processed row disagree on volume, price, profit, commission, or swap.
 - `trade_economics_mismatch`: a canonical trade's realized P&L, commission, or swap differs from the sum of its linked processed closing deals. This covers partial-close aggregation as well as fully closed trades.
 - `closed_volume_mismatch`: a closed trade's processed closing volume differs from its opening volume. This is a warning, and is skipped when the position has an `INOUT` source deal because reversals are not simple closes.
+- `inout_reversal_requires_review`: an MT5 `INOUT` deal may close one side and open reverse exposure in the same event. The current one-trade-per-position projection may not represent both lifecycles separately; inspect the source deal and lifecycle timeline.
 - `processed_deal_without_trade`: a processed deal does not reference an existing canonical trade.
 - `processed_deal_orphaned`: a processed deal absent from the source ledger also has no valid canonical trade reference.
 - `processed_deal_without_source_evidence`: processed history has no matching source-deal row.
@@ -74,3 +75,7 @@ The report is only as complete as the data received and retained:
 ## Frontend
 
 The account's **MetaTrader 5 automatic sync** panel includes a **Broker data reconciliation** section. Run the check to see severity counts, record coverage, the latest snapshot metadata, findings, and historical coverage caveats. The lifecycle endpoint is currently an API capability intended for the upcoming position timeline UI.
+
+## Reversal caveat
+
+MT5 `INOUT` deals are surfaced as a warning because one broker deal may represent both a closing transaction and a reverse-opening transaction. The current canonical projection is keyed to one external position ID and should not be assumed to model both resulting lifecycles independently. The finding includes source-deal, processed-deal, and canonical-trade references where available. It is diagnostic only and does not change trade state or P&L.
