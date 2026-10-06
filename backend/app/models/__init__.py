@@ -2,7 +2,7 @@ from app.models.account import Account, AccountRiskProfile
 from app.models.ai import AIAnalysis, AIMemory
 from app.models.checklist import ChecklistItem, ChecklistTemplate, TradeChecklistResponse
 from app.models.market import ChartAnnotation, MarketAnalysis, MarketCandle
-from app.models.mt5_connection import Mt5Connection, Mt5ProcessedDeal, Mt5SyncSnapshot
+from app.models.mt5_connection import Mt5Connection, Mt5ProcessedDeal, Mt5SourceDeal, Mt5SyncSnapshot
 from app.models.push import PushSubscription
 from app.models.risk_event import RiskEvent
 from app.models.setup import Setup
@@ -30,4 +30,5 @@ __all__ = [
     "Mt5Connection",
     "Mt5ProcessedDeal",
     "Mt5SyncSnapshot",
+    "Mt5SourceDeal",
 ]
