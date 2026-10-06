@@ -92,7 +92,17 @@ async def unhandled_error(_request: Request, exc: Exception) -> JSONResponse:
 
 
 @app.on_event("startup")
-def warn_ephemeral_storage() -> None:
+def validate_runtime_configuration() -> None:
+    # Never let a production deployment sign JWTs with the documented development key.
+    if not settings.is_dev and (
+        settings.secret_key == "change-me-to-a-long-random-value"
+        or len(settings.secret_key) < 32
+    ):
+        raise RuntimeError(
+            "Production requires a unique SECRET_KEY of at least 32 characters. "
+            "Generate a secure random value and configure it in the deployment environment."
+        )
+
     backend = settings.storage_backend.lower().strip()
     if backend == "local" and not settings.is_dev:
         log.critical(
