@@ -14,6 +14,7 @@ from app import models  # noqa: F401
 from app.core.security import get_db
 from app.db.base import Base
 from app.main import app
+from app.models.mt5_connection import Mt5SyncSnapshot
 
 
 @pytest.fixture()
@@ -496,3 +497,44 @@ def test_broker_offset_detected_and_corrects_timestamps(client: TestClient, monk
         actual = actual.replace(tzinfo=timezone.utc)
     assert actual == corrected
 
+
+
+def test_sync_retains_source_payload_for_reconciliation(client: TestClient) -> None:
+    auth = _register(client, "mt5snapshot@example.com")
+    account_id = _account(client, auth["access_token"])
+    connector_token, _ = _connect(client, auth["access_token"], account_id)
+    body = _sync_body(
+        recent_deals=[
+            {
+                "external_deal_id": "8001",
+                "external_position_id": "10001",
+                "symbol_raw": "EURUSD.a",
+                "direction": "SHORT",
+                "entry_type": "IN",
+                "volume": "0.01",
+                "price": "1.16646",
+                "profit": "0",
+                "commission": "-0.02",
+                "swap": "0",
+                "deal_time": "2026-08-24T09:30:00+00:00",
+            }
+        ]
+    )
+
+    response = client.post(
+        "/api/integrations/mt5/sync",
+        headers={"Authorization": f"Bearer {connector_token}"},
+        json=body,
+    )
+    assert response.status_code == 200, response.text
+
+    db_generator = app.dependency_overrides[get_db]()
+    db = next(db_generator)
+    try:
+        snapshot = db.query(Mt5SyncSnapshot).one()
+        assert snapshot.positions_count == 1
+        assert snapshot.deals_count == 1
+        assert snapshot.payload["recent_deals"][0]["entry_type"] == "IN"
+        assert snapshot.payload["recent_deals"][0]["symbol_raw"] == "EURUSD.a"
+    finally:
+        db_generator.close()
