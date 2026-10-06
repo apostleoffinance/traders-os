@@ -786,6 +786,11 @@ def test_reconciliation_detects_deal_economics_mismatch(client: TestClient) -> N
         and Decimal(issue["processed_value"]) == Decimal("999.00")
         for issue in mismatches
     )
+    assert any(
+        issue["code"] == "trade_economics_mismatch"
+        and issue["field"] == "realized_pnl"
+        for issue in report.json()["issues"]
+    )
 
 
 def test_reconciliation_flags_broker_position_without_canonical_trade(client: TestClient) -> None:
@@ -818,4 +823,75 @@ def test_reconciliation_flags_broker_position_without_canonical_trade(client: Te
         issue["code"] == "broker_position_without_trade"
         and issue["external_position_id"] == "10001"
         for issue in report.json()["issues"]
+    )
+
+
+
+def test_reconciliation_accepts_partial_closes_with_matching_aggregates(client: TestClient) -> None:
+    auth = _register(client, "mt5reconcilepartials@example.com")
+    account_id = _account(client, auth["access_token"])
+    connector_token, connection_id = _connect(client, auth["access_token"], account_id)
+    connector_headers = {"Authorization": f"Bearer {connector_token}"}
+    user_headers = {"Authorization": f"Bearer {auth['access_token']}"}
+
+    first = client.post(
+        "/api/integrations/mt5/sync",
+        headers=connector_headers,
+        json=_sync_body(
+            recent_deals=[
+                {
+                    "external_deal_id": "99110",
+                    "external_position_id": "10001",
+                    "symbol_raw": "EURUSD.a",
+                    "direction": "SHORT",
+                    "entry_type": "OUT",
+                    "volume": "0.005",
+                    "price": "1.16550",
+                    "profit": "0.40",
+                    "commission": "-0.01",
+                    "swap": "0",
+                    "deal_time": "2026-08-24T10:30:00+00:00",
+                }
+            ],
+        ),
+    )
+    assert first.status_code == 200, first.text
+
+    second = client.post(
+        "/api/integrations/mt5/sync",
+        headers=connector_headers,
+        json=_sync_body(
+            sync_timestamp="2026-08-24T11:01:00+00:00",
+            positions=[],
+            recent_deals=[
+                {
+                    "external_deal_id": "99111",
+                    "external_position_id": "10001",
+                    "symbol_raw": "EURUSD.a",
+                    "direction": "SHORT",
+                    "entry_type": "OUT",
+                    "volume": "0.005",
+                    "price": "1.16500",
+                    "profit": "0.60",
+                    "commission": "-0.01",
+                    "swap": "0",
+                    "deal_time": "2026-08-24T11:00:00+00:00",
+                }
+            ],
+        ),
+    )
+    assert second.status_code == 200, second.text
+
+    report = client.get(
+        f"/api/integrations/mt5/connections/{connection_id}/reconciliation",
+        headers=user_headers,
+    )
+    assert report.status_code == 200, report.text
+    body = report.json()
+    assert body["summary"]["status"] == "consistent", body["issues"]
+    assert body["coverage"]["source_closing_deals"] == 2
+    assert body["coverage"]["processed_deals"] == 2
+    assert not any(
+        issue["code"] in {"trade_economics_mismatch", "closed_volume_mismatch"}
+        for issue in body["issues"]
     )
