@@ -79,6 +79,8 @@ class Mt5SyncSnapshot(Base):
         UUID_PK, ForeignKey("accounts.id", ondelete="CASCADE"), index=True, nullable=False
     )
     sync_timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    # Normalized UTC interpretation of broker time; nullable for historical snapshots.
+    sync_timestamp_utc: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     received_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -114,6 +116,8 @@ class Mt5SourceDeal(Base):
     commission: Mapped[Decimal] = mapped_column(MONEY, nullable=False)
     swap: Mapped[Decimal] = mapped_column(MONEY, nullable=False)
     deal_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    # Normalized UTC interpretation; legacy rows retain only the broker-reported timestamp.
+    deal_time_utc: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     received_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
