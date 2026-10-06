@@ -33,10 +33,12 @@
   --radius-lg: var(--radius-lg);
 }
 
-/* next/font already defines --font-sans / --font-mono on <html> */
+/* Use system font stacks so production builds do not depend on fetching Google Fonts. */
 
 :root,
 [data-theme="light"] {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   /* Cool financial light — navy text, cyan accent */
   --bg: #f4f7fb;
   --surface: #ffffff;
