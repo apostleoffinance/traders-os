@@ -18,6 +18,8 @@ Optional filter: `?position_id={broker_position_id}`.
 
 The endpoint combines first-seen source-deal records, retained successful sync snapshots, and the canonical MT5 trade projection into a chronological evidence timeline per broker position. It is owner-scoped and read-only. Events retain broker deal IDs, source row IDs, snapshot IDs, timestamps, observed position fields, and a canonical trade reference when one exists.
 
+For new syncs, TraderOS retains the broker-reported timestamp and separately stores a normalized UTC timestamp using the connection's estimated broker UTC offset. Timeline events prefer the normalized UTC field and expose their `timestamp_basis`. Historical evidence created before this field was added has no normalized value and is shown as `legacy_broker_reported_time`; it is not silently backfilled using today's offset estimate.
+
 Snapshot observations are explicitly marked `present` or `absent`. **Absence is not a close event.** A position may be absent because of timing, incomplete or filtered payloads, or a genuine close; the timeline does not invent a close transition without a broker deal that supports it. Repeated present observations retain the state reported in each snapshot so changes to volume, price, stop loss, take profit, or other retained fields can be inspected over time.
 
 The endpoint scans the newest 100 successful sync snapshots and orders them chronologically for display. Source-deal records are read from the retained ledger. The response marks snapshot history as incomplete and explains that events may fall outside retained coverage. It does not claim to reconstruct a complete historical broker lifecycle.
