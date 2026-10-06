@@ -85,6 +85,10 @@ export type Mt5ReconciliationIssue = {
   field?: string;
   source_value?: string;
   processed_value?: string;
+  snapshot_value?: string;
+  snapshot_id?: string;
+  snapshot_received_at?: string | null;
+  snapshot_sync_timestamp?: string | null;
 };
 
 export type Mt5ReconciliationReport = {
@@ -104,6 +108,11 @@ export type Mt5ReconciliationReport = {
     processed_deals: number;
     canonical_mt5_trades: number;
     broker_open_positions_in_latest_snapshot: number;
+    snapshots_scanned: number;
+    snapshot_scan_limit: number;
+    snapshot_deal_ids_observed: number;
+    snapshot_deal_ids_missing_from_source_ledger: number;
+    newest_scanned_snapshot_received_at: string | null;
     historical_source_coverage: string;
   };
   summary: {

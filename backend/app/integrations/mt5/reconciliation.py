@@ -12,6 +12,8 @@ from app.models.trade import Trade
 
 CLOSING_ENTRY_TYPES = {"OUT", "OUT_BY", "INOUT"}
 ECONOMIC_FIELDS = ("volume", "price", "profit", "commission", "swap")
+IDENTITY_FIELDS = ("external_position_id", "symbol_raw", "direction", "entry_type")
+SNAPSHOT_SCAN_LIMIT = 100
 
 
 def _decimal(value: Any) -> Decimal | None:
@@ -48,6 +50,22 @@ def build_reconciliation_report(db: Session, user_id: UUID, connection_id: UUID)
         )
         .first()
     )
+    # Bounded provenance scan; recent_deals is a moving window, not complete history.
+    recent_snapshots = (
+        db.query(Mt5SyncSnapshot)
+        .filter(
+            Mt5SyncSnapshot.connection_id == connection.id,
+            Mt5SyncSnapshot.user_id == user_id,
+            Mt5SyncSnapshot.account_id == connection.account_id,
+        )
+        .order_by(
+            Mt5SyncSnapshot.received_at.desc(),
+            Mt5SyncSnapshot.sync_timestamp.desc(),
+            Mt5SyncSnapshot.id.desc(),
+        )
+        .limit(SNAPSHOT_SCAN_LIMIT)
+        .all()
+    )
     source_deals = (
         db.query(Mt5SourceDeal)
         .filter(
@@ -83,6 +101,53 @@ def build_reconciliation_report(db: Session, user_id: UUID, connection_id: UUID)
 
     def issue(code: str, severity: str, message: str, **evidence: Any) -> None:
         issues.append({"code": code, "severity": severity, "message": message, **evidence})
+
+    # Compare deal facts only when an ID is present in a snapshot. Absence from a later
+    # recent_deals window is not evidence that a broker deal disappeared.
+    observed_snapshot_deal_ids: set[str] = set()
+    for snapshot in reversed(recent_snapshots):
+        payload = snapshot.payload if isinstance(snapshot.payload, dict) else {}
+        raw_deals = payload.get("recent_deals", [])
+        if not isinstance(raw_deals, list):
+            continue
+        seen_in_snapshot: set[str] = set()
+        for raw_deal in raw_deals:
+            if not isinstance(raw_deal, dict) or raw_deal.get("external_deal_id") is None:
+                continue
+            deal_id = str(raw_deal["external_deal_id"])
+            if deal_id in seen_in_snapshot:
+                continue
+            seen_in_snapshot.add(deal_id)
+            observed_snapshot_deal_ids.add(deal_id)
+            source = source_by_id.get(deal_id)
+            evidence = {
+                "external_deal_id": deal_id,
+                "snapshot_id": str(snapshot.id),
+                "snapshot_received_at": snapshot.received_at.isoformat() if snapshot.received_at else None,
+                "snapshot_sync_timestamp": snapshot.sync_timestamp.isoformat() if snapshot.sync_timestamp else None,
+            }
+            if source is None:
+                issue("snapshot_deal_missing_from_source_ledger", "warning",
+                      "A retained successful sync payload contains a deal ID absent from the first-seen source ledger.",
+                      **evidence)
+                continue
+            for field in (*ECONOMIC_FIELDS, *IDENTITY_FIELDS):
+                source_value = getattr(source, field, None)
+                snapshot_value = raw_deal.get(field)
+                if field in ECONOMIC_FIELDS:
+                    left, right = _decimal(source_value), _decimal(snapshot_value)
+                    differs = left is not None and right is not None and left != right
+                    left_text = str(left) if left is not None else None
+                    right_text = str(right) if right is not None else None
+                else:
+                    left_text = str(source_value) if source_value is not None else None
+                    right_text = str(snapshot_value) if snapshot_value is not None else None
+                    differs = left_text is not None and right_text is not None and left_text != right_text
+                if differs:
+                    issue("source_deal_payload_drift", "warning",
+                          "A repeated broker snapshot reports a different value for a deal whose first-seen source record is immutable.",
+                          **evidence, field=field, source_value=left_text,
+                          snapshot_value=right_text)
 
     for source in source_deals:
         processed = processed_by_id.get(source.external_deal_id)
@@ -255,6 +320,12 @@ def build_reconciliation_report(db: Session, user_id: UUID, connection_id: UUID)
             "processed_deals": len(processed_deals),
             "canonical_mt5_trades": len(trades),
             "broker_open_positions_in_latest_snapshot": len(broker_positions),
+            "snapshots_scanned": len(recent_snapshots),
+            "snapshot_scan_limit": SNAPSHOT_SCAN_LIMIT,
+            "snapshot_deal_ids_observed": len(observed_snapshot_deal_ids),
+            "snapshot_deal_ids_missing_from_source_ledger": len(observed_snapshot_deal_ids - set(source_by_id)),
+            "newest_scanned_snapshot_received_at": recent_snapshots[0].received_at.isoformat()
+                if recent_snapshots and recent_snapshots[0].received_at else None,
             "historical_source_coverage": "Source-deal ledger coverage begins when this feature was deployed; older processed deals may not have retained source rows.",
         },
         "summary": {

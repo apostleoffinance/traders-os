@@ -39,12 +39,16 @@ Heartbeats are not sync snapshots and are excluded from this comparison.
 - `broker_position_without_trade`: the latest broker snapshot includes a position with no canonical trade.
 - `broker_position_trade_marked_closed`: the broker reports a position open but its trade projection is closed.
 - `open_trade_missing_from_latest_snapshot`: a trade remains open but does not appear in the latest positions snapshot.
+- `source_deal_payload_drift`: a retained snapshot reports a different economic or identity field for an immutable first-seen deal row; includes exact snapshot ID and timestamps.
+- `snapshot_deal_missing_from_source_ledger`: a retained successful sync payload contains a deal ID absent from the source ledger.
 
 Opening `IN` deals are intentionally not expected to have processed-deal rows: the processed ledger currently represents closing economics, while the source ledger retains both opening and closing broker facts.
 
 ## Coverage and interpretation
 
 The source-deal ledger was introduced after MT5 syncing was already in use. Older processed deals may therefore have no source-deal record. These are informational rather than automatically classified as data loss; a bounded `recent_deals` payload cannot reliably reconstruct complete historical deal history.
+
+The report scans the newest 100 successful sync snapshots for deal provenance. It compares only deal IDs present in each payload; because recent_deals is a moving window, omission from a later payload is not treated as disappearance. Drift findings include exact snapshot references and field values. First-seen source rows remain immutable. Older snapshots outside the bounded scan are not assessed for drift.
 
 The report is only as complete as the data received and retained. In particular:
 

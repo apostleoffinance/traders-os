@@ -895,3 +895,109 @@ def test_reconciliation_accepts_partial_closes_with_matching_aggregates(client: 
         issue["code"] in {"trade_economics_mismatch", "closed_volume_mismatch"}
         for issue in body["issues"]
     )
+
+
+def test_reconciliation_detects_snapshot_payload_drift_without_mutating_first_seen_ledger(client: TestClient) -> None:
+    auth = _register(client, "mt5drift@example.com")
+    account_id = _account(client, auth["access_token"])
+    connector_token, connection_id = _connect(client, auth["access_token"], account_id)
+    connector_headers = {"Authorization": f"Bearer {connector_token}"}
+    user_headers = {"Authorization": f"Bearer {auth['access_token']}"}
+    first_deal = {
+        "external_deal_id": "77701",
+        "external_position_id": "10001",
+        "symbol_raw": "EURUSD.a",
+        "direction": "SHORT",
+        "entry_type": "IN",
+        "volume": "0.01",
+        "price": "1.16646",
+        "profit": "0",
+        "commission": "-0.02",
+        "swap": "0",
+        "deal_time": "2026-08-24T09:30:00+00:00",
+    }
+    first = client.post(
+        "/api/integrations/mt5/sync",
+        headers=connector_headers,
+        json=_sync_body(recent_deals=[first_deal]),
+    )
+    assert first.status_code == 200, first.text
+
+    changed = {**first_deal, "profit": "9.99", "commission": "-0.03"}
+    second = client.post(
+        "/api/integrations/mt5/sync",
+        headers=connector_headers,
+        json=_sync_body(
+            sync_timestamp="2026-08-24T10:01:00+00:00",
+            recent_deals=[changed],
+        ),
+    )
+    assert second.status_code == 200, second.text
+
+    db_generator = app.dependency_overrides[get_db]()
+    db = next(db_generator)
+    try:
+        source = db.query(Mt5SourceDeal).filter(Mt5SourceDeal.external_deal_id == "77701").one()
+        assert source.profit == Decimal("0")
+        assert source.commission == Decimal("-0.02")
+    finally:
+        db_generator.close()
+
+    response = client.get(
+        f"/api/integrations/mt5/connections/{connection_id}/reconciliation",
+        headers=user_headers,
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    drift = [row for row in body["issues"] if row["code"] == "source_deal_payload_drift"]
+    assert {row["field"] for row in drift} == {"profit", "commission"}
+    assert all(row["external_deal_id"] == "77701" for row in drift)
+    assert all(row["snapshot_id"] for row in drift)
+    assert all(row["snapshot_received_at"] for row in drift)
+    assert {row["snapshot_value"] for row in drift} == {"9.99", "-0.03"}
+    assert body["coverage"]["snapshots_scanned"] == 2
+    assert body["coverage"]["snapshot_deal_ids_observed"] == 1
+
+
+def test_reconciliation_does_not_treat_recent_deal_window_omission_as_loss(client: TestClient) -> None:
+    auth = _register(client, "mt5window@example.com")
+    account_id = _account(client, auth["access_token"])
+    connector_token, connection_id = _connect(client, auth["access_token"], account_id)
+    connector_headers = {"Authorization": f"Bearer {connector_token}"}
+    user_headers = {"Authorization": f"Bearer {auth['access_token']}"}
+    deal = {
+        "external_deal_id": "77702",
+        "external_position_id": "10001",
+        "symbol_raw": "EURUSD.a",
+        "direction": "SHORT",
+        "entry_type": "IN",
+        "volume": "0.01",
+        "price": "1.16646",
+        "profit": "0",
+        "commission": "-0.02",
+        "swap": "0",
+        "deal_time": "2026-08-24T09:30:00+00:00",
+    }
+    first = client.post(
+        "/api/integrations/mt5/sync",
+        headers=connector_headers,
+        json=_sync_body(recent_deals=[deal]),
+    )
+    assert first.status_code == 200, first.text
+    second = client.post(
+        "/api/integrations/mt5/sync",
+        headers=connector_headers,
+        json=_sync_body(sync_timestamp="2026-08-24T10:01:00+00:00", recent_deals=[]),
+    )
+    assert second.status_code == 200, second.text
+
+    response = client.get(
+        f"/api/integrations/mt5/connections/{connection_id}/reconciliation",
+        headers=user_headers,
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert not any(row["code"] == "source_deal_payload_drift" for row in body["issues"])
+    assert not any(row["code"] == "snapshot_deal_missing_from_source_ledger" for row in body["issues"])
+    assert body["coverage"]["snapshots_scanned"] == 2
+    assert body["coverage"]["snapshot_deal_ids_observed"] == 1

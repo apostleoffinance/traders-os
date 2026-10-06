@@ -219,6 +219,9 @@ export function Mt5ConnectionPanel({ accountId, autoOpen = false }: Props) {
                 <span>{reconciliation.coverage.processed_deals} processed deals</span>
                 <span>{reconciliation.coverage.canonical_mt5_trades} MT5 trades</span>
                 <span>{reconciliation.coverage.broker_open_positions_in_latest_snapshot} broker open positions</span>
+                <span>{reconciliation.coverage.snapshots_scanned} snapshots scanned</span>
+                <span>{reconciliation.coverage.snapshot_deal_ids_observed} deal IDs observed in snapshots</span>
+                <span>{reconciliation.coverage.snapshot_deal_ids_missing_from_source_ledger} snapshot deals without source rows</span>
               </div>
               {reconciliation.issues.length === 0 ? (
                 <p className="muted">No discrepancies were found in the retained evidence and latest snapshot.</p>
@@ -239,7 +242,12 @@ export function Mt5ConnectionPanel({ accountId, autoOpen = false }: Props) {
                         )}
                         {issue.field && (
                           <small className="muted">
-                            {issue.field}: source {issue.source_value} · processed {issue.processed_value}
+                            {issue.field}: source {issue.source_value} · {issue.snapshot_value !== undefined ? "snapshot " + issue.snapshot_value : "processed " + issue.processed_value}
+                          </small>
+                        )}
+                        {issue.snapshot_id && (
+                          <small className="muted">
+                            Snapshot {issue.snapshot_id} · received {issue.snapshot_received_at ? formatWhen(issue.snapshot_received_at) : "unknown"} · broker sync {issue.snapshot_sync_timestamp ? formatWhen(issue.snapshot_sync_timestamp) : "unknown"}
                           </small>
                         )}
                       </div>
