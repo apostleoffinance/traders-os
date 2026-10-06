@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { api, getActiveAccountId } from "@/lib/api";
 import type { Setup, Trade } from "@/lib/types";
-import { Field, Panel } from "@/components/ui";
+import { Alert, Field, Panel } from "@/components/ui";
 import { TradeTable } from "@/components/trader/tables/TradeTable";
 import { LoadingState } from "@/components/trader/LoadingState";
 import { num, signed } from "@/lib/format";
@@ -16,23 +16,53 @@ export default function TradeHistoryPage() {
   const [setupId, setSetupId] = useState("");
   const [direction, setDirection] = useState("");
   const [result, setResult] = useState("");
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [reloadVersion, setReloadVersion] = useState(0);
 
   useEffect(() => {
-    void (async () => {
-      setSetups(await api<Setup[]>("/api/setups"));
-    })();
-  }, []);
+    let cancelled = false;
+    void api<Setup[]>("/api/setups")
+      .then((rows) => {
+        if (!cancelled) setSetups(rows);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setLoadError(err instanceof Error ? err.message : "Could not load trade setups.");
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [reloadVersion]);
 
   useEffect(() => {
+    let cancelled = false;
     const accountId = getActiveAccountId();
-    if (!accountId) return;
+    if (!accountId) {
+      setTrades([]);
+      return;
+    }
+    setTrades(null);
+    setLoadError(null);
     const q = new URLSearchParams({ account_id: accountId });
     if (session) q.set("session", session);
     if (setupId) q.set("setup_id", setupId);
     if (direction) q.set("direction", direction);
     if (result) q.set("result", result);
-    void api<Trade[]>(`/api/trades?${q.toString()}`).then(setTrades);
-  }, [session, setupId, direction, result]);
+    void api<Trade[]>(`/api/trades?${q.toString()}`)
+      .then((rows) => {
+        if (!cancelled) setTrades(rows);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setTrades([]);
+          setLoadError(err instanceof Error ? err.message : "Could not load your journal.");
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [session, setupId, direction, result, reloadVersion]);
 
   const rows = trades ?? [];
   const summary = useMemo(() => {
@@ -100,10 +130,18 @@ export default function TradeHistoryPage() {
           </Field>
         </div>
       </Panel>
+      {loadError && (
+        <div className="load-error">
+          <Alert kind="danger">{loadError}</Alert>
+          <button type="button" className="btn ghost" onClick={() => setReloadVersion((v) => v + 1)}>
+            Try again
+          </button>
+        </div>
+      )}
       <div className="table-wrap">
         {trades == null ? (
           <LoadingState label="Loading your journal…" />
-        ) : rows.length > 0 ? (
+        ) : loadError ? null : rows.length > 0 ? (
           <TradeTable trades={rows} />
         ) : session || setupId || direction || result ? (
           <section className="journal-empty">
@@ -145,6 +183,13 @@ export default function TradeHistoryPage() {
           display: grid;
           grid-template-columns: repeat(4, 1fr);
           gap: 10px;
+        }
+        .load-error {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          flex-wrap: wrap;
+          margin-top: 12px;
         }
         .table-wrap {
           margin-top: 12px;
