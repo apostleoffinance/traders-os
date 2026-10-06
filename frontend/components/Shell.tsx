@@ -6,7 +6,6 @@ import { useEffect, useMemo, useState, type ComponentType } from "react";
 import {
   BrainCircuit,
   Calculator,
-  CalendarDays,
   ChartNoAxesCombined,
   FileText,
   FlaskConical,
@@ -34,7 +33,7 @@ const SIDEBAR_KEY = "trader-os-sidebar-collapsed";
 
 type NavIcon = ComponentType<LucideProps>;
 
-type NavGroup = "command" | "trading" | "labs" | "system";
+type NavGroup = "workspace" | "journal" | "research" | "market" | "risk" | "manage";
 
 type NavItem = {
   href: string;
@@ -46,26 +45,27 @@ type NavItem = {
 };
 
 const GROUP_LABELS: Record<NavGroup, string> = {
-  command: "Command",
-  trading: "Trading",
-  labs: "Labs",
-  system: "System",
+  workspace: "Workspace",
+  journal: "Journal",
+  research: "Research",
+  market: "Market",
+  risk: "Risk",
+  manage: "Manage",
 };
 
 const NAV: NavItem[] = [
-  { href: "/dashboard", label: "Home", icon: LayoutDashboard, group: "command", match: "exact" },
-  { href: "/trades", label: "Trade Journal", icon: History, group: "trading", match: "prefix" },
-  { href: "/trades/new", label: "New trade", icon: PlusCircle, group: "trading", match: "exact" },
-  { href: "/calculator", label: "Calculator", icon: Calculator, group: "trading", match: "exact" },
-  { href: "/analytics", label: "Analytics", icon: ChartNoAxesCombined, group: "labs", match: "prefix" },
-  { href: "/analytics?tab=calendar", label: "Calendar", icon: CalendarDays, group: "labs", match: "analytics-tab", tab: "calendar" },
-  { href: "/intelligence", label: "Intelligence", icon: BrainCircuit, group: "labs", match: "prefix" },
-  { href: "/quant-lab", label: "Quant Lab", icon: FlaskConical, group: "labs", match: "prefix" },
-  { href: "/risk", label: "Risk", icon: ShieldAlert, group: "labs", match: "prefix" },
-  { href: "/reports", label: "Reports", icon: FileText, group: "labs", match: "prefix" },
-  { href: "/labs/vela", label: "Market Lab", icon: CandlestickChart, group: "labs", match: "prefix" },
-  { href: "/accounts", label: "Accounts", icon: WalletCards, group: "system", match: "prefix" },
-  { href: "/settings", label: "Settings", icon: Settings, group: "system", match: "prefix" },
+  { href: "/dashboard", label: "Home", icon: LayoutDashboard, group: "workspace", match: "exact" },
+  { href: "/trades", label: "Trade Journal", icon: History, group: "journal", match: "prefix" },
+  { href: "/trades/new", label: "New trade", icon: PlusCircle, group: "journal", match: "exact" },
+  { href: "/calculator", label: "Calculator", icon: Calculator, group: "journal", match: "exact" },
+  { href: "/analytics", label: "Analytics", icon: ChartNoAxesCombined, group: "research", match: "prefix" },
+  { href: "/intelligence", label: "Intelligence", icon: BrainCircuit, group: "research", match: "prefix" },
+  { href: "/quant-lab", label: "Quant Lab", icon: FlaskConical, group: "research", match: "prefix" },
+  { href: "/reports", label: "Reports", icon: FileText, group: "research", match: "prefix" },
+  { href: "/labs/vela", label: "Market Lab", icon: CandlestickChart, group: "market", match: "prefix" },
+  { href: "/risk", label: "Risk", icon: ShieldAlert, group: "risk", match: "prefix" },
+  { href: "/accounts", label: "Accounts", icon: WalletCards, group: "manage", match: "prefix" },
+  { href: "/settings", label: "Settings", icon: Settings, group: "manage", match: "prefix" },
 ];
 
 function navActive(item: NavItem, pathname: string, search: string): boolean {
@@ -193,7 +193,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const active = useMemo(() => accounts.find((a) => a.id === accountId) ?? null, [accounts, accountId]);
   const pnl = active ? Number(active.current_equity) - Number(active.starting_balance) : 0;
 
-  const navGroups: NavGroup[] = ["command", "trading", "labs", "system"];
+  const navGroups: NavGroup[] = ["workspace", "journal", "research", "market", "risk", "manage"];
   const search = searchParams.toString();
 
   function renderNav(opts: { collapsedMode: boolean; showToggle?: boolean; onNavigate?: () => void }) {
