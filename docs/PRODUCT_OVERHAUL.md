@@ -43,6 +43,7 @@ This is a greenfield V1 with meaningful foundations, not an empty project. Avoid
 4. AI must remain downstream of validated analytics. It should consume approved evidence packages with filters, sample sizes, data-quality notes, and linked supporting trades—not unrestricted SQL or invented causal explanations. It must not provide buy/sell/entry signals.
 5. Frontend verification is less explicit than backend verification. The frontend package defines build, start, and lint scripts but no standard test or type-check script, while frontend test files exist. Add a repeatable frontend verification path before broad UI refactors.
 6. The charting decision should remain modular. Evaluate existing chart components and any proposed open-source alternative against license, commercial use, data-feed support, drawing/replay needs, maintenance, and bundle/performance costs. Do not assume OpenMarket/wrun is an embeddable chart or market-data backend.
+7. Production startup previously accepted the documented development JWT signing key if the deployment secret was omitted. The overhaul branch now rejects the known example key and secrets shorter than 32 characters outside development, with focused regression tests. Production deployment configuration must still supply a unique secret.
 
 ## Target information architecture
 
