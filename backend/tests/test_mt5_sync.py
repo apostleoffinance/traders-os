@@ -596,6 +596,7 @@ def test_reconciliation_report_matches_processed_close_deal(client: TestClient) 
         "/api/integrations/mt5/sync",
         headers=headers,
         json=_sync_body(
+            sync_timestamp="2026-08-24T11:01:00+00:00",
             positions=[],
             recent_deals=[
                 {
@@ -622,7 +623,7 @@ def test_reconciliation_report_matches_processed_close_deal(client: TestClient) 
     )
     assert report.status_code == 200, report.text
     body = report.json()
-    assert body["summary"]["status"] == "consistent"
+    assert body["summary"]["status"] == "consistent", body["issues"]
     assert body["summary"]["error_count"] == 0
     assert body["coverage"]["source_closing_deals"] == 1
     assert body["coverage"]["processed_deals"] == 1
@@ -657,6 +658,7 @@ def test_reconciliation_flags_source_close_missing_processed_projection(client: 
         "/api/integrations/mt5/sync",
         headers=connector_headers,
         json=_sync_body(
+            sync_timestamp="2026-08-24T11:01:00+00:00",
             positions=[],
             recent_deals=[
                 {
@@ -693,7 +695,7 @@ def test_reconciliation_flags_source_close_missing_processed_projection(client: 
     assert report.status_code == 200, report.text
     body = report.json()
     assert body["summary"]["status"] == "issues_found"
-    assert body["summary"]["error_count"] == 1
+    assert body["summary"]["error_count"] == 1, body["issues"]
     assert any(
         issue["code"] == "closing_deal_not_processed" and issue["external_deal_id"] == "99002"
         for issue in body["issues"]
@@ -712,7 +714,7 @@ def test_reconciliation_warns_on_open_trade_missing_from_latest_snapshot(client:
     second = client.post(
         "/api/integrations/mt5/sync",
         headers=connector_headers,
-        json=_sync_body(positions=[], recent_deals=[]),
+        json=_sync_body(sync_timestamp="2026-08-24T11:01:00+00:00", positions=[], recent_deals=[]),
     )
     assert second.status_code == 200, second.text
 
@@ -742,6 +744,7 @@ def test_reconciliation_detects_deal_economics_mismatch(client: TestClient) -> N
         "/api/integrations/mt5/sync",
         headers=connector_headers,
         json=_sync_body(
+            sync_timestamp="2026-08-24T11:01:00+00:00",
             positions=[],
             recent_deals=[
                 {
