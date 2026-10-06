@@ -84,7 +84,8 @@ def analytics_trades(
     psychology: str | None = None,
     result: str | None = None,
     hour: int | None = Query(None, ge=0, le=23),
-    limit: int = Query(200, ge=1, le=500),
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
     user_id=Depends(get_current_user_id),
 ):
@@ -105,6 +106,7 @@ def analytics_trades(
             result=result,
             hour=hour,
             limit=limit,
+            offset=offset,
         )
     except DomainError as exc:
         raise http_error(exc) from exc
