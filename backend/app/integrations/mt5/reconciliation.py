@@ -139,6 +139,66 @@ def build_reconciliation_report(db: Session, user_id: UUID, connection_id: UUID)
                     trade_id=str(processed.trade_id) if processed.trade_id else None,
                 )
 
+    # Reconcile per-trade aggregate economics. The source/processed comparison above
+    # validates individual facts; this catches a stale or manually altered trade projection.
+    processed_by_trade: dict[str, list[Mt5ProcessedDeal]] = {}
+    for processed in processed_deals:
+        if processed.trade_id is not None and str(processed.trade_id) in trade_by_id:
+            processed_by_trade.setdefault(str(processed.trade_id), []).append(processed)
+
+    source_entry_types_by_position: dict[str, set[str]] = {}
+    for source in source_deals:
+        source_entry_types_by_position.setdefault(source.external_position_id, set()).add(source.entry_type)
+
+    tolerance = Decimal("0.00000001")
+    for trade in trades:
+        linked_deals = processed_by_trade.get(str(trade.id), [])
+        if not linked_deals:
+            continue
+        expected_profit = sum((_decimal(row.profit) or Decimal("0")) for row in linked_deals)
+        expected_commission = sum((_decimal(row.commission) or Decimal("0")) for row in linked_deals)
+        expected_swap = sum((_decimal(row.swap) or Decimal("0")) for row in linked_deals)
+        expected_net = expected_profit + expected_commission + expected_swap
+        aggregate_values = (
+            ("realized_pnl", _decimal(trade.realized_pnl), expected_net),
+            ("commission", _decimal(trade.commission) or Decimal("0"), expected_commission),
+            ("swap", _decimal(trade.swap) or Decimal("0"), expected_swap),
+        )
+        for field, actual, expected in aggregate_values:
+            if actual is None or abs(actual - expected) > tolerance:
+                issue(
+                    "trade_economics_mismatch",
+                    "error",
+                    f"The canonical trade's {field} does not match the sum of its processed closing deals.",
+                    trade_id=str(trade.id),
+                    external_position_id=trade.external_position_id,
+                    field=field,
+                    trade_value=str(actual) if actual is not None else None,
+                    processed_deals_value=str(expected),
+                    processed_deal_count=len(linked_deals),
+                )
+
+        # Volume equality is meaningful for a fully closed position made of OUT/OUT_BY
+        # deals. INOUT can represent a reversal and should not be treated as a simple close.
+        position_entry_types = source_entry_types_by_position.get(trade.external_position_id or "", set())
+        if (
+            str(getattr(trade, "status", "")).lower() == "closed"
+            and "INOUT" not in position_entry_types
+        ):
+            closed_volume = sum((_decimal(row.volume) or Decimal("0")) for row in linked_deals)
+            trade_volume = _decimal(trade.lot_size) or Decimal("0")
+            if abs(closed_volume - trade_volume) > tolerance:
+                issue(
+                    "closed_volume_mismatch",
+                    "warning",
+                    "The sum of processed closing-deal volume differs from the canonical trade's opening volume.",
+                    trade_id=str(trade.id),
+                    external_position_id=trade.external_position_id,
+                    trade_volume=str(trade_volume),
+                    processed_closing_volume=str(closed_volume),
+                    processed_deal_count=len(linked_deals),
+                )
+
     latest_payload = latest_snapshot.payload if latest_snapshot else {}
     raw_positions = latest_payload.get("positions", []) if isinstance(latest_payload, dict) else []
     broker_positions = {

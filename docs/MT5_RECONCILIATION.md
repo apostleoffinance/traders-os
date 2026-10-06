@@ -31,6 +31,8 @@ Heartbeats are not sync snapshots and are excluded from this comparison.
 
 - `closing_deal_not_processed`: a source `OUT`, `OUT_BY`, or `INOUT` deal has no processed-deal row.
 - `deal_economics_mismatch`: a source deal and its processed row disagree on volume, price, profit, commission, or swap.
+- `trade_economics_mismatch`: a canonical trade's realized P&L, commission, or swap differs from the sum of its linked processed closing deals. This covers partial-close aggregation as well as fully closed trades.
+- `closed_volume_mismatch`: a closed trade's processed closing volume differs from its opening volume. This is a warning, and is skipped when the position has an `INOUT` source deal because reversals are not simple closes.
 - `processed_deal_without_trade`: a processed deal does not reference an existing canonical trade.
 - `processed_deal_orphaned`: a processed deal absent from the source ledger also has no valid canonical trade reference.
 - `processed_deal_without_source_evidence`: processed history has no matching source-deal row.
