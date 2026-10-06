@@ -262,6 +262,14 @@ export function Mt5ConnectionPanel({ accountId, autoOpen = false }: Props) {
                             {issue.field}: source {issue.source_value} · {issue.snapshot_value !== undefined ? "snapshot " + issue.snapshot_value : "processed " + issue.processed_value}
                           </small>
                         )}
+                        {(issue.source_deal_row_id || issue.processed_deal_row_id) && (
+                          <small className="muted">
+                            {issue.source_deal_row_id ? "Source row " + issue.source_deal_row_id : "Source row unavailable"}{issue.processed_deal_row_id ? " · Processed row " + issue.processed_deal_row_id : ""}
+                          </small>
+                        )}
+                        {issue.trade_id && (
+                          <small className="muted">Canonical trade {issue.trade_id}</small>
+                        )}
                         {issue.snapshot_id && (
                           <div className="recon-snapshot-action">
                             <small className="muted">
