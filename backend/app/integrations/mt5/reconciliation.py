@@ -131,6 +131,11 @@ def build_reconciliation_report(db: Session, user_id: UUID, connection_id: UUID)
                       "A retained successful sync payload contains a deal ID absent from the first-seen source ledger.",
                       **evidence)
                 continue
+            processed = processed_by_id.get(deal_id)
+            evidence["source_deal_row_id"] = str(source.id)
+            evidence["processed_deal_row_id"] = str(processed.id) if processed else None
+            if processed and processed.trade_id:
+                evidence["trade_id"] = str(processed.trade_id)
             for field in (*ECONOMIC_FIELDS, *IDENTITY_FIELDS):
                 source_value = getattr(source, field, None)
                 snapshot_value = raw_deal.get(field)
