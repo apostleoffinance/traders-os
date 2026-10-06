@@ -4,6 +4,8 @@ Status: Audit baseline and implementation plan
 Branch: product/ux-overhaul-audit  
 Baseline reviewed: main at ed48283ca32182fb362e5a2acae98c8d7ff3550c
 
+**Product vision and release specification:** See [`PRODUCT_VISION.md`](./PRODUCT_VISION.md). The implementation roadmap below is subordinate to that product thesis: TraderOS is a personal FX/crypto trading intelligence system, with the journal as its capture layer—not merely a journal UI refresh.
+
 ## Executive direction
 
 TraderOS should evolve from a feature-rich journal into a coherent trading intelligence workspace. The product should make the next useful action obvious, preserve the trustworthiness of trading records and calculations, and connect a trader's plan, execution, market context, and outcomes.
