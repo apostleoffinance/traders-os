@@ -828,7 +828,8 @@ def list_filtered_trades(
         hour=hour,
     )
     closed = [t for t in filtered if t.status == TradeStatus.CLOSED]
-    closed.sort(key=lambda t: t.trade_timestamp, reverse=True)
+    # Use a stable secondary key so equal-timestamp trades never shift between pages.
+    closed.sort(key=lambda t: (t.trade_timestamp, str(t.id)), reverse=True)
     rows = []
     for t in closed[offset : offset + limit]:
         rows.append(
