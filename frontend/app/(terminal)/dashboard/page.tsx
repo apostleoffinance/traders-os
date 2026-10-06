@@ -1,10 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { api, getActiveAccountId, getStoredUser } from "@/lib/api";
 import type { Dashboard, Trade, User } from "@/lib/types";
-import { Alert, EmptyState } from "@/components/ui";
+import { Alert } from "@/components/ui";
 import { CommandCenterView } from "@/components/command-center/CommandCenterView";
 import { firstName, greeting } from "@/lib/theme";
 
@@ -12,10 +12,13 @@ export default function DashboardPage() {
   const [data, setData] = useState<Dashboard | null>(null);
   const [trades, setTrades] = useState<Trade[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [tradesError, setTradesError] = useState<string | null>(null);
   const [hello, setHello] = useState("Good afternoon");
   const [name, setName] = useState("Trader");
+  const loadRequestRef = useRef(0);
 
   const load = useCallback(async () => {
+    const requestId = ++loadRequestRef.current;
     const id = getActiveAccountId();
     if (!id) {
       setError("Create an account to begin.");
@@ -24,19 +27,25 @@ export default function DashboardPage() {
       return;
     }
     setError(null);
+    setTradesError(null);
     try {
       const dash = await api<Dashboard>(`/api/dashboard?account_id=${id}`);
+      if (requestId !== loadRequestRef.current) return;
       setData(dash);
     } catch (err) {
+      if (requestId !== loadRequestRef.current) return;
       setError(err instanceof Error ? err.message : "Unable to load command center.");
       setData(null);
       return;
     }
     try {
       const list = await api<Trade[]>(`/api/trades?account_id=${id}`);
+      if (requestId !== loadRequestRef.current) return;
       setTrades(list);
-    } catch {
+    } catch (err) {
+      if (requestId !== loadRequestRef.current) return;
       setTrades([]);
+      setTradesError(err instanceof Error ? err.message : "Unable to load recent trades.");
     }
   }, []);
 
@@ -57,6 +66,9 @@ export default function DashboardPage() {
         <Alert kind="warn">
           {error} <Link href="/accounts">Open accounts</Link>
         </Alert>
+        <button type="button" className="btn ghost" onClick={() => void load()} style={{ marginTop: 12 }}>
+          Retry dashboard
+        </button>
       </div>
     );
   }
@@ -83,29 +95,79 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      {data.n_trades === 0 ? (
-        <EmptyState
-          title="Start building your trading picture"
-          action={
-            <Link href="/trades/new" className="btn primary">
-              Log a trade
-            </Link>
-          }
-        >
-          <p className="muted" style={{ margin: 0 }}>
-            Journal completed trades — or connect MT5 from Accounts to sync automatically.
-          </p>
-        </EmptyState>
-      ) : (
-        <CommandCenterView data={data} trades={trades} openTrades={openTrades} />
+      {data.n_trades === 0 && (
+        <section className="getting-started" aria-labelledby="getting-started-title">
+          <div className="getting-started-copy">
+            <p className="eyebrow">YOUR WORKSPACE</p>
+            <h2 id="getting-started-title">Build your trading picture</h2>
+            <p className="muted">
+              Add your first trade manually or connect MT5 to bring in your history.
+              Your performance and risk views will grow with your data.
+            </p>
+          </div>
+          <div className="getting-started-actions">
+            <Link href="/trades/new" className="btn primary">Log a trade</Link>
+            <Link href="/accounts" className="btn ghost">Connect MT5</Link>
+          </div>
+        </section>
       )}
+
+      {tradesError && (
+        <div className="trades-warning" role="alert">
+          <Alert kind="warn">Recent trade activity could not be loaded. Dashboard totals may be available, but the trade list below is incomplete.</Alert>
+          <button type="button" className="btn ghost" onClick={() => void load()}>Retry</button>
+        </div>
+      )}
+      <CommandCenterView data={data} trades={trades} openTrades={openTrades} />
       <style jsx>{`
+        .trades-warning {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          flex-wrap: wrap;
+          margin: 0 0 14px;
+        }
         .cc-head {
           display: flex;
           justify-content: space-between;
           align-items: flex-start;
           gap: 16px;
           margin-bottom: 18px;
+        }
+        .getting-started {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 20px;
+          margin: 0 0 18px;
+          padding: 20px;
+          border: 1px solid var(--border);
+          border-radius: var(--radius-lg, 14px);
+          background: var(--surface, transparent);
+        }
+        .getting-started-copy { max-width: 560px; }
+        .getting-started .eyebrow {
+          margin: 0 0 6px;
+          color: var(--accent);
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 0.1em;
+        }
+        .getting-started h2 {
+          margin: 0 0 6px;
+          font-size: 18px;
+          font-weight: 650;
+        }
+        .getting-started .muted {
+          margin: 0;
+          font-size: 13px;
+          line-height: 1.55;
+        }
+        .getting-started-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          flex-shrink: 0;
         }
         .lede {
           margin: 0;
@@ -127,6 +189,11 @@ export default function DashboardPage() {
           .cc-head {
             flex-direction: column;
           }
+          .getting-started {
+            align-items: flex-start;
+            flex-direction: column;
+          }
+          .getting-started-actions { width: 100%; }
         }
       `}</style>
     </div>

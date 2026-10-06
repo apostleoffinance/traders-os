@@ -199,6 +199,42 @@ export function CommandCenterView({ data, trades, openTrades }: Props) {
         />
       </div>
 
+      <section className="daily-brief tos-panel" aria-labelledby="daily-brief-title">
+        <div className="daily-brief-head">
+          <div>
+            <p className="eyebrow">DAILY REVIEW</p>
+            <h2 id="daily-brief-title" className="tos-panel-title">Today's trading brief</h2>
+            <p className="muted daily-brief-summary">{cc.today_story.headline}</p>
+          </div>
+          <div className="daily-brief-actions">
+            <Link href="/trades" className="btn ghost">Review trades</Link>
+            <Link href="/risk" className="btn ghost">Risk status</Link>
+          </div>
+        </div>
+        {cc.today_story.bullets.length > 0 ? (
+          <ul className="daily-brief-list">
+            {cc.today_story.bullets.map((bullet, index) => (
+              <li key={index} className={bullet.tone === "warn" ? "warning" : bullet.tone === "positive" ? "positive" : ""}>
+                <span className="brief-marker" aria-hidden="true" />
+                <span>{bullet.text}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="muted daily-brief-empty">
+            {cc.today_story.trade_count === 0
+              ? "No trades logged today. Keep your plan ready and review your risk limits before your next session."
+              : "No specific process warnings were raised from today's journal data."}
+          </p>
+        )}
+        {cc.today_story.discipline_avg != null && (
+          <p className="muted daily-brief-foot">
+            Average discipline score today: <strong>{cc.today_story.discipline_avg}/100</strong>
+            {" · "}{cc.today_story.closed_count} closed of {cc.today_story.trade_count} trades
+          </p>
+        )}
+      </section>
+
       <div className="main-grid">
         <section className="hero tos-panel">
           <div className="hero-head">
@@ -552,6 +588,66 @@ export function CommandCenterView({ data, trades, openTrades }: Props) {
         .blotter .when {
           white-space: nowrap;
         }
+        .daily-brief {
+          display: grid;
+          gap: 12px;
+          border-left: 3px solid var(--accent);
+        }
+        .daily-brief-head {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          gap: 16px;
+        }
+        .eyebrow {
+          margin: 0 0 4px;
+          color: var(--accent);
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 0.1em;
+        }
+        .daily-brief-summary {
+          margin: 5px 0 0;
+          font-size: 13px;
+        }
+        .daily-brief-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+        .daily-brief-list {
+          display: grid;
+          gap: 8px;
+          list-style: none;
+          padding: 0;
+          margin: 0;
+        }
+        .daily-brief-list li {
+          display: flex;
+          align-items: flex-start;
+          gap: 9px;
+          color: var(--text-secondary);
+          font-size: 13px;
+          line-height: 1.5;
+        }
+        .brief-marker {
+          width: 7px;
+          height: 7px;
+          flex: 0 0 7px;
+          margin-top: 6px;
+          border-radius: 50%;
+          background: var(--accent);
+        }
+        .daily-brief-list li.warning .brief-marker { background: var(--warning); }
+        .daily-brief-list li.positive .brief-marker { background: var(--pos); }
+        .daily-brief-empty, .daily-brief-foot {
+          margin: 0;
+          font-size: 12px;
+        }
+        .daily-brief-foot {
+          padding-top: 10px;
+          border-top: 1px solid var(--border);
+        }
         .insight-row {
           display: grid;
           grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -591,6 +687,14 @@ export function CommandCenterView({ data, trades, openTrades }: Props) {
           background: var(--surface);
           border-left: 1px solid var(--border);
           overflow-y: auto;
+        }
+        @media (max-width: 700px) {
+          .daily-brief-head {
+            flex-direction: column;
+          }
+          .daily-brief-actions {
+            width: 100%;
+          }
         }
         @media (max-width: 980px) {
           .main-grid {

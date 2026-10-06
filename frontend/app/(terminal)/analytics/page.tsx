@@ -1,7 +1,7 @@
 "use client";
 
 import { AnalyticsFilters, DrilldownFilterBar, LoadingState } from "@/components/trader";
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { api, getActiveAccountId } from "@/lib/api";
@@ -56,6 +56,8 @@ function AnalyticsLab() {
   const [applied, setApplied] = useState<FilterState>(filtersWithGlobalPeriod(globalFilters.period));
   const [data, setData] = useState<AnalyticsDashboard | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [retryVersion, setRetryVersion] = useState(0);
+  const loadRequestRef = useRef(0);
   const [drillMetric, setDrillMetric] = useState<"win_rate" | "expectancy_r" | "profit_factor" | "average_r" | null>(null);
   const aiStatus = useAiStatus();
 
@@ -64,10 +66,14 @@ function AnalyticsLab() {
   }, [urlTab]);
 
   const load = useCallback(async (id: string, filters: FilterState) => {
+    const requestId = ++loadRequestRef.current;
     setError(null);
     try {
-      setData(await api<AnalyticsDashboard>(`/api/analytics/dashboard?${buildAnalyticsQuery(id, filters)}`));
+      const result = await api<AnalyticsDashboard>(`/api/analytics/dashboard?${buildAnalyticsQuery(id, filters)}`);
+      if (requestId !== loadRequestRef.current) return;
+      setData(result);
     } catch (err) {
+      if (requestId !== loadRequestRef.current) return;
       setError(err instanceof Error ? err.message : "Could not load analytics.");
       setData(null);
     }
@@ -89,7 +95,7 @@ function AnalyticsLab() {
     };
     window.addEventListener("traderos-account", on);
     return () => window.removeEventListener("traderos-account", on);
-  }, [applied, load]);
+  }, [applied, load, retryVersion]);
 
   const tabContent = useMemo(() => {
     if (!data || !accountId) return null;
@@ -165,8 +171,15 @@ function AnalyticsLab() {
         }}
       />
       {data && <DrilldownFilterBar filters={applied} data={data} onChange={setApplied} />}
-      {error && <Alert kind="danger">{error}</Alert>}
-      {!data && <LoadingState />}
+      {error && (
+        <div className="analytics-error" role="alert">
+          <Alert kind="danger">{error}</Alert>
+          <button type="button" className="btn ghost" onClick={() => setRetryVersion((version) => version + 1)}>
+            Retry analytics
+          </button>
+        </div>
+      )}
+      {!data && !error && <LoadingState label="Loading analytics…" />}
       {data && <div className="stack">{tabContent}</div>}
 
       {tab === "overview" && data && (
@@ -195,6 +208,13 @@ function AnalyticsLab() {
       )}
 
       <style jsx>{`
+        .analytics-error {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          flex-wrap: wrap;
+          margin-top: 12px;
+        }
         .page-head {
           margin-bottom: 4px;
         }
