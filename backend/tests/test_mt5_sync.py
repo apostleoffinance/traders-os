@@ -15,7 +15,8 @@ from app import models  # noqa: F401
 from app.core.security import get_db
 from app.db.base import Base
 from app.main import app
-from app.models.mt5_connection import Mt5SourceDeal, Mt5SyncSnapshot
+from app.models.mt5_connection import Mt5ProcessedDeal, Mt5SourceDeal, Mt5SyncSnapshot
+from app.models.trade import Trade
 
 
 @pytest.fixture()
@@ -579,3 +580,242 @@ def test_source_deal_ledger_retains_opening_deals_once(client: TestClient) -> No
         assert rows[0].payload["price"] == "1.16646"
     finally:
         db_generator.close()
+
+
+
+def test_reconciliation_report_matches_processed_close_deal(client: TestClient) -> None:
+    auth = _register(client, "mt5reconcile@example.com")
+    account_id = _account(client, auth["access_token"])
+    connector_token, connection_id = _connect(client, auth["access_token"], account_id)
+    headers = {"Authorization": f"Bearer {connector_token}"}
+    user_headers = {"Authorization": f"Bearer {auth['access_token']}"}
+
+    opened = client.post("/api/integrations/mt5/sync", headers=headers, json=_sync_body())
+    assert opened.status_code == 200, opened.text
+    closed = client.post(
+        "/api/integrations/mt5/sync",
+        headers=headers,
+        json=_sync_body(
+            sync_timestamp="2026-08-24T11:01:00+00:00",
+            positions=[],
+            recent_deals=[
+                {
+                    "external_deal_id": "99001",
+                    "external_position_id": "10001",
+                    "symbol_raw": "EURUSD.a",
+                    "direction": "SHORT",
+                    "entry_type": "OUT",
+                    "volume": "0.01",
+                    "price": "1.16500",
+                    "profit": "1.46",
+                    "commission": "-0.04",
+                    "swap": "0",
+                    "deal_time": "2026-08-24T11:00:00+00:00",
+                }
+            ],
+        ),
+    )
+    assert closed.status_code == 200, closed.text
+
+    report = client.get(
+        f"/api/integrations/mt5/connections/{connection_id}/reconciliation",
+        headers=user_headers,
+    )
+    assert report.status_code == 200, report.text
+    body = report.json()
+    assert body["summary"]["status"] == "consistent", body["issues"]
+    assert body["summary"]["error_count"] == 0
+    assert body["coverage"]["source_closing_deals"] == 1
+    assert body["coverage"]["processed_deals"] == 1
+    assert body["latest_snapshot"]["positions_count"] == 0
+    assert body["issues"] == []
+
+
+def test_reconciliation_report_does_not_disclose_other_users_connection(client: TestClient) -> None:
+    owner = _register(client, "mt5reconcileowner@example.com")
+    account_id = _account(client, owner["access_token"])
+    _, connection_id = _connect(client, owner["access_token"], account_id)
+    stranger = _register(client, "mt5reconcilenobody@example.com")
+
+    response = client.get(
+        f"/api/integrations/mt5/connections/{connection_id}/reconciliation",
+        headers={"Authorization": f"Bearer {stranger['access_token']}"},
+    )
+    assert response.status_code == 404
+    assert response.json()["detail"] == "MT5 connection not found"
+
+
+
+def test_reconciliation_flags_source_close_missing_processed_projection(client: TestClient) -> None:
+    auth = _register(client, "mt5reconcilemissing@example.com")
+    account_id = _account(client, auth["access_token"])
+    connector_token, connection_id = _connect(client, auth["access_token"], account_id)
+    connector_headers = {"Authorization": f"Bearer {connector_token}"}
+    user_headers = {"Authorization": f"Bearer {auth['access_token']}"}
+
+    client.post("/api/integrations/mt5/sync", headers=connector_headers, json=_sync_body())
+    close = client.post(
+        "/api/integrations/mt5/sync",
+        headers=connector_headers,
+        json=_sync_body(
+            sync_timestamp="2026-08-24T11:01:00+00:00",
+            positions=[],
+            recent_deals=[
+                {
+                    "external_deal_id": "99002",
+                    "external_position_id": "10001",
+                    "symbol_raw": "EURUSD.a",
+                    "direction": "SHORT",
+                    "entry_type": "OUT",
+                    "volume": "0.01",
+                    "price": "1.16500",
+                    "profit": "1.46",
+                    "commission": "-0.04",
+                    "swap": "0",
+                    "deal_time": "2026-08-24T11:00:00+00:00",
+                }
+            ],
+        ),
+    )
+    assert close.status_code == 200, close.text
+
+    db_generator = app.dependency_overrides[get_db]()
+    db = next(db_generator)
+    try:
+        processed = db.query(Mt5ProcessedDeal).filter(Mt5ProcessedDeal.deal_id == "99002").one()
+        db.delete(processed)
+        db.commit()
+    finally:
+        db_generator.close()
+
+    report = client.get(
+        f"/api/integrations/mt5/connections/{connection_id}/reconciliation",
+        headers=user_headers,
+    )
+    assert report.status_code == 200, report.text
+    body = report.json()
+    assert body["summary"]["status"] == "issues_found"
+    assert body["summary"]["error_count"] == 1, body["issues"]
+    assert any(
+        issue["code"] == "closing_deal_not_processed" and issue["external_deal_id"] == "99002"
+        for issue in body["issues"]
+    )
+
+
+def test_reconciliation_warns_on_open_trade_missing_from_latest_snapshot(client: TestClient) -> None:
+    auth = _register(client, "mt5reconcilemissingposition@example.com")
+    account_id = _account(client, auth["access_token"])
+    connector_token, connection_id = _connect(client, auth["access_token"], account_id)
+    connector_headers = {"Authorization": f"Bearer {connector_token}"}
+    user_headers = {"Authorization": f"Bearer {auth['access_token']}"}
+
+    first = client.post("/api/integrations/mt5/sync", headers=connector_headers, json=_sync_body())
+    assert first.status_code == 200, first.text
+    second = client.post(
+        "/api/integrations/mt5/sync",
+        headers=connector_headers,
+        json=_sync_body(sync_timestamp="2026-08-24T11:01:00+00:00", positions=[], recent_deals=[]),
+    )
+    assert second.status_code == 200, second.text
+
+    report = client.get(
+        f"/api/integrations/mt5/connections/{connection_id}/reconciliation",
+        headers=user_headers,
+    )
+    assert report.status_code == 200, report.text
+    body = report.json()
+    assert body["summary"]["warning_count"] == 1
+    assert any(
+        issue["code"] == "open_trade_missing_from_latest_snapshot"
+        for issue in body["issues"]
+    )
+
+
+
+def test_reconciliation_detects_deal_economics_mismatch(client: TestClient) -> None:
+    auth = _register(client, "mt5reconcileeconomics@example.com")
+    account_id = _account(client, auth["access_token"])
+    connector_token, connection_id = _connect(client, auth["access_token"], account_id)
+    connector_headers = {"Authorization": f"Bearer {connector_token}"}
+    user_headers = {"Authorization": f"Bearer {auth['access_token']}"}
+
+    client.post("/api/integrations/mt5/sync", headers=connector_headers, json=_sync_body())
+    client.post(
+        "/api/integrations/mt5/sync",
+        headers=connector_headers,
+        json=_sync_body(
+            sync_timestamp="2026-08-24T11:01:00+00:00",
+            positions=[],
+            recent_deals=[
+                {
+                    "external_deal_id": "99003",
+                    "external_position_id": "10001",
+                    "symbol_raw": "EURUSD.a",
+                    "direction": "SHORT",
+                    "entry_type": "OUT",
+                    "volume": "0.01",
+                    "price": "1.16500",
+                    "profit": "1.46",
+                    "commission": "-0.04",
+                    "swap": "0",
+                    "deal_time": "2026-08-24T11:00:00+00:00",
+                }
+            ],
+        ),
+    )
+
+    db_generator = app.dependency_overrides[get_db]()
+    db = next(db_generator)
+    try:
+        processed = db.query(Mt5ProcessedDeal).filter(Mt5ProcessedDeal.deal_id == "99003").one()
+        processed.profit = Decimal("999.00")
+        db.commit()
+    finally:
+        db_generator.close()
+
+    report = client.get(
+        f"/api/integrations/mt5/connections/{connection_id}/reconciliation",
+        headers=user_headers,
+    )
+    assert report.status_code == 200, report.text
+    mismatches = [issue for issue in report.json()["issues"] if issue["code"] == "deal_economics_mismatch"]
+    assert any(
+        issue["external_deal_id"] == "99003"
+        and issue["field"] == "profit"
+        and Decimal(issue["source_value"]) == Decimal("1.46")
+        and Decimal(issue["processed_value"]) == Decimal("999.00")
+        for issue in mismatches
+    )
+
+
+def test_reconciliation_flags_broker_position_without_canonical_trade(client: TestClient) -> None:
+    auth = _register(client, "mt5reconcileorphanposition@example.com")
+    account_id = _account(client, auth["access_token"])
+    connector_token, connection_id = _connect(client, auth["access_token"], account_id)
+    connector_headers = {"Authorization": f"Bearer {connector_token}"}
+    user_headers = {"Authorization": f"Bearer {auth['access_token']}"}
+    sync = client.post("/api/integrations/mt5/sync", headers=connector_headers, json=_sync_body())
+    assert sync.status_code == 200, sync.text
+
+    db_generator = app.dependency_overrides[get_db]()
+    db = next(db_generator)
+    try:
+        trade = db.query(Trade).filter(
+            Trade.account_id == UUID(account_id),
+            Trade.external_position_id == "10001",
+        ).one()
+        db.delete(trade)
+        db.commit()
+    finally:
+        db_generator.close()
+
+    report = client.get(
+        f"/api/integrations/mt5/connections/{connection_id}/reconciliation",
+        headers=user_headers,
+    )
+    assert report.status_code == 200, report.text
+    assert any(
+        issue["code"] == "broker_position_without_trade"
+        and issue["external_position_id"] == "10001"
+        for issue in report.json()["issues"]
+    )

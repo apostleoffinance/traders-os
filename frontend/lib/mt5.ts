@@ -73,3 +73,51 @@ export function mt5StatusLabel(status: string): string {
 export function mt5NeedsSetup(status: string | undefined): boolean {
   return !status || status === "pending" || status === "disconnected";
 }
+
+
+export type Mt5ReconciliationIssue = {
+  code: string;
+  severity: "error" | "warning" | "info";
+  message: string;
+  external_deal_id?: string | null;
+  external_position_id?: string | null;
+  trade_id?: string | null;
+  field?: string;
+  source_value?: string;
+  processed_value?: string;
+};
+
+export type Mt5ReconciliationReport = {
+  connection_id: string;
+  account_id: string;
+  generated_at: string;
+  latest_snapshot: {
+    id: string;
+    received_at: string | null;
+    sync_timestamp: string | null;
+    positions_count: number;
+    deals_count: number;
+  } | null;
+  coverage: {
+    source_deal_rows: number;
+    source_closing_deals: number;
+    processed_deals: number;
+    canonical_mt5_trades: number;
+    broker_open_positions_in_latest_snapshot: number;
+    historical_source_coverage: string;
+  };
+  summary: {
+    status: "consistent" | "issues_found";
+    issue_count: number;
+    error_count: number;
+    warning_count: number;
+    info_count: number;
+  };
+  issues: Mt5ReconciliationIssue[];
+};
+
+export function fetchMt5Reconciliation(connectionId: string): Promise<Mt5ReconciliationReport> {
+  return api<Mt5ReconciliationReport>(
+    `/api/integrations/mt5/connections/${connectionId}/reconciliation`,
+  );
+}

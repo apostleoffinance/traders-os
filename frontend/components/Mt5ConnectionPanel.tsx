@@ -4,12 +4,14 @@ import { useCallback, useEffect, useState } from "react";
 import {
   createMt5Connection,
   fetchMt5Connection,
+  fetchMt5Reconciliation,
   mt5NeedsSetup,
   mt5StatusLabel,
   regenerateMt5Connection,
   revokeMt5Connection,
 } from "@/lib/mt5";
 import type { Mt5Connection } from "@/lib/types";
+import type { Mt5ReconciliationReport } from "@/lib/mt5";
 import { formatWhen } from "@/lib/format";
 import { Alert, Button, Panel } from "@/components/ui";
 import { Mt5ConnectDrawer } from "@/components/Mt5ConnectDrawer";
@@ -26,6 +28,9 @@ export function Mt5ConnectionPanel({ accountId, autoOpen = false }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [freshToken, setFreshToken] = useState<string | null>(null);
+  const [reconciliation, setReconciliation] = useState<Mt5ReconciliationReport | null>(null);
+  const [reconciliationLoading, setReconciliationLoading] = useState(false);
+  const [reconciliationError, setReconciliationError] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
     setError(null);
@@ -54,6 +59,20 @@ export function Mt5ConnectionPanel({ accountId, autoOpen = false }: Props) {
     const id = window.setInterval(() => void reload(), 5000);
     return () => window.clearInterval(id);
   }, [connection, reload]);
+
+  async function onRunReconciliation() {
+    if (!connection) return;
+    setReconciliationLoading(true);
+    setReconciliationError(null);
+    try {
+      const report = await fetchMt5Reconciliation(connection.id);
+      setReconciliation(report);
+    } catch (err) {
+      setReconciliationError(err instanceof Error ? err.message : "Could not reconcile MT5 records");
+    } finally {
+      setReconciliationLoading(false);
+    }
+  }
 
   async function onDisconnect() {
     if (!connection || connection.status === "revoked") return;
@@ -167,6 +186,73 @@ export function Mt5ConnectionPanel({ accountId, autoOpen = false }: Props) {
           )}
         </div>
       </Panel>
+      {connection && connection.status !== "revoked" && (
+        <Panel
+          title="Broker data reconciliation"
+          right={
+            <Button type="button" kind="ghost" disabled={reconciliationLoading} onClick={() => void onRunReconciliation()}>
+              {reconciliationLoading ? "Checking…" : reconciliation ? "Run again" : "Run check"}
+            </Button>
+          }
+        >
+          <p className="muted">
+            Compare retained broker deals, processed close deals, canonical trades, and the latest open-position snapshot.
+            This is an audit only; it never edits trades or recalculates P&amp;L.
+          </p>
+          {reconciliationError && <Alert kind="danger">{reconciliationError}</Alert>}
+          {reconciliation && (
+            <>
+              <div className="recon-summary">
+                <div>
+                  <p className="label">Report status</p>
+                  <strong className={reconciliation.summary.status === "consistent" ? "recon-good" : "recon-issues"}>
+                    {reconciliation.summary.status === "consistent" ? "No actionable issues" : "Review findings"}
+                  </strong>
+                </div>
+                <div><p className="label">Errors</p><strong>{reconciliation.summary.error_count}</strong></div>
+                <div><p className="label">Warnings</p><strong>{reconciliation.summary.warning_count}</strong></div>
+                <div><p className="label">Informational</p><strong>{reconciliation.summary.info_count}</strong></div>
+              </div>
+              <div className="recon-coverage">
+                <span>{reconciliation.coverage.source_deal_rows} source deals</span>
+                <span>{reconciliation.coverage.source_closing_deals} closing deals</span>
+                <span>{reconciliation.coverage.processed_deals} processed deals</span>
+                <span>{reconciliation.coverage.canonical_mt5_trades} MT5 trades</span>
+                <span>{reconciliation.coverage.broker_open_positions_in_latest_snapshot} broker open positions</span>
+              </div>
+              {reconciliation.issues.length === 0 ? (
+                <p className="muted">No discrepancies were found in the retained evidence and latest snapshot.</p>
+              ) : (
+                <div className="recon-issues-list">
+                  {reconciliation.issues.map((issue, index) => (
+                    <div className="recon-issue" key={`${issue.code}-${issue.external_deal_id ?? issue.external_position_id ?? index}`}>
+                      <span className={`recon-severity ${issue.severity}`}>{issue.severity}</span>
+                      <div>
+                        <strong>{issue.code.replace(/_/g, " ")}</strong>
+                        <p>{issue.message}</p>
+                        {(issue.external_deal_id || issue.external_position_id) && (
+                          <small className="muted">
+                            {issue.external_deal_id ? `Deal ${issue.external_deal_id}` : ""}
+                            {issue.external_deal_id && issue.external_position_id ? " · " : ""}
+                            {issue.external_position_id ? `Position ${issue.external_position_id}` : ""}
+                          </small>
+                        )}
+                        {issue.field && (
+                          <small className="muted">
+                            {issue.field}: source {issue.source_value} · processed {issue.processed_value}
+                          </small>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <p className="recon-caveat">{reconciliation.coverage.historical_source_coverage}</p>
+              <p className="muted recon-generated">Generated {formatWhen(reconciliation.generated_at)}</p>
+            </>
+          )}
+        </Panel>
+      )}
       <Mt5ConnectDrawer
         open={drawerOpen}
         onClose={() => {
