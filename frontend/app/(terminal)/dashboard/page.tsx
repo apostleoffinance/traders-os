@@ -12,6 +12,7 @@ export default function DashboardPage() {
   const [data, setData] = useState<Dashboard | null>(null);
   const [trades, setTrades] = useState<Trade[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [tradesError, setTradesError] = useState<string | null>(null);
   const [hello, setHello] = useState("Good afternoon");
   const [name, setName] = useState("Trader");
 
@@ -24,6 +25,7 @@ export default function DashboardPage() {
       return;
     }
     setError(null);
+    setTradesError(null);
     try {
       const dash = await api<Dashboard>(`/api/dashboard?account_id=${id}`);
       setData(dash);
@@ -35,8 +37,9 @@ export default function DashboardPage() {
     try {
       const list = await api<Trade[]>(`/api/trades?account_id=${id}`);
       setTrades(list);
-    } catch {
+    } catch (err) {
       setTrades([]);
+      setTradesError(err instanceof Error ? err.message : "Unable to load recent trades.");
     }
   }, []);
 
@@ -100,8 +103,21 @@ export default function DashboardPage() {
         </section>
       )}
 
+      {tradesError && (
+        <div className="trades-warning" role="alert">
+          <Alert kind="warn">Recent trade activity could not be loaded. Dashboard totals may be available, but the trade list below is incomplete.</Alert>
+          <button type="button" className="btn ghost" onClick={() => void load()}>Retry</button>
+        </div>
+      )}
       <CommandCenterView data={data} trades={trades} openTrades={openTrades} />
       <style jsx>{`
+        .trades-warning {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          flex-wrap: wrap;
+          margin: 0 0 14px;
+        }
         .cc-head {
           display: flex;
           justify-content: space-between;
