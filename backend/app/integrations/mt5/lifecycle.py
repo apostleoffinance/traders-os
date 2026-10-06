@@ -21,7 +21,6 @@ def _event_time(value: str | None) -> datetime:
         return datetime.min
     try:
         parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
-        # Normalize naive legacy timestamps for deterministic sorting only.
         return parsed.replace(tzinfo=None)
     except (TypeError, ValueError):
         return datetime.min
@@ -59,14 +58,14 @@ def build_position_lifecycle(
             Mt5SyncSnapshot.account_id == connection.account_id,
         )
         .order_by(
-            Mt5SyncSnapshot.received_at.asc(),
-            Mt5SyncSnapshot.sync_timestamp.asc(),
-            Mt5SyncSnapshot.id.asc(),
+            Mt5SyncSnapshot.received_at.desc(),
+            Mt5SyncSnapshot.sync_timestamp.desc(),
+            Mt5SyncSnapshot.id.desc(),
         )
         .limit(LIFECYCLE_SNAPSHOT_LIMIT)
         .all()
     )
-    # Query newest N above but process chronologically.
+    # Bound the scan to the newest snapshots, then present them chronologically.
     snapshots.sort(key=lambda row: (
         row.received_at.isoformat() if row.received_at else "",
         row.sync_timestamp.isoformat() if row.sync_timestamp else "",
@@ -89,8 +88,7 @@ def build_position_lifecycle(
         return positions.setdefault(pid, {"external_position_id": pid, "events": []})
 
     for deal in source_deals:
-        pid = deal.external_position_id
-        row = get_position(pid)
+        row = get_position(deal.external_position_id)
         row["events"].append({
             "event_type": "source_deal",
             "occurred_at": _iso(deal.deal_time),
@@ -130,9 +128,7 @@ def build_position_lifecycle(
     for pid in all_position_ids:
         get_position(pid)
 
-    # Position lists are snapshots of current state. Explicitly record both presence and
-    # absence, but do not infer a close from absence: timing, filtering, or payload defects
-    # can produce the same observation.
+    # Record presence and absence observations, but never infer closure from absence alone.
     for snapshot, observed in parsed_snapshots:
         for pid in all_position_ids:
             raw = observed.get(pid)
