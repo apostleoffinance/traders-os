@@ -28,7 +28,7 @@ Example request (illustrative historical range; choose one supported by both fee
       "limit": 500
     }
 
-The route uses the existing authenticated API, fetches both series before writing, persists candles to market_candles, commits both datasets atomically, and returns:
+The route is wired into the new Market Replay screen at /labs/replay and uses the existing authenticated API. It fetches both series before writing, persists candles to market_candles, commits both datasets atomically, and returns:
 - the exact UTC replay window;
 - FX and crypto source/provider names and per-series coverage;
 - normalized OHLCV values with exact decimal strings;
@@ -37,7 +37,14 @@ The route uses the existing authenticated API, fetches both series before writin
 
 If either instrument cannot be fetched, the request fails and rolls back instead of returning a misleading partial replay. FX and crypto bars remain sourced from their own providers; they are not represented as one consolidated order book. The current adapter chain is Dukascopy for FX and configured CCXT exchanges for crypto.
 
-### Try it
+### Try it in the UI
+
+1. Sign in to TraderOS and open Market Replay from the Market section of the sidebar, or navigate to /labs/replay.
+2. Choose one FX symbol, one crypto symbol, a timeframe, and a historical UTC window, then select Load & persist replay.
+3. Step through events, play/pause the timeline, and drag the scrubber. The two candlestick panels reveal only bars at or before the current replay cursor.
+4. Confirm both providers and candle counts are displayed, and review the precision caveats below the chart.
+
+### Try the API directly
 
 1. Sign in and obtain a TraderOS bearer token.
 2. Choose a historical UTC interval likely to have FX and crypto candles (avoid a weekend-only window for FX).
