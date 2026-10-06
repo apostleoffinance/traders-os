@@ -1,8 +1,8 @@
 # MT5 Reconciliation
 
-TraderOS exposes a read-only reconciliation report for each authenticated user's MT5 connection.
+TraderOS exposes read-only reconciliation and lifecycle evidence for each authenticated user's MT5 connection.
 
-## Endpoint
+## Reconciliation endpoint
 
 `GET /api/integrations/mt5/connections/{connection_id}/reconciliation`
 
@@ -10,14 +10,27 @@ Requires a TraderOS access token. The connection must belong to the authenticate
 
 The endpoint does not repair data, mutate trades, recalculate P&L, or call the broker. It compares the persisted evidence already available in TraderOS.
 
+## Position lifecycle endpoint
+
+`GET /api/integrations/mt5/connections/{connection_id}/lifecycle`
+
+Optional filter: `?position_id={broker_position_id}`.
+
+The endpoint combines first-seen source-deal records, retained successful sync snapshots, and the canonical MT5 trade projection into a chronological evidence timeline per broker position. It is owner-scoped and read-only. Events retain broker deal IDs, source row IDs, snapshot IDs, timestamps, observed position fields, and a canonical trade reference when one exists.
+
+Snapshot observations are explicitly marked `present` or `absent`. **Absence is not a close event.** A position may be absent because of timing, incomplete or filtered payloads, or a genuine close; the timeline does not invent a close transition without a broker deal that supports it. Repeated present observations retain the state reported in each snapshot so changes to volume, price, stop loss, take profit, or other retained fields can be inspected over time.
+
+The endpoint scans the newest 100 successful sync snapshots and orders them chronologically for display. Source-deal records are read from the retained ledger. The response marks snapshot history as incomplete and explains that events may fall outside retained coverage. It does not claim to reconstruct a complete historical broker lifecycle.
+
 ## Evidence compared
 
 - **Source-deal ledger** — first-seen broker deal records, including opening deals and original validated payloads.
 - **Processed-deal ledger** — closing deals consumed by the current MT5 trade lifecycle, with volume, price, profit, commission, swap, and a trade reference.
 - **Canonical MT5 trades** — normalized journal projections, scoped to the connection's account and owner.
 - **Latest successful sync snapshot** — the most recent positions list and its metadata.
+- **Lifecycle observations** — source deal facts and per-snapshot position presence/state observations.
 
-Heartbeats are not sync snapshots and are excluded from this comparison.
+Heartbeats are not sync snapshots and are excluded from these comparisons.
 
 ## Finding severities
 
@@ -48,15 +61,16 @@ Opening `IN` deals are intentionally not expected to have processed-deal rows: t
 
 The source-deal ledger was introduced after MT5 syncing was already in use. Older processed deals may therefore have no source-deal record. These are informational rather than automatically classified as data loss; a bounded `recent_deals` payload cannot reliably reconstruct complete historical deal history.
 
-The report scans the newest 100 successful sync snapshots for deal provenance. Snapshot details can be retrieved through the owner-scoped snapshot evidence endpoint and opened from a finding in the UI. Drift findings link to the source-ledger row, processed-deal row when present, and canonical trade reference when present. It compares only deal IDs present in each payload; because recent_deals is a moving window, omission from a later payload is not treated as disappearance. Drift findings include exact snapshot references and field values. First-seen source rows remain immutable. Older snapshots outside the bounded scan are not assessed for drift.
+The reconciliation report scans the newest 100 successful sync snapshots for deal provenance. Snapshot details can be retrieved through the owner-scoped snapshot evidence endpoint and opened from a finding in the UI. Drift findings link to the source-ledger row, processed-deal row when present, and canonical trade reference when present. It compares only deal IDs present in each payload; because recent_deals is a moving window, omission from a later payload is not treated as disappearance. Drift findings include exact snapshot references and field values. First-seen source rows remain immutable. Older snapshots outside the bounded scan are not assessed for drift.
 
-The report is only as complete as the data received and retained. In particular:
+The report is only as complete as the data received and retained:
 
 - A warning about an open trade missing from the latest snapshot is not proof the trade should be closed. Check whether the EA omitted a close deal or whether the snapshot is temporarily incomplete.
 - A clean report means no discrepancy was detected among the retained source ledger, processed-deal ledger, canonical trades, and latest snapshot. It does not prove the broker's complete account history was imported.
+- The lifecycle timeline's `absent` observation does not establish that a position was closed. Use deal evidence and other broker history to investigate.
 - The report intentionally does not compare broker balance/equity totals with derived trade P&L; balance movements may include deposits, withdrawals, credits, fees, and other account-level operations that are not represented as trades.
 - No automatic repair is performed. Resolve findings by reviewing broker history and retained sync payloads, then make a separately reviewed change to the import/reconciliation logic if needed.
 
 ## Frontend
 
-The account's **MetaTrader 5 automatic sync** panel includes a **Broker data reconciliation** section. Run the check to see severity counts, record coverage, the latest snapshot metadata, findings, and historical coverage caveats.
+The account's **MetaTrader 5 automatic sync** panel includes a **Broker data reconciliation** section. Run the check to see severity counts, record coverage, the latest snapshot metadata, findings, and historical coverage caveats. The lifecycle endpoint is currently an API capability intended for the upcoming position timeline UI.
