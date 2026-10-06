@@ -91,7 +91,8 @@ def build_position_lifecycle(
         row = get_position(deal.external_position_id)
         row["events"].append({
             "event_type": "source_deal",
-            "occurred_at": _iso(deal.deal_time),
+            "occurred_at": _iso(deal.deal_time_utc or deal.deal_time),
+            "timestamp_basis": "normalized_utc" if deal.deal_time_utc else "legacy_broker_reported_time",
             "received_at": _iso(deal.received_at),
             "external_deal_id": deal.external_deal_id,
             "source_deal_row_id": str(deal.id),
@@ -134,7 +135,8 @@ def build_position_lifecycle(
             raw = observed.get(pid)
             event = {
                 "event_type": "snapshot_position_observation",
-                "occurred_at": _iso(snapshot.sync_timestamp),
+                "occurred_at": _iso(snapshot.sync_timestamp_utc or snapshot.sync_timestamp),
+                "timestamp_basis": "normalized_utc" if snapshot.sync_timestamp_utc else "legacy_broker_reported_time",
                 "received_at": _iso(snapshot.received_at),
                 "snapshot_id": str(snapshot.id),
                 "state": "present" if raw is not None else "absent",
