@@ -206,6 +206,14 @@ export default function TradeDetailPage() {
 
   return (
     <div>
+      {loadError && (
+        <div className="detail-load-error">
+          <Alert kind="danger">{loadError}</Alert>
+          <button type="button" className="btn ghost" onClick={() => setRetryCount((n) => n + 1)}>
+            Retry loading trade
+          </button>
+        </div>
+      )}
       {uploadWarning && <Alert kind="warn">{uploadWarning}</Alert>}
       <div className="head">
         <div>
@@ -477,6 +485,22 @@ export default function TradeDetailPage() {
         </Panel>
       )}
       <style jsx>{`
+        .detail-load-error {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          flex-wrap: wrap;
+          margin-bottom: 12px;
+        }
+        .detail-load-error :global(.btn) {
+          border: 1px solid var(--line-strong);
+          background: var(--surface);
+          color: var(--text);
+          padding: 7px 10px;
+          font-size: 12px;
+          font-weight: 600;
+          cursor: pointer;
+        }
         .head {
           display: flex;
           justify-content: space-between;
