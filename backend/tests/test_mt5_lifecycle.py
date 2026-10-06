@@ -1,6 +1,102 @@
 from __future__ import annotations
 
-from test_mt5_sync import _account, _connect, _register, _sync_body, client
+import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
+
+from app import models  # noqa: F401
+from app.core.security import get_db
+from app.db.base import Base
+from app.main import app
+
+
+@pytest.fixture()
+def client():
+    engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+    testing_session = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+    Base.metadata.create_all(engine)
+
+    def override_db():
+        db = testing_session()
+        try:
+            yield db
+        finally:
+            db.close()
+
+    app.dependency_overrides[get_db] = override_db
+    with TestClient(app) as test_client:
+        yield test_client
+    app.dependency_overrides.clear()
+
+
+def _register(client: TestClient, email: str) -> dict:
+    response = client.post(
+        "/api/auth/register",
+        json={"email": email, "password": "password12", "display_name": email.split("@")[0]},
+    )
+    assert response.status_code == 201, response.text
+    return response.json()
+
+
+def _account(client: TestClient, token: str) -> str:
+    response = client.post(
+        "/api/accounts",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "firm": "TenTrade",
+            "program": "TenEdge Instant",
+            "account_name": "MT5 Lifecycle Test",
+            "starting_balance": "1000.00",
+            "template": "tentrade_tenedge_1k",
+        },
+    )
+    assert response.status_code == 201, response.text
+    return response.json()["id"]
+
+
+def _connect(client: TestClient, user_token: str, account_id: str) -> tuple[str, str]:
+    response = client.post(
+        "/api/integrations/mt5/connections",
+        headers={"Authorization": f"Bearer {user_token}"},
+        json={"account_id": account_id},
+    )
+    assert response.status_code == 201, response.text
+    body = response.json()
+    return body["connection_token"], body["id"]
+
+
+def _sync_body(**overrides) -> dict:
+    body = {
+        "event_type": "sync",
+        "platform": "MT5",
+        "sync_timestamp": "2026-08-24T10:00:00+00:00",
+        "terminal_connected": True,
+        "account": {
+            "login": 12345678,
+            "server": "MetaQuotes-Demo",
+            "company": "MetaQuotes Ltd.",
+            "currency": "USD",
+        },
+        "positions": [{
+            "external_position_id": "10001",
+            "symbol_raw": "EURUSD.a",
+            "direction": "SHORT",
+            "volume": "0.01",
+            "entry_price": "1.16646",
+            "current_price": "1.16520",
+            "stop_loss": "1.17121",
+            "take_profit": "1.15666",
+            "opened_at": "2026-08-24T09:30:00+00:00",
+            "unrealized_pnl": "1.26",
+            "commission": "0",
+            "swap": "0",
+        }],
+        "recent_deals": [],
+    }
+    body.update(overrides)
+    return body
 
 
 def test_position_lifecycle_records_source_deals_and_snapshot_absence_without_inventing_close(client):
@@ -13,21 +109,19 @@ def test_position_lifecycle_records_source_deals_and_snapshot_absence_without_in
     first = client.post(
         "/api/integrations/mt5/sync",
         headers=connector_headers,
-        json=_sync_body(
-            recent_deals=[{
-                "external_deal_id": "lifecycle-1",
-                "external_position_id": "10001",
-                "symbol_raw": "EURUSD.a",
-                "direction": "SHORT",
-                "entry_type": "IN",
-                "volume": "0.01",
-                "price": "1.16646",
-                "profit": "0",
-                "commission": "-0.02",
-                "swap": "0",
-                "deal_time": "2026-08-24T09:30:00+00:00",
-            }],
-        ),
+        json=_sync_body(recent_deals=[{
+            "external_deal_id": "lifecycle-1",
+            "external_position_id": "10001",
+            "symbol_raw": "EURUSD.a",
+            "direction": "SHORT",
+            "entry_type": "IN",
+            "volume": "0.01",
+            "price": "1.16646",
+            "profit": "0",
+            "commission": "-0.02",
+            "swap": "0",
+            "deal_time": "2026-08-24T09:30:00+00:00",
+        }]),
     )
     assert first.status_code == 200, first.text
 
@@ -52,8 +146,13 @@ def test_position_lifecycle_records_source_deals_and_snapshot_absence_without_in
     assert body["coverage"]["snapshot_history_complete"] is False
     assert len(body["positions"]) == 1
     events = body["positions"][0]["events"]
-    assert any(event["event_type"] == "source_deal" and event["external_deal_id"] == "lifecycle-1" for event in events)
-    observations = [event for event in events if event["event_type"] == "snapshot_position_observation"]
+    assert any(
+        event["event_type"] == "source_deal" and event["external_deal_id"] == "lifecycle-1"
+        for event in events
+    )
+    observations = [
+        event for event in events if event["event_type"] == "snapshot_position_observation"
+    ]
     assert [event["state"] for event in observations] == ["present", "absent"]
     assert not any(event["event_type"] == "position_closed" for event in events)
 
