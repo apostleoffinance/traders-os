@@ -31,22 +31,15 @@ export function MetricDrilldown({ open, metric, data, onClose }: Props) {
   const overall = data.overview;
   const wl = data.lab?.performance?.win_loss;
   const currency = data.account.currency;
-  const value =
+  const rawValue =
     metric === "win_rate"
       ? overall.win_rate
-        ? `${num(overall.win_rate, 1)}%`
-        : "—"
       : metric === "expectancy_r"
         ? overall.expectancy_r
-          ? `${overall.expectancy_r}R`
-          : "—"
         : metric === "profit_factor"
           ? overall.profit_factor
-            ? num(overall.profit_factor)
-            : "—"
-          : overall.average_r
-            ? `${overall.average_r}R`
-            : "—";
+          : overall.average_r;
+  const value = formatMetricValue(metric, rawValue);
 
   const pfChart =
     metric === "profit_factor" && wl
@@ -208,28 +201,76 @@ function SegmentTable({
   return (
     <table>
       <tbody>
-        {rows.map((s) => (
-          <tr key={s.key} className={onRowClick ? "clickable" : ""} onClick={onRowClick ? () => onRowClick(s) : undefined}>
-            <td>{labelFn ? labelFn(s.key) : s.key}</td>
-            <td className="mono">{formatMetric(metric, s)}</td>
-            <td className="muted">{formatSampleSize(s.n)}</td>
+        {rows.length === 0 ? (
+          <tr>
+            <td colSpan={4} className="empty">No data for this selection.</td>
           </tr>
-        ))}
+        ) : rows.map((s) => {
+          const label = labelFn ? labelFn(s.key) : s.key;
+          return (
+            <tr key={s.key} className={onRowClick ? "clickable" : ""}>
+              <td>
+                {onRowClick ? (
+                  <button
+                    type="button"
+                    className="segment-trigger"
+                    aria-label={`View trades for ${label}; ${formatSampleSize(s.n)}`}
+                    onClick={() => onRowClick(s)}
+                  >
+                    {label}
+                  </button>
+                ) : label}
+              </td>
+              <td className="mono">{formatMetric(metric, s)}</td>
+              <td className="evidence" title={s.evidence.reason}>{s.evidence.label}</td>
+              <td className="muted">{formatSampleSize(s.n)}</td>
+            </tr>
+          );
+        })}
       </tbody>
       <style jsx>{`
         table {
           width: 100%;
           border-collapse: collapse;
         }
-        tr.clickable {
-          cursor: pointer;
-        }
         tr.clickable:hover {
           background: var(--surface-2);
         }
         td {
-          padding: 8px 0;
+          padding: 8px 6px 8px 0;
           border-bottom: 1px solid var(--line);
+        }
+        .segment-trigger {
+          padding: 0;
+          border: 0;
+          background: transparent;
+          color: var(--accent);
+          font: inherit;
+          text-align: left;
+          text-decoration: underline;
+          text-decoration-color: transparent;
+          text-underline-offset: 3px;
+          cursor: pointer;
+        }
+        .segment-trigger:hover,
+        .segment-trigger:focus-visible {
+          text-decoration-color: currentColor;
+        }
+        .segment-trigger:focus-visible {
+          outline: 2px solid var(--accent);
+          outline-offset: 3px;
+          border-radius: 2px;
+        }
+        .evidence {
+          color: var(--text-muted);
+          font-size: 11px;
+          text-align: right;
+          white-space: nowrap;
+        }
+        .empty {
+          color: var(--text-muted);
+          padding: 12px 0;
+          font-size: 13px;
         }
         .mono {
           font-family: var(--font-mono), monospace;
@@ -244,12 +285,24 @@ function SegmentTable({
   );
 }
 
+function formatMetricValue(metric: DrillMetric, value: string | null): string {
+  if (value === null || value.trim() === "") return "—";
+  if (metric === "win_rate") return `${num(value, 1)}%`;
+  if (metric === "expectancy_r" || metric === "average_r") return `${value}R`;
+  return num(value);
+}
+
 function formatMetric(
   metric: DrillMetric,
   row: { win_rate: string | null; expectancy_r: string | null; profit_factor: string | null; average_r: string | null },
 ): string {
-  if (metric === "win_rate") return row.win_rate ? `${num(row.win_rate, 1)}%` : "—";
-  if (metric === "expectancy_r") return row.expectancy_r ? `${row.expectancy_r}R` : "—";
-  if (metric === "profit_factor") return row.profit_factor ? num(row.profit_factor) : "—";
-  return row.average_r ? `${row.average_r}R` : "—";
+  const value =
+    metric === "win_rate"
+      ? row.win_rate
+      : metric === "expectancy_r"
+        ? row.expectancy_r
+        : metric === "profit_factor"
+          ? row.profit_factor
+          : row.average_r;
+  return formatMetricValue(metric, value);
 }

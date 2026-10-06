@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import { buildAnalyticsQuery, type FilterState } from "@/lib/analytics";
 import type { DrilldownTrade } from "@/lib/analytics-drilldown";
@@ -22,19 +22,42 @@ export function TradeDrilldownDrawer({ open, title, accountId, filters, currency
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const requestVersion = useRef(0);
 
   useEffect(() => {
-    if (!open || !accountId) return;
+    const requestId = ++requestVersion.current;
+    if (!open || !accountId) {
+      setLoading(false);
+      setTrades([]);
+      setTotal(0);
+      setError(null);
+      return () => {
+        requestVersion.current += 1;
+      };
+    }
+
     setLoading(true);
+    setTrades([]);
+    setTotal(0);
     setError(null);
     const q = buildAnalyticsQuery(accountId, filters);
     void api<{ trades: DrilldownTrade[]; meta: { total: number } }>(`/api/analytics/trades?${q}`)
       .then((res) => {
+        if (requestId !== requestVersion.current) return;
         setTrades(res.trades);
         setTotal(res.meta.total);
       })
-      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load trades"))
-      .finally(() => setLoading(false));
+      .catch((e) => {
+        if (requestId !== requestVersion.current) return;
+        setError(e instanceof Error ? e.message : "Failed to load trades");
+      })
+      .finally(() => {
+        if (requestId === requestVersion.current) setLoading(false);
+      });
+
+    return () => {
+      requestVersion.current += 1;
+    };
   }, [open, accountId, filters]);
 
   if (!open) return null;
