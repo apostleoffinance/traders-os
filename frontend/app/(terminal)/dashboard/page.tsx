@@ -60,6 +60,9 @@ export default function DashboardPage() {
         <Alert kind="warn">
           {error} <Link href="/accounts">Open accounts</Link>
         </Alert>
+        <button type="button" className="btn ghost" onClick={() => void load()} style={{ marginTop: 12 }}>
+          Retry dashboard
+        </button>
       </div>
     );
   }
