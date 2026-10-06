@@ -48,7 +48,7 @@ Opening `IN` deals are intentionally not expected to have processed-deal rows: t
 
 The source-deal ledger was introduced after MT5 syncing was already in use. Older processed deals may therefore have no source-deal record. These are informational rather than automatically classified as data loss; a bounded `recent_deals` payload cannot reliably reconstruct complete historical deal history.
 
-The report scans the newest 100 successful sync snapshots for deal provenance. It compares only deal IDs present in each payload; because recent_deals is a moving window, omission from a later payload is not treated as disappearance. Drift findings include exact snapshot references and field values. First-seen source rows remain immutable. Older snapshots outside the bounded scan are not assessed for drift.
+The report scans the newest 100 successful sync snapshots for deal provenance. Snapshot details can be retrieved through the owner-scoped snapshot evidence endpoint and opened from a finding in the UI. Drift findings link to the source-ledger row, processed-deal row when present, and canonical trade reference when present. It compares only deal IDs present in each payload; because recent_deals is a moving window, omission from a later payload is not treated as disappearance. Drift findings include exact snapshot references and field values. First-seen source rows remain immutable. Older snapshots outside the bounded scan are not assessed for drift.
 
 The report is only as complete as the data received and retained. In particular:
 
