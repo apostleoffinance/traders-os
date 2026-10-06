@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import DomainError, http_error
 from app.core.security import get_current_user_id, get_db
 from app.integrations.mt5.auth import get_mt5_connection
+from app.integrations.mt5.reconciliation import build_reconciliation_report
 from app.integrations.mt5.schemas import (
     Mt5ConnectionCreateIn,
     Mt5ConnectionCreatedOut,
@@ -99,3 +100,21 @@ def mt5_sync(
         return apply_sync(db, connection, payload)
     except DomainError as exc:
         raise http_error(exc) from exc
+
+
+
+@router.get("/connections/{connection_id}/reconciliation")
+def get_mt5_reconciliation(
+    connection_id: UUID,
+    db: Session = Depends(get_db),
+    user_id: UUID = Depends(get_current_user_id),
+):
+    """Read-only audit report comparing broker source facts with derived MT5 records."""
+    report = build_reconciliation_report(db, user_id, connection_id)
+    if report is None:
+        # Do not reveal whether a connection exists for another user.
+        raise HTTPException(status_code=404, detail="MT5 connection not found")
+    from app.core.time import utcnow
+
+    report["generated_at"] = utcnow().isoformat()
+    return report
