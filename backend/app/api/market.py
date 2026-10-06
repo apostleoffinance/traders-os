@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.core.exceptions import DomainError, http_error
 from app.core.security import get_current_user_id, get_db
 from app.market_data import service as market_service
+from app.market_data.replay_window import ReplayWindowIn, build_replay_window
 from app.market_data.ticker import get_ticker, market_status
 from app.schemas.market import (
     AnalysisIn,
@@ -48,6 +49,19 @@ def ohlcv(
         return market_service.get_ohlcv(
             db, symbol, timeframe, limit=limit, preferred_provider=provider
         )
+    except DomainError as exc:
+        raise http_error(exc) from exc
+
+
+@router.post("/replay-window")
+def replay_window(
+    payload: ReplayWindowIn,
+    db: Session = Depends(get_db),
+    user_id=Depends(get_current_user_id),
+):
+    """Fetch, persist, and replay FX and crypto series over the same UTC window."""
+    try:
+        return build_replay_window(db, payload)
     except DomainError as exc:
         raise http_error(exc) from exc
 
