@@ -1001,3 +1001,42 @@ def test_reconciliation_does_not_treat_recent_deal_window_omission_as_loss(clien
     assert not any(row["code"] == "snapshot_deal_missing_from_source_ledger" for row in body["issues"])
     assert body["coverage"]["snapshots_scanned"] == 2
     assert body["coverage"]["snapshot_deal_ids_observed"] == 1
+
+
+def test_snapshot_evidence_endpoint_returns_exact_owner_scoped_payload(client: TestClient) -> None:
+    owner = _register(client, "mt5payloadowner@example.com")
+    account_id = _account(client, owner["access_token"])
+    connector_token, connection_id = _connect(client, owner["access_token"], account_id)
+    sync = client.post(
+        "/api/integrations/mt5/sync",
+        headers={"Authorization": f"Bearer {connector_token}"},
+        json=_sync_body(),
+    )
+    assert sync.status_code == 200, sync.text
+
+    db_generator = app.dependency_overrides[get_db]()
+    db = next(db_generator)
+    try:
+        snapshot = db.query(Mt5SyncSnapshot).one()
+        snapshot_id = str(snapshot.id)
+        expected_payload = snapshot.payload
+    finally:
+        db_generator.close()
+
+    response = client.get(
+        f"/api/integrations/mt5/connections/{connection_id}/snapshots/{snapshot_id}",
+        headers={"Authorization": f"Bearer {owner['access_token']}"},
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["snapshot_id"] == snapshot_id
+    assert body["payload"] == expected_payload
+    assert body["positions_count"] == 1
+
+    stranger = _register(client, "mt5payloadstranger@example.com")
+    forbidden = client.get(
+        f"/api/integrations/mt5/connections/{connection_id}/snapshots/{snapshot_id}",
+        headers={"Authorization": f"Bearer {stranger['access_token']}"},
+    )
+    assert forbidden.status_code == 404
+    assert forbidden.json()["detail"] == "MT5 snapshot not found"
