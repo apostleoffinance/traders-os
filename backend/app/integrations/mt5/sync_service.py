@@ -23,7 +23,7 @@ from app.engines.session_engine import classify_session, in_preferred_window
 from app.integrations.mt5.normalizer import resolve_mt5_symbol
 from app.integrations.mt5.schemas import Mt5DealIn, Mt5PositionIn, Mt5SyncIn, Mt5SyncOut
 from app.models.account import Account
-from app.models.mt5_connection import Mt5Connection, Mt5ProcessedDeal
+from app.models.mt5_connection import Mt5Connection, Mt5ProcessedDeal, Mt5SyncSnapshot
 from app.models.trade import Trade
 from app.models.user import User
 from app.market_data.service import conversion_rate
@@ -102,6 +102,20 @@ def apply_sync(db: Session, connection: Mt5Connection, payload: Mt5SyncIn) -> Mt
             connection_status=Mt5ConnectionStatus.CONNECTED.value,
             server_time=now,
         )
+
+    # Keep the full successful sync payload before transforming it into trade rows.
+    # This preserves source-level evidence (including opening deals) for future reconciliation.
+    db.add(
+        Mt5SyncSnapshot(
+            connection_id=connection.id,
+            user_id=user.id,
+            account_id=account.id,
+            sync_timestamp=as_utc(payload.sync_timestamp),
+            positions_count=len(payload.positions),
+            deals_count=len(payload.recent_deals),
+            payload=payload.model_dump(mode="json"),
+        )
+    )
 
     open_ids: set[str] = set()
     for position in payload.positions:
