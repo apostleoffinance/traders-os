@@ -5,8 +5,8 @@ import "@/components/landing/landing.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_WEB_ORIGIN || "http://localhost:3000"),
-  title: "Trader OS",
-  description: "Trading journal, risk and discipline intelligence",
+  title: "TraderOS · Trading Intelligence Workspace",
+  description: "A private trading intelligence workspace for trade history, risk, market context and research.",
   openGraph: {
     title: "TraderOS · Trading Intelligence Workspace",
     description:
@@ -15,9 +15,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Trader OS · Journal · Discipline · Intelligence",
+    title: "TraderOS · Trading Intelligence Workspace",
     description:
-      "Trader OS turns your trading history into structured data, helping you understand performance, risk, discipline and behavior over time.",
+      "TraderOS connects trade history, risk, market context and research in one private trading intelligence workspace.",
   },
 };
 
