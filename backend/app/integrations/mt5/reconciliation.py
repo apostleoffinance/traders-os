@@ -102,6 +102,27 @@ def build_reconciliation_report(db: Session, user_id: UUID, connection_id: UUID)
     def issue(code: str, severity: str, message: str, **evidence: Any) -> None:
         issues.append({"code": code, "severity": severity, "message": message, **evidence})
 
+    # MT5 INOUT can close one side and open the reverse side in a single broker deal.
+    # The current canonical projection is one trade per position ID, so expose this
+    # lifecycle ambiguity instead of implying that its economics fully describe both sides.
+    for source in source_deals:
+        if source.entry_type != "INOUT":
+            continue
+        processed = processed_by_id.get(source.external_deal_id)
+        issue(
+            "inout_reversal_requires_review",
+            "warning",
+            "An MT5 INOUT deal may combine closing and reverse-opening exposure. Review the source deal and position timeline; the current one-trade-per-position projection may not represent both lifecycles separately.",
+            external_deal_id=source.external_deal_id,
+            external_position_id=source.external_position_id,
+            source_deal_row_id=str(source.id),
+            processed_deal_row_id=str(processed.id) if processed else None,
+            trade_id=str(processed.trade_id) if processed and processed.trade_id else None,
+            deal_time=source.deal_time.isoformat() if source.deal_time else None,
+            volume=str(source.volume),
+            direction=source.direction,
+        )
+
     # Compare deal facts only when an ID is present in a snapshot. Absence from a later
     # recent_deals window is not evidence that a broker deal disappeared.
     observed_snapshot_deal_ids: set[str] = set()

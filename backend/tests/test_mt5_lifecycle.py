@@ -168,3 +168,46 @@ def test_position_lifecycle_hides_foreign_connections(client):
         headers={"Authorization": f"Bearer {stranger['access_token']}"},
     )
     assert response.status_code == 404
+
+
+
+def test_reconciliation_flags_inout_reversal_as_lifecycle_ambiguity(client):
+    auth = _register(client, "mt5inoutaudit@example.com")
+    account_id = _account(client, auth["access_token"])
+    connector_token, connection_id = _connect(client, auth["access_token"], account_id)
+
+    sync = client.post(
+        "/api/integrations/mt5/sync",
+        headers={"Authorization": f"Bearer {connector_token}"},
+        json=_sync_body(recent_deals=[{
+            "external_deal_id": "inout-audit-1",
+            "external_position_id": "10001",
+            "symbol_raw": "EURUSD.a",
+            "direction": "LONG",
+            "entry_type": "INOUT",
+            "volume": "0.01",
+            "price": "1.16500",
+            "profit": "1.25",
+            "commission": "-0.04",
+            "swap": "0",
+            "deal_time": "2026-08-24T10:00:00+00:00",
+        }]),
+    )
+    assert sync.status_code == 200, sync.text
+
+    response = client.get(
+        f"/api/integrations/mt5/connections/{connection_id}/reconciliation",
+        headers={"Authorization": f"Bearer {auth['access_token']}"},
+    )
+    assert response.status_code == 200, response.text
+    findings = [
+        issue for issue in response.json()["issues"]
+        if issue["code"] == "inout_reversal_requires_review"
+    ]
+    assert len(findings) == 1
+    assert findings[0]["severity"] == "warning"
+    assert findings[0]["external_deal_id"] == "inout-audit-1"
+    assert findings[0]["external_position_id"] == "10001"
+    assert findings[0]["source_deal_row_id"]
+    assert findings[0]["processed_deal_row_id"]
+    assert findings[0]["trade_id"]
