@@ -29,7 +29,9 @@ TIMEFRAME_MINUTES = {"M1": 1, "M5": 5, "M15": 15, "M30": 30, "H1": 60, "H4": 240
 def parse_datetime(value: str) -> datetime:
     parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
     if parsed.tzinfo is None or parsed.utcoffset() is None:
-        raise argparse.ArgumentTypeError("timestamps must include a timezone, e.g. 2026-10-06T08:00:00Z")
+        raise argparse.ArgumentTypeError(
+            "timestamps must include a timezone, e.g. 2026-10-06T08:00:00Z"
+        )
     return parsed.astimezone(timezone.utc)
 
 
@@ -38,7 +40,10 @@ def arguments() -> argparse.Namespace:
     parser.add_argument("--fx", default="EURUSD", help="FX symbol (default: EURUSD)")
     parser.add_argument("--crypto", default="BTCUSDT", help="Crypto symbol (default: BTCUSDT)")
     parser.add_argument("--timeframe", default="M5", choices=sorted(TIMEFRAME_MINUTES))
-    parser.add_argument("--hours", type=float, default=4, help="Lookback hours if no explicit interval is supplied")
+    parser.add_argument(
+        "--hours", type=float, default=4,
+        help="Lookback hours if no explicit interval is supplied",
+    )
     parser.add_argument("--start", type=parse_datetime, help="Timezone-aware UTC start")
     parser.add_argument("--end", type=parse_datetime, help="Timezone-aware UTC end")
     parser.add_argument("--limit", type=int, default=500)
@@ -124,7 +129,8 @@ def main() -> int:
             "caveats": result["caveats"],
             "wrun_note": (
                 "This tests TraderOS's existing provider adapters, not Wrun. "
-                "Wrun remains unapproved until its supported external API/SDK and FX coverage are verified."
+                "Wrun remains unapproved until its supported external API/SDK "
+                "and FX coverage are verified."
             ),
         }
         print(json.dumps(report, indent=2))
