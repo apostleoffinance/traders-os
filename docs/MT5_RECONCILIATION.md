@@ -1,0 +1,56 @@
+# MT5 Reconciliation
+
+TraderOS exposes a read-only reconciliation report for each authenticated user's MT5 connection.
+
+## Endpoint
+
+`GET /api/integrations/mt5/connections/{connection_id}/reconciliation`
+
+Requires a TraderOS access token. The connection must belong to the authenticated user. Unknown and other-user connection IDs both return `404`.
+
+The endpoint does not repair data, mutate trades, recalculate P&L, or call the broker. It compares the persisted evidence already available in TraderOS.
+
+## Evidence compared
+
+- **Source-deal ledger** — first-seen broker deal records, including opening deals and original validated payloads.
+- **Processed-deal ledger** — closing deals consumed by the current MT5 trade lifecycle, with volume, price, profit, commission, swap, and a trade reference.
+- **Canonical MT5 trades** — normalized journal projections, scoped to the connection's account and owner.
+- **Latest successful sync snapshot** — the most recent positions list and its metadata.
+
+Heartbeats are not sync snapshots and are excluded from this comparison.
+
+## Finding severities
+
+| Severity | Meaning |
+| --- | --- |
+| Error | Evidence contradicts the expected ingestion/projection lifecycle and should be investigated. |
+| Warning | A state mismatch may be caused by a missed close deal, timing gap, or incomplete snapshot; investigate before changing data. |
+| Info | Useful context that is not by itself proof of a current defect. |
+
+### Finding codes
+
+- `closing_deal_not_processed`: a source `OUT`, `OUT_BY`, or `INOUT` deal has no processed-deal row.
+- `deal_economics_mismatch`: a source deal and its processed row disagree on volume, price, profit, commission, or swap.
+- `processed_deal_without_trade`: a processed deal does not reference an existing canonical trade.
+- `processed_deal_orphaned`: a processed deal absent from the source ledger also has no valid canonical trade reference.
+- `processed_deal_without_source_evidence`: processed history has no matching source-deal row.
+- `broker_position_without_trade`: the latest broker snapshot includes a position with no canonical trade.
+- `broker_position_trade_marked_closed`: the broker reports a position open but its trade projection is closed.
+- `open_trade_missing_from_latest_snapshot`: a trade remains open but does not appear in the latest positions snapshot.
+
+Opening `IN` deals are intentionally not expected to have processed-deal rows: the processed ledger currently represents closing economics, while the source ledger retains both opening and closing broker facts.
+
+## Coverage and interpretation
+
+The source-deal ledger was introduced after MT5 syncing was already in use. Older processed deals may therefore have no source-deal record. These are informational rather than automatically classified as data loss; a bounded `recent_deals` payload cannot reliably reconstruct complete historical deal history.
+
+The report is only as complete as the data received and retained. In particular:
+
+- A warning about an open trade missing from the latest snapshot is not proof the trade should be closed. Check whether the EA omitted a close deal or whether the snapshot is temporarily incomplete.
+- A clean report means no discrepancy was detected among the retained source ledger, processed-deal ledger, canonical trades, and latest snapshot. It does not prove the broker's complete account history was imported.
+- The report intentionally does not compare broker balance/equity totals with derived trade P&L; balance movements may include deposits, withdrawals, credits, fees, and other account-level operations that are not represented as trades.
+- No automatic repair is performed. Resolve findings by reviewing broker history and retained sync payloads, then make a separately reviewed change to the import/reconciliation logic if needed.
+
+## Frontend
+
+The account's **MetaTrader 5 automatic sync** panel includes a **Broker data reconciliation** section. Run the check to see severity counts, record coverage, the latest snapshot metadata, findings, and historical coverage caveats.
