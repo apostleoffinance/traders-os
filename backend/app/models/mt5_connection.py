@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, String, func
+from sqlalchemy import JSON, DateTime, ForeignKey, Integer, Numeric, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.enums import Mt5ConnectionStatus
@@ -61,3 +61,27 @@ class Mt5ProcessedDeal(Base):
     commission: Mapped[Decimal | None] = mapped_column(MONEY, nullable=True)
     swap: Mapped[Decimal | None] = mapped_column(MONEY, nullable=True)
     processed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Mt5SyncSnapshot(Base):
+    """Immutable successful MT5 sync payload for reconciliation and import debugging."""
+
+    __tablename__ = "mt5_sync_snapshots"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID_PK, primary_key=True, default=uuid.uuid4)
+    connection_id: Mapped[uuid.UUID] = mapped_column(
+        UUID_PK, ForeignKey("mt5_connections.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID_PK, ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        UUID_PK, ForeignKey("accounts.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    sync_timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    received_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    positions_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    deals_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    payload: Mapped[dict] = mapped_column(JSON, nullable=False)
