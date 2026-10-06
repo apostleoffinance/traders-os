@@ -41,7 +41,11 @@ def build_reconciliation_report(db: Session, user_id: UUID, connection_id: UUID)
             Mt5SyncSnapshot.user_id == user_id,
             Mt5SyncSnapshot.account_id == connection.account_id,
         )
-        .order_by(Mt5SyncSnapshot.received_at.desc(), Mt5SyncSnapshot.id.desc())
+        .order_by(
+            Mt5SyncSnapshot.sync_timestamp.desc(),
+            Mt5SyncSnapshot.received_at.desc(),
+            Mt5SyncSnapshot.id.desc(),
+        )
         .first()
     )
     source_deals = (
