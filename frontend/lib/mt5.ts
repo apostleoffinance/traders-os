@@ -89,8 +89,8 @@ export type Mt5ReconciliationIssue = {
   snapshot_id?: string;
   snapshot_received_at?: string | null;
   snapshot_sync_timestamp?: string | null;
-  source_deal_row_id?: string;
-  processed_deal_row_id?: string;
+  source_deal_row_id?: string | null;
+  processed_deal_row_id?: string | null;
 };
 
 export type Mt5ReconciliationReport = {
