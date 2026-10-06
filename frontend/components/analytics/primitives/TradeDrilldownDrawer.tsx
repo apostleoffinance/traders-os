@@ -21,6 +21,7 @@ export function TradeDrilldownDrawer({ open, title, accountId, filters, currency
   const [trades, setTrades] = useState<DrilldownTrade[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const requestVersion = useRef(0);
 
@@ -31,6 +32,7 @@ export function TradeDrilldownDrawer({ open, title, accountId, filters, currency
       setTrades([]);
       setTotal(0);
       setError(null);
+      setLoadingMore(false);
       return () => {
         requestVersion.current += 1;
       };
@@ -40,8 +42,9 @@ export function TradeDrilldownDrawer({ open, title, accountId, filters, currency
     setTrades([]);
     setTotal(0);
     setError(null);
+    setLoadingMore(false);
     const q = buildAnalyticsQuery(accountId, filters);
-    void api<{ trades: DrilldownTrade[]; meta: { total: number } }>(`/api/analytics/trades?${q}`)
+    void api<{ trades: DrilldownTrade[]; meta: { total: number } }>(`/api/analytics/trades?${q}&limit=100&offset=0`)
       .then((res) => {
         if (requestId !== requestVersion.current) return;
         setTrades(res.trades);
@@ -59,6 +62,31 @@ export function TradeDrilldownDrawer({ open, title, accountId, filters, currency
       requestVersion.current += 1;
     };
   }, [open, accountId, filters]);
+
+  async function loadMore() {
+    const requestId = requestVersion.current;
+    if (loading || loadingMore || trades.length >= total) return;
+    setLoadingMore(true);
+    setError(null);
+    const q = buildAnalyticsQuery(accountId, filters);
+    try {
+      const res = await api<{ trades: DrilldownTrade[]; meta: { total: number } }>(
+        `/api/analytics/trades?${q}&limit=100&offset=${trades.length}`,
+      );
+      if (requestId !== requestVersion.current) return;
+      setTrades((current) => {
+        const knownIds = new Set(current.map((trade) => trade.id));
+        return [...current, ...res.trades.filter((trade) => !knownIds.has(trade.id))];
+      });
+      setTotal(res.meta.total);
+    } catch (e) {
+      if (requestId === requestVersion.current) {
+        setError(e instanceof Error ? e.message : "Failed to load more trades");
+      }
+    } finally {
+      if (requestId === requestVersion.current) setLoadingMore(false);
+    }
+  }
 
   if (!open) return null;
 
@@ -98,6 +126,11 @@ export function TradeDrilldownDrawer({ open, title, accountId, filters, currency
             </li>
           ))}
         </ul>
+        {trades.length < total && !loading && (
+          <button type="button" className="load-more" onClick={loadMore} disabled={loadingMore}>
+            {loadingMore ? "Loading more…" : `Load more trades (${trades.length} of ${total})`}
+          </button>
+        )}
       </aside>
       <style jsx>{`
         .overlay {
@@ -167,6 +200,20 @@ export function TradeDrilldownDrawer({ open, title, accountId, filters, currency
         }
         .trade-link:hover {
           background: var(--surface-2);
+        }
+        .load-more {
+          margin: 12px 18px 18px;
+          padding: 10px 12px;
+          border: 1px solid var(--border);
+          border-radius: 8px;
+          background: var(--surface-2);
+          color: inherit;
+          font: inherit;
+          cursor: pointer;
+        }
+        .load-more:disabled {
+          opacity: 0.6;
+          cursor: wait;
         }
         .top {
           display: flex;
