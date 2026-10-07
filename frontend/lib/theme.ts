@@ -5,16 +5,16 @@ export const THEME_STORAGE_KEY = "traderos-theme";
 export const THEME_EVENT = "traderos-theme";
 
 function systemPrefersDark(): boolean {
-  if (typeof window === "undefined") return true;
+  if (typeof window === "undefined") return false;
   return window.matchMedia("(prefers-color-scheme: dark)").matches;
 }
 
 export function readThemePreference(): ThemePreference {
-  if (typeof window === "undefined") return "dark";
+  if (typeof window === "undefined") return "light";
   const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
   if (stored === "light" || stored === "dark") return stored;
   if (stored === "system") return systemPrefersDark() ? "dark" : "light";
-  return "dark";
+  return "light";
 }
 
 export function resolveTheme(preference: ThemePreference): ResolvedTheme {

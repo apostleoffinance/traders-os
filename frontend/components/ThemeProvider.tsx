@@ -20,8 +20,8 @@ type ThemeContextValue = {
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [preference, setPreferenceState] = useState<ThemePreference>("dark");
-  const [resolved, setResolved] = useState<ResolvedTheme>("dark");
+  const [preference, setPreferenceState] = useState<ThemePreference>("light");
+  const [resolved, setResolved] = useState<ResolvedTheme>("light");
 
   useEffect(() => {
     const pref = readThemePreference();
@@ -61,8 +61,8 @@ export function useTheme(): ThemeContextValue {
   const ctx = useContext(ThemeContext);
   if (!ctx) {
     return {
-      preference: "dark",
-      resolved: "dark",
+      preference: "light",
+      resolved: "light",
       setPreference: persistTheme,
     };
   }

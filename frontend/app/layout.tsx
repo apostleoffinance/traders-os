@@ -20,29 +20,29 @@ const plexMono = IBM_Plex_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_WEB_ORIGIN || "http://localhost:3000"),
-  title: "Trader OS",
-  description: "Trading journal, risk and discipline intelligence",
+  title: "TraderOS · Trading Intelligence Workspace",
+  description: "A private trading intelligence workspace for trade history, risk, market context and research.",
   openGraph: {
-    title: "Trader OS · Journal · Discipline · Intelligence",
+    title: "TraderOS · Trading Intelligence Workspace",
     description:
-      "Trader OS turns your trading history into structured data, helping you understand performance, risk, discipline and behavior over time.",
+      "TraderOS connects trade history, risk, market context and research in one private trading intelligence workspace.",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Trader OS · Journal · Discipline · Intelligence",
+    title: "TraderOS · Trading Intelligence Workspace",
     description:
-      "Trader OS turns your trading history into structured data, helping you understand performance, risk, discipline and behavior over time.",
+      "TraderOS connects trade history, risk, market context and research in one private trading intelligence workspace.",
   },
 };
 
-const THEME_BOOT = `(function(){try{var t=localStorage.getItem("traderos-theme")||"dark";var d=(t==="light"||t==="dark")?t:(t==="system"?(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"):"dark");document.documentElement.setAttribute("data-theme",d);document.documentElement.style.colorScheme=d;}catch(e){document.documentElement.setAttribute("data-theme","dark");document.documentElement.style.colorScheme="dark";}})();`;
+const THEME_BOOT = `(function(){try{var t=localStorage.getItem("traderos-theme")||"light";var d=(t==="light"||t==="dark")?t :(t==="system"?(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"):"light");document.documentElement.setAttribute("data-theme",d);document.documentElement.style.colorScheme=d;}catch(e){document.documentElement.setAttribute("data-theme","light");document.documentElement.style.colorScheme="light";}})();`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
       lang="en"
-      data-theme="dark"
+      data-theme="light"
       suppressHydrationWarning
       className={`${plexSans.variable} ${plexMono.variable} trader-os-fonts`}
     >
