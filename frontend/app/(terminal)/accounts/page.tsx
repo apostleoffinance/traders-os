@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { api, setActiveAccountId } from "@/lib/api";
+import { api, clearActiveAccountId, getActiveAccountId, setActiveAccountId } from "@/lib/api";
 import { fetchMt5Connections, mt5NeedsSetup, mt5StatusLabel } from "@/lib/mt5";
 import type { Account, Mt5Connection } from "@/lib/types";
 import { Alert, Button, Field, Panel } from "@/components/ui";
@@ -18,6 +18,7 @@ export default function AccountsPage() {
   const [name, setName] = useState("TenTrade TenEdge Instant $1K");
   const [balance, setBalance] = useState("1000");
   const [error, setError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const anyLive = useMemo(
     () => Object.values(mt5ByAccount).some((c) => c.status === "connected"),
@@ -76,6 +77,30 @@ export default function AccountsPage() {
     }
   }
 
+  async function onDelete(account: Account) {
+    const confirmed = window.confirm(
+      `Delete ${account.account_name}? Its trades, risk limits, and MT5 connection are removed with it.`,
+    );
+    if (!confirmed) return;
+    setError(null);
+    setDeletingId(account.id);
+    try {
+      await api(`/api/accounts/${account.id}`, { method: "DELETE" });
+      const remaining = accounts.filter((row) => row.id !== account.id);
+      setAccounts(remaining);
+      if (getActiveAccountId() === account.id) {
+        const next = remaining[0];
+        if (next) setActiveAccountId(next.id);
+        else clearActiveAccountId();
+      }
+      window.dispatchEvent(new Event("traderos-account"));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to delete account");
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   function openAccount(id: string, connectMt5 = false) {
     setActiveAccountId(id);
     router.push(connectMt5 ? `/accounts/${id}?connect=mt5` : `/accounts/${id}`);
@@ -124,11 +149,21 @@ export default function AccountsPage() {
                     </span>
                     <span className="num">{money(a.current_equity)}</span>
                   </button>
-                  {(!mt5 || mt5NeedsSetup(status)) && (
-                    <button type="button" className="connect-link" onClick={() => openAccount(a.id, true)}>
-                      Connect MT5 →
+                  <div className="row-actions">
+                    {(!mt5 || mt5NeedsSetup(status)) && (
+                      <button type="button" className="connect-link" onClick={() => openAccount(a.id, true)}>
+                        Connect MT5 →
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="delete-link"
+                      disabled={deletingId === a.id}
+                      onClick={() => void onDelete(a)}
+                    >
+                      {deletingId === a.id ? "Deleting…" : "Delete"}
                     </button>
-                  )}
+                  </div>
                 </li>
               );
             })}
@@ -209,13 +244,29 @@ export default function AccountsPage() {
         .mt5-pill.setup {
           color: var(--muted);
         }
-        .connect-link {
+        .row-actions {
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          padding: 0 0 10px;
+        }
+        .connect-link,
+        .delete-link {
           background: none;
           border: 0;
-          padding: 0 0 10px;
-          color: var(--accent);
+          padding: 0;
           font-size: 0.9rem;
           cursor: pointer;
+        }
+        .connect-link {
+          color: var(--accent);
+        }
+        .delete-link {
+          color: var(--neg, var(--danger));
+        }
+        .delete-link:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
         }
         .live-note {
           margin: 8px 0 0;

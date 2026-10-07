@@ -42,6 +42,14 @@ def get_account(account_id: UUID, db: Session = Depends(get_db), user_id=Depends
         raise http_error(exc) from exc
 
 
+@router.delete("/{account_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_account(account_id: UUID, db: Session = Depends(get_db), user_id=Depends(get_current_user_id)):
+    try:
+        account_service.delete_account(db, user_id, account_id)
+    except DomainError as exc:
+        raise http_error(exc) from exc
+
+
 @router.patch("/{account_id}", response_model=AccountOut)
 def update_account(
     account_id: UUID,

@@ -93,6 +93,11 @@ export function setActiveAccountId(id: string): void {
   localStorage.setItem(ACCOUNT_KEY, id);
 }
 
+export function clearActiveAccountId(): void {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(ACCOUNT_KEY);
+}
+
 export class ApiError extends Error {
   status: number;
   body: unknown;

@@ -80,6 +80,36 @@ def test_user_cannot_read_another_users_account(client: TestClient) -> None:
     assert listed.json() == []
 
 
+def test_user_can_delete_own_account_only(client: TestClient) -> None:
+    a = _register(client, "delete.a@example.com")
+    b = _register(client, "delete.b@example.com")
+    headers_a = {"Authorization": f"Bearer {a['access_token']}"}
+    headers_b = {"Authorization": f"Bearer {b['access_token']}"}
+    created = client.post(
+        "/api/accounts",
+        headers=headers_a,
+        json={
+            "firm": "TenTrade",
+            "program": "TenEdge Instant",
+            "account_name": "Mistaken",
+            "starting_balance": "1000.00",
+            "template": "tentrade_tenedge_1k",
+        },
+    )
+    assert created.status_code == 201, created.text
+    account_id = created.json()["id"]
+
+    denied = client.delete(f"/api/accounts/{account_id}", headers=headers_b)
+    assert denied.status_code == 404
+    still_there = client.get(f"/api/accounts/{account_id}", headers=headers_a)
+    assert still_there.status_code == 200
+
+    removed = client.delete(f"/api/accounts/{account_id}", headers=headers_a)
+    assert removed.status_code == 204
+    gone = client.get(f"/api/accounts/{account_id}", headers=headers_a)
+    assert gone.status_code == 404
+
+
 def test_user_cannot_read_another_users_trade(client: TestClient) -> None:
     a = _register(client, "trader.a@example.com")
     b = _register(client, "trader.b@example.com")

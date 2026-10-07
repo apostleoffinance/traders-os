@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { api, clearSession, ensureFreshAccessToken, getActiveAccountId, hasSession, isAuthFailure, setActiveAccountId } from "@/lib/api";
+import { api, clearActiveAccountId, clearSession, ensureFreshAccessToken, getActiveAccountId, hasSession, isAuthFailure, setActiveAccountId } from "@/lib/api";
 import { PERIOD_LABELS, useGlobalFilters, type PeriodPreset } from "@/lib/filters";
 import { fetchMt5Connection } from "@/lib/mt5";
 import type { Account, User } from "@/lib/types";
@@ -20,20 +20,19 @@ const SIDEBAR_KEY = "trader-os-sidebar-collapsed";
 type NavItem = {
   href: string;
   label: string;
-  index: string;
   match?: "exact" | "prefix";
 };
 
 const NAV: NavItem[] = [
-  { href: "/dashboard", label: "Workspace", index: "01", match: "exact" },
-  { href: "/labs/vela", label: "Markets", index: "02", match: "prefix" },
-  { href: "/risk", label: "Portfolio & Risk", index: "03", match: "exact" },
-  { href: "/trades", label: "Journal", index: "04", match: "prefix" },
-  { href: "/analytics", label: "Analytics", index: "05", match: "prefix" },
-  { href: "/quant-lab", label: "Research Lab", index: "06", match: "prefix" },
-  { href: "/risk/limits", label: "Risk Limits", index: "07", match: "prefix" },
-  { href: "/intelligence", label: "Intelligence", index: "08", match: "prefix" },
-  { href: "/settings", label: "Operations", index: "09", match: "prefix" },
+  { href: "/dashboard", label: "Workspace", match: "exact" },
+  { href: "/labs/vela", label: "Markets", match: "prefix" },
+  { href: "/risk", label: "Portfolio & Risk", match: "exact" },
+  { href: "/trades", label: "Journal", match: "prefix" },
+  { href: "/analytics", label: "Analytics", match: "prefix" },
+  { href: "/quant-lab", label: "Research Lab", match: "prefix" },
+  { href: "/risk/limits", label: "Risk Limits", match: "prefix" },
+  { href: "/intelligence", label: "Intelligence", match: "prefix" },
+  { href: "/settings", label: "Operations", match: "prefix" },
 ];
 
 function navActive(item: NavItem, pathname: string): boolean {
@@ -135,6 +134,27 @@ export function Shell({ children }: { children: React.ReactNode }) {
     };
   }, [accountId]);
 
+  useEffect(() => {
+    function refreshAccounts() {
+      void api<Account[]>("/api/accounts")
+        .then((list) => {
+          setAccounts(list);
+          const stored = getActiveAccountId();
+          const next = list.find((a) => a.id === stored)?.id ?? list[0]?.id ?? null;
+          if (next) {
+            setActiveAccountId(next);
+            setAccountId(next);
+          } else {
+            clearActiveAccountId();
+            setAccountId(null);
+          }
+        })
+        .catch(() => undefined);
+    }
+    window.addEventListener("traderos-account", refreshAccounts);
+    return () => window.removeEventListener("traderos-account", refreshAccounts);
+  }, []);
+
   function onAccount(id: string) {
     setActiveAccountId(id);
     setAccountId(id);
@@ -212,8 +232,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
                 aria-label={item.label}
                 aria-current={isActive ? "page" : undefined}
               >
-                <i className="nav-index">{collapsedMode ? item.index.slice(1) : item.index}</i>
-                {!collapsedMode && <span className="nav-label">{item.label}</span>}
+                <span className="nav-label">{item.label}</span>
               </Link>
             );
           })}
@@ -277,7 +296,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
             {bootError && <p className="boot-error">{bootError}</p>}
             {children}
           </div>
-          <MarketPulse />
+          <div className="ticker-dock">
+            <MarketPulse />
+          </div>
           <footer className="status-foot">
             <span>Account scope: {active ? active.account_name : "none"}</span>
             <span>Timestamps: UTC</span>
@@ -309,7 +330,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
         .shell {
           display: grid;
           grid-template-columns: var(--rail-width) minmax(0, 1fr);
+          height: 100vh;
           min-height: 100vh;
+          overflow: hidden;
         }
         .shell-wrap.is-ready .shell {
           transition: grid-template-columns 200ms ease;
@@ -472,22 +495,26 @@ export function Shell({ children }: { children: React.ReactNode }) {
         :global(.nav-label) {
           white-space: nowrap;
         }
-        :global(.nav-index) {
-          font-style: normal;
-          font-family: var(--font-mono), ui-monospace, monospace;
-          font-size: 10px;
-          color: var(--rail-muted);
-          width: 18px;
-          flex-shrink: 0;
-        }
-        :global(a.nav-link.active .nav-index) {
-          color: var(--accent);
+        .shell-wrap.is-collapsed .desktop :global(.nav-label) {
+          max-width: 48px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          font-size: 11px;
         }
         .main {
           display: flex;
           flex-direction: column;
           min-width: 0;
+          min-height: 0;
+          height: 100vh;
+          overflow: hidden;
           background: var(--bg);
+        }
+        .ticker-dock {
+          position: relative;
+          z-index: 5;
+          flex-shrink: 0;
+          background: var(--chrome, var(--surface));
         }
         .top {
           min-height: 48px;
@@ -499,6 +526,10 @@ export function Shell({ children }: { children: React.ReactNode }) {
           flex-wrap: wrap;
           padding: 8px 16px;
           gap: 8px 12px;
+        }
+        .top,
+        .status-foot {
+          flex-shrink: 0;
         }
         .status-foot {
           display: flex;
@@ -624,6 +655,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
         }
         .page {
           flex: 1;
+          min-height: 0;
+          overflow: auto;
           padding: 20px 24px 48px;
           position: relative;
           z-index: 0;

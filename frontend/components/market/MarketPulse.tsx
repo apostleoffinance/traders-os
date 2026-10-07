@@ -143,6 +143,8 @@ export function MarketPulse() {
       `}</style>
       <style jsx>{`
         .pulse {
+          position: relative;
+          z-index: 5;
           height: 42px;
           border-top: 1px solid var(--border);
           background: color-mix(in srgb, var(--surface-2, var(--surface)) 35%, var(--surface));

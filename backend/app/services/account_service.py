@@ -3,6 +3,7 @@ from __future__ import annotations
 from decimal import Decimal
 from uuid import UUID
 
+from sqlalchemy import delete
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.enums import AccountStatus, EnforcementMode
@@ -122,6 +123,12 @@ def create_account(db: Session, user: User, payload: AccountCreate) -> Account:
     db.add(profile)
     db.commit()
     return get_account(db, user.id, account.id)
+
+
+def delete_account(db: Session, user_id: UUID, account_id: UUID) -> None:
+    get_account(db, user_id, account_id)
+    db.execute(delete(Account).where(Account.id == account_id, Account.user_id == user_id))
+    db.commit()
 
 
 def update_account(db: Session, user_id: UUID, account_id: UUID, payload: AccountUpdate) -> Account:
