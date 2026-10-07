@@ -6,7 +6,6 @@ import { api, getActiveAccountId, getStoredUser } from "@/lib/api";
 import type { Dashboard, Trade, User } from "@/lib/types";
 import { Alert } from "@/components/ui";
 import { CommandCenterView } from "@/components/command-center/CommandCenterView";
-import { MarketPulse } from "@/components/market/MarketPulse";
 import { firstName, greeting } from "@/lib/theme";
 
 export default function DashboardPage() {
@@ -121,7 +120,6 @@ export default function DashboardPage() {
           <button type="button" className="btn ghost" onClick={() => void load()}>Retry</button>
         </div>
       )}
-      <MarketPulse />
       <CommandCenterView data={data} trades={trades} openTrades={openTrades} />
       <style jsx>{`
         .trades-warning {

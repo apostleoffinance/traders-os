@@ -11,6 +11,7 @@ import type { Account, User } from "@/lib/types";
 import { BrandMark } from "@/components/BrandMark";
 import { CommandPalette } from "@/components/app-shell/CommandPalette";
 import { SessionClock } from "@/components/app-shell/SessionClock";
+import { MarketPulse } from "@/components/market/MarketPulse";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { formatWhen } from "@/lib/format";
 
@@ -276,6 +277,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
             {bootError && <p className="boot-error">{bootError}</p>}
             {children}
           </div>
+          <MarketPulse />
           <footer className="status-foot">
             <span>Account scope: {active ? active.account_name : "none"}</span>
             <span>Timestamps: UTC</span>

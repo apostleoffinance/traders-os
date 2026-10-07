@@ -4,7 +4,6 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { MarketChart, type DataMode } from "@/components/visualizations/market/MarketChart";
-import { MarketPulse } from "@/components/market/MarketPulse";
 import { Alert } from "@/components/ui";
 import { LoadingState } from "@/components/trader/LoadingState";
 import { EmptyState } from "@/components/trader/EmptyState";
@@ -175,7 +174,6 @@ function MarketLab() {
           Market replay
         </Link>
       </div>
-      <MarketPulse />
       <Alert kind="info">
         FX charts use this account&apos;s MT5 bars when the terminal has sent them. Otherwise the chart shows history
         candles and leaves gaps empty. Crypto stays on its own exchange feed.

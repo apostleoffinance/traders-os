@@ -144,7 +144,7 @@ export function MarketPulse() {
       <style jsx>{`
         .pulse {
           height: 42px;
-          border-bottom: 1px solid var(--border);
+          border-top: 1px solid var(--border);
           background: color-mix(in srgb, var(--surface-2, var(--surface)) 35%, var(--surface));
           overflow: hidden;
           flex-shrink: 0;
