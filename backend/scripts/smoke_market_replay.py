@@ -13,9 +13,9 @@ import argparse
 import json
 import sys
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import func
 
 from app.core.time import as_utc
 from app.db.session import SessionLocal
@@ -84,8 +84,8 @@ def main() -> int:
         for series in result["series"]:
             first = datetime.fromisoformat(series["first_timestamp"].replace("Z", "+00:00"))
             last = datetime.fromisoformat(series["last_timestamp"].replace("Z", "+00:00"))
-            stored_count = (
-                db.query(func.count(MarketCandle.id))
+            stored_rows = (
+                db.query(MarketCandle)
                 .filter(
                     MarketCandle.provider == series["provider"],
                     MarketCandle.symbol == series["symbol"],
@@ -93,27 +93,58 @@ def main() -> int:
                     MarketCandle.timestamp >= as_utc(first),
                     MarketCandle.timestamp <= as_utc(last),
                 )
-                .scalar()
-            ) or 0
-            if stored_count < series["count"]:
+                .all()
+            )
+            stored_by_timestamp = {
+                as_utc(row.timestamp).isoformat(): row for row in stored_rows
+            }
+            mismatches: list[str] = []
+            for expected in series["candles"]:
+                expected_timestamp = datetime.fromisoformat(
+                    expected["timestamp"].replace("Z", "+00:00")
+                ).astimezone(timezone.utc).isoformat()
+                actual = stored_by_timestamp.get(expected_timestamp)
+                if actual is None:
+                    mismatches.append(f"missing candle at {expected['timestamp']}")
+                    continue
+                for field in ("open", "high", "low", "close", "volume"):
+                    expected_value = expected[field]
+                    actual_value = getattr(actual, field)
+                    if expected_value is None:
+                        matches = actual_value is None
+                    else:
+                        matches = (
+                            actual_value is not None
+                            and Decimal(str(actual_value)) == Decimal(expected_value)
+                        )
+                    if not matches:
+                        mismatches.append(
+                            f"{field} mismatch at {expected['timestamp']}"
+                        )
+            if mismatches:
                 raise RuntimeError(
                     f"Persistence verification failed for {series['symbol']}: "
-                    f"response={series['count']} DB={stored_count}"
+                    + "; ".join(mismatches[:10])
                 )
             verification.append({
                 "symbol": series["symbol"],
                 "asset_class": series["asset_class"],
                 "provider": series["provider"],
                 "candles_returned": series["count"],
-                "candles_found_in_database": stored_count,
+                "candles_exactly_verified": len(series["candles"]),
                 "first_timestamp": series["first_timestamp"],
                 "last_timestamp": series["last_timestamp"],
             })
 
-        timestamps = [row["timestamp"] for row in result["timeline"]]
-        if timestamps != sorted(timestamps):
-            raise RuntimeError("Replay timeline timestamps are not monotonic")
-        if len(result["series"]) != 2 or result["timeline_count"] < 2:
+        expected_timeline_count = sum(series["count"] for series in result["series"])
+        timeline_keys = [
+            (row["timestamp"], row["symbol"]) for row in result["timeline"]
+        ]
+        if timeline_keys != sorted(timeline_keys):
+            raise RuntimeError("Replay timeline is not ordered by timestamp and symbol")
+        if result["timeline_count"] != expected_timeline_count:
+            raise RuntimeError("Replay timeline count does not match returned candle counts")
+        if len(result["series"]) != 2 or any(not series["count"] for series in result["series"]):
             raise RuntimeError("Expected non-empty FX and crypto replay series")
 
         report = {
