@@ -52,6 +52,22 @@ If either instrument cannot be fetched, the request fails and rolls back instead
 4. Confirm status is ok, both series are present, persisted_to is market_candles, and timeline timestamps are monotonic.
 5. Query the existing market candle storage for the returned symbols, providers, timeframe, and timestamp interval to verify durable persistence.
 
+### Run the real-provider/database smoke test
+
+Automated unit tests use fake providers. To validate actual upstream fetches and durable persistence, run the live smoke test in an environment with the backend dependencies installed, a migrated PostgreSQL database, and outbound network access:
+
+    cd backend
+    python scripts/smoke_market_replay.py
+
+It defaults to EURUSD + BTCUSDT on M5 over a recent four-hour UTC interval. If the provider has gaps or a temporary outage, choose a historical interval that overlaps an FX trading session:
+
+    python scripts/smoke_market_replay.py --timeframe M15 --hours 24
+    python scripts/smoke_market_replay.py --start 2026-10-05T08:00:00Z --end 2026-10-05T12:00:00Z
+
+The script calls the real provider adapters and replay service, persists to `market_candles`, queries the database to verify both returned series are present, and checks replay timestamp ordering. It prints a machine-readable PASS/FAIL report and exits non-zero on failure. It writes real market candles to the configured database; run it against development/staging first, not a production database.
+
+**Important:** a passing report validates TraderOS's current Dukascopy/CCXT chain. It deliberately reports `wrun_integration: NOT_TESTED`; it does not imply that Wrun was called or validated.
+
 ### Acceptance criteria
 
 - [x] Exactly one supported FX symbol and one supported crypto symbol are required.
