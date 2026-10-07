@@ -514,6 +514,7 @@ def get_trade_replay(db: Session, user_id: UUID, trade_id: UUID) -> dict:
                 start=start,
                 end=end,
                 limit=bar_limit(start, end),
+                account_id=trade.account_id,
             )
             if candles:
                 payload = enrich_replay_with_candles(

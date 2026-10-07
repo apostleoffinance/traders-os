@@ -1,4 +1,4 @@
-import { api } from "@/lib/api";
+import { api, getActiveAccountId } from "@/lib/api";
 import type { MarketInstrument, MarketStatusResponse, OhlcvResponse } from "./types";
 
 export type FetchOhlcvParams = {
@@ -6,6 +6,7 @@ export type FetchOhlcvParams = {
   timeframe: string;
   limit?: number;
   provider?: string | null;
+  accountId?: string | null;
   signal?: AbortSignal;
 };
 
@@ -16,6 +17,8 @@ export async function fetchOhlcv(params: FetchOhlcvParams): Promise<OhlcvRespons
     limit: String(params.limit ?? 500),
   });
   if (params.provider) q.set("provider", params.provider);
+  const accountId = params.accountId === undefined ? getActiveAccountId() : params.accountId;
+  if (accountId) q.set("account_id", accountId);
   return api<OhlcvResponse>(`/api/market/ohlcv?${q.toString()}`, {
     signal: params.signal,
   });

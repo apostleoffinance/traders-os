@@ -67,6 +67,7 @@ export type TradeReplayPriceSeriesPoint = {
 
 export type TradeReplayPriceSeries = {
   source: string;
+  provider?: string | null;
   timeframe: string;
   bar_count: number;
   point_count: number;

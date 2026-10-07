@@ -43,6 +43,8 @@ export type NaviqProviderOptions = {
     stale: boolean;
     warning?: string | null;
     count: number;
+    lastBarAt?: string | null;
+    updatedSecondsAgo?: number | null;
   }) => void;
 };
 
@@ -59,7 +61,7 @@ export class NaviqDataProvider {
   constructor(opts: NaviqProviderOptions = {}) {
     this.preferredProvider = opts.preferredProvider ?? null;
     this.symbols = opts.symbols ?? [];
-    this.pollMs = opts.pollMs ?? 20_000;
+    this.pollMs = opts.pollMs ?? 8_000;
     this.onMeta = opts.onMeta;
   }
 
@@ -111,6 +113,8 @@ export class NaviqDataProvider {
       stale: res.stale,
       warning: res.warning,
       count: res.count,
+      lastBarAt: res.last_bar_at,
+      updatedSecondsAgo: res.updated_seconds_ago,
     });
     let bars = candlesToVelaBars(res.candles);
     if (range.from != null) bars = bars.filter((b) => b.time >= range.from!);

@@ -153,6 +153,29 @@ export function CommandCenterView({ data, trades, openTrades }: Props) {
   const avgR = stats.avgR != null ? `${signed(stats.avgR)}R` : "—";
   const maxDd = money(data.max_drawdown, currency);
   const confidence = homeConfidenceLine(stats.n, data.sample_note);
+  const openRisk = openTrades.reduce((sum, t) => sum + (Number(t.risk_amount) || 0), 0);
+  const nextReview = useMemo(() => {
+    if (data.risk_status === "red" || data.risk_status === "yellow") {
+      return {
+        href: "/risk",
+        label: data.risk_reasons[0] ?? "Review the risk warning",
+      };
+    }
+    const worst = [...periodTrades]
+      .filter((t) => t.realized_r != null)
+      .sort((a, b) => Number(a.realized_r) - Number(b.realized_r))[0];
+    if (worst && Number(worst.realized_r) < 0) {
+      return {
+        href: `/trades/${worst.id}`,
+        label: `Review ${worst.symbol} (${signed(worst.realized_r)}R)`,
+      };
+    }
+    const latest = recentClosed[0];
+    if (latest) {
+      return { href: `/trades/${latest.id}`, label: `Review latest ${latest.symbol}` };
+    }
+    return { href: "/trades/new", label: "Log a trade" };
+  }, [data.risk_reasons, data.risk_status, periodTrades, recentClosed]);
 
   return (
     <div className="cc">
@@ -164,9 +187,36 @@ export function CommandCenterView({ data, trades, openTrades }: Props) {
         </p>
       </div>
 
+      <section className="status" aria-label="Workspace status">
+        <div>
+          <span className="k">Account</span>
+          <strong>{data.account.name}</strong>
+          <span className="muted">{data.account.firm} · {cc.account_status}</span>
+        </div>
+        <div>
+          <span className="k">Period result</span>
+          <strong className={tone(stats.pnl)}>{signed(stats.pnl)}</strong>
+          <span className="muted">{periodLabelShort(period)} · realized</span>
+        </div>
+        <div>
+          <span className="k">Open exposure</span>
+          <strong>{openTrades.length} open</strong>
+          <span className="muted">{openTrades.length ? `${money(openRisk, currency)} planned risk` : "No open risk"}</span>
+        </div>
+        <div>
+          <span className="k">Risk used today</span>
+          <strong>{num(cc.trading_capacity.daily_loss_used_pct, 0)}%</strong>
+          <span className="muted">of the daily loss limit</span>
+        </div>
+        <Link href={nextReview.href} className="next">
+          <span className="k">Next review</span>
+          <strong>{nextReview.label}</strong>
+        </Link>
+      </section>
+
       <div className="tos-kpi-grid">
         <MetricCard
-          label="Total P&L"
+          label="Net P&L"
           value={signed(stats.pnl)}
           tone={tone(stats.pnl) === "pos" ? "pos" : tone(stats.pnl) === "neg" ? "neg" : ""}
           hint={periodLabelShort(period)}
@@ -184,14 +234,14 @@ export function CommandCenterView({ data, trades, openTrades }: Props) {
           spark={spark.length >= 2 ? <MiniSparkline values={spark} height={26} /> : undefined}
         />
         <MetricCard
-          label="Avg R / trade"
+          label="Expectancy"
           value={avgR}
           tone={stats.avgR != null && stats.avgR >= 0 ? "pos" : stats.avgR != null ? "neg" : ""}
           hint="Average result"
           spark={spark.length >= 2 ? <MiniSparkline values={spark} height={26} /> : undefined}
         />
         <MetricCard
-          label="Max drawdown"
+          label="Drawdown"
           value={maxDd}
           tone="neg"
           hint={`Current ${money(data.drawdown, currency)}`}
@@ -488,6 +538,45 @@ export function CommandCenterView({ data, trades, openTrades }: Props) {
         }
         .period-hint {
           opacity: 0.75;
+        }
+        .status {
+          display: grid;
+          grid-template-columns: repeat(5, minmax(0, 1fr));
+          gap: 10px 14px;
+          padding: 12px 14px;
+          border: 1px solid var(--border);
+          border-radius: 12px;
+          background: var(--surface);
+        }
+        .status div,
+        .status :global(a.next) {
+          display: grid;
+          gap: 2px;
+          min-width: 0;
+          text-decoration: none;
+          color: inherit;
+        }
+        .status .k {
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          color: var(--text-muted);
+        }
+        .status strong {
+          font-size: 14px;
+          font-weight: 700;
+        }
+        .status .muted {
+          font-size: 12px;
+        }
+        .status :global(a.next:hover) strong {
+          color: var(--accent);
+        }
+        @media (max-width: 900px) {
+          .status {
+            grid-template-columns: 1fr 1fr;
+          }
         }
         .main-grid {
           display: grid;

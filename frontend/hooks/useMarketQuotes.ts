@@ -10,8 +10,8 @@ export function useMarketQuotes() {
   const [error, setError] = useState<string | null>(null);
   const inFlight = useRef(false);
 
-  const load = useCallback(async () => {
-    if (typeof document !== "undefined" && document.hidden) return;
+  const load = useCallback(async (force = false) => {
+    if (!force && typeof document !== "undefined" && document.hidden) return;
     if (inFlight.current) return;
     inFlight.current = true;
     try {
@@ -27,7 +27,7 @@ export function useMarketQuotes() {
   }, []);
 
   useEffect(() => {
-    void load();
+    void load(true);
     const id = window.setInterval(() => void load(), MARKET_PULSE_POLL_MS);
     const onVis = () => {
       if (!document.hidden) void load();

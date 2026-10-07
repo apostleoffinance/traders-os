@@ -166,8 +166,10 @@ def build_price_series(
             },
         )
 
+    provider = getattr(ordered[0], "provider", None) if ordered else None
     return {
         "source": "m1_ohlc",
+        "provider": provider,
         "timeframe": "M1",
         "bar_count": len(ordered),
         "point_count": len(points),

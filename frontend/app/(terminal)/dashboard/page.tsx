@@ -6,6 +6,7 @@ import { api, getActiveAccountId, getStoredUser } from "@/lib/api";
 import type { Dashboard, Trade, User } from "@/lib/types";
 import { Alert } from "@/components/ui";
 import { CommandCenterView } from "@/components/command-center/CommandCenterView";
+import { MarketPulse } from "@/components/market/MarketPulse";
 import { firstName, greeting } from "@/lib/theme";
 
 export default function DashboardPage() {
@@ -62,7 +63,8 @@ export default function DashboardPage() {
   if (error && !data) {
     return (
       <div>
-        <h1>Home</h1>
+        <p className="ws-kicker">Daily brief</p>
+        <h1>Workspace</h1>
         <Alert kind="warn">
           {error} <Link href="/accounts">Open accounts</Link>
         </Alert>
@@ -80,10 +82,11 @@ export default function DashboardPage() {
     <div>
       <header className="cc-head">
         <div>
+          <p className="ws-kicker">Daily brief</p>
           <h1 style={{ margin: "0 0 4px" }}>
             {hello}, {name}.
           </h1>
-          <p className="lede">Here&apos;s what&apos;s happening with your trading.</p>
+          <p className="lede">What needs attention before the next session.</p>
         </div>
         <div className="actions">
           <Link href="/trades/new" className="btn primary">
@@ -118,6 +121,7 @@ export default function DashboardPage() {
           <button type="button" className="btn ghost" onClick={() => void load()}>Retry</button>
         </div>
       )}
+      <MarketPulse />
       <CommandCenterView data={data} trades={trades} openTrades={openTrades} />
       <style jsx>{`
         .trades-warning {

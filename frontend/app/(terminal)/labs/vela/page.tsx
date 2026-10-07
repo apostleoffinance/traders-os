@@ -1,8 +1,10 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { MarketChart, type DataMode } from "@/components/visualizations/market/MarketChart";
+import { MarketPulse } from "@/components/market/MarketPulse";
 import { Alert } from "@/components/ui";
 import { LoadingState } from "@/components/trader/LoadingState";
 import { EmptyState } from "@/components/trader/EmptyState";
@@ -20,6 +22,15 @@ import type { TradeReplay } from "@/lib/trade-replay";
 
 const DEFAULT_FX = "EURUSD";
 const DEFAULT_CRYPTO = "BTCUSDT";
+
+function formatLastBar(iso?: string | null, ageSeconds?: number | null): string {
+  if (!iso) return "—";
+  const parsed = new Date(iso);
+  if (Number.isNaN(parsed.getTime())) return iso;
+  const clock = parsed.toISOString().slice(0, 16).replace("T", " ") + " UTC";
+  if (ageSeconds == null) return clock;
+  return `${clock} · ${ageSeconds}s ago`;
+}
 
 export default function VelaLabPage() {
   return (
@@ -52,6 +63,8 @@ function MarketLab() {
     stale?: boolean;
     warning?: string | null;
     count?: number;
+    lastBarAt?: string | null;
+    updatedSecondsAgo?: number | null;
     error?: string | null;
   }>({});
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -155,7 +168,18 @@ function MarketLab() {
 
   return (
     <div className="market-lab">
-      <h1>Market Lab</h1>
+      <p className="ws-kicker">02 · Markets</p>
+      <div className="market-head">
+        <h1>Markets</h1>
+        <Link href="/labs/replay" className="btn ghost">
+          Market replay
+        </Link>
+      </div>
+      <MarketPulse />
+      <Alert kind="info">
+        FX charts use this account&apos;s MT5 bars when the terminal has sent them. Otherwise the chart shows history
+        candles and leaves gaps empty. Crypto stays on its own exchange feed.
+      </Alert>
 
       {catalogLoading ? <LoadingState label="Loading instruments…" /> : null}
       {loadError ? (
@@ -201,7 +225,7 @@ function MarketLab() {
               if (next === "vela-binance" && !symbol.includes("USDT")) setSymbol(DEFAULT_CRYPTO);
             }}
           >
-            <option value="naviq">NAVIQ API (Dukascopy / CCXT)</option>
+            <option value="naviq">Account feed (MT5, then history)</option>
             <option value="vela-binance">Vela Binance (crypto only)</option>
           </select>
         </label>
@@ -247,12 +271,19 @@ function MarketLab() {
 
       <div className="meta-row">
         <span>
-          Backend provider:{" "}
-          <strong>{meta.backendProvider || (dataMode === "vela-binance" ? "binance (vela)" : "—")}</strong>
+          Source:{" "}
+          <strong>
+            {meta.backendProvider === "mt5"
+              ? "MT5"
+              : meta.backendProvider || (dataMode === "vela-binance" ? "binance (vela)" : "—")}
+          </strong>
+        </span>
+        <span>
+          Last bar: <strong>{formatLastBar(meta.lastBarAt, meta.updatedSecondsAgo)}</strong>
+          {meta.stale ? " (behind)" : ""}
         </span>
         <span>
           Freshness: <strong>{meta.freshness || "—"}</strong>
-          {meta.stale ? " (stale)" : ""}
         </span>
         <span>
           Bars: <strong>{meta.count ?? "—"}</strong>
@@ -264,6 +295,25 @@ function MarketLab() {
           </span>
         ) : null}
       </div>
+
+      {trades.some((trade) => trade.status === "open") ? (
+        <section className="ws-panel">
+          <div className="ws-panel-head">
+            <h2 className="ws-panel-title">Open positions</h2>
+          </div>
+          <ul className="opens">
+            {trades
+              .filter((trade) => trade.status === "open")
+              .map((trade) => (
+                <li key={trade.id}>
+                  <Link href={`/trades/${trade.id}`}>
+                    {trade.symbol} {trade.direction.toUpperCase()} · {trade.lot_size} · entry {trade.entry_price}
+                  </Link>
+                </li>
+              ))}
+          </ul>
+        </section>
+      ) : null}
 
       <MarketChart
         key={`${showEma}-${showRsi}-${dataMode}`}
@@ -280,11 +330,28 @@ function MarketLab() {
       />
 
       <style jsx>{`
+        .market-head {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+        }
         .market-lab {
           display: flex;
           flex-direction: column;
           gap: 16px;
           max-width: 1200px;
+        }
+        .opens {
+          list-style: none;
+          margin: 0;
+          padding: 8px 12px 12px;
+        }
+        .opens li {
+          padding: 6px 0;
+          border-bottom: 1px solid var(--border);
+          font-family: var(--font-mono), ui-monospace, monospace;
+          font-size: 12px;
         }
         .hint {
           margin: 0 0 6px;

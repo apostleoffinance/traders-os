@@ -5,7 +5,7 @@ from typing import Sequence, Union
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "0014_mt5_normalized_evidence_timestamps"
+revision: str = "0014_mt5_evidence_utc"
 down_revision: Union[str, None] = "0013_mt5_source_deals"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None

@@ -3,6 +3,9 @@
 import Link from "next/link";
 import type { RiskCommand, RiskGauge } from "@/lib/risk-command";
 import { Alert, Badge, LimitBar, Panel } from "@/components/ui";
+import { PeriodStrip } from "@/components/trader/PeriodStrip";
+import { useGlobalFilters } from "@/lib/filters";
+import { periodLabelShort } from "@/lib/command-center/period";
 import { money, num } from "@/lib/format";
 
 function radarTone(label: string, status: string): string {
@@ -432,18 +435,57 @@ function SurvivalGauge({
 export function RiskCommandView({ data }: { data: RiskCommand }) {
   const m = data.metrics;
   const alertKind = data.status === "red" ? "danger" : data.status === "yellow" ? "warn" : "info";
+  const { filters } = useGlobalFilters();
+  const currency = data.account.currency;
 
   return (
     <div className="rc">
       <div className="head">
         <div>
-          <h1>Risk Command</h1>
-          <p className="muted">How much danger are you carrying right now?</p>
+          <p className="ws-kicker">03 · Portfolio & risk</p>
+          <h1>Portfolio & Risk</h1>
+          <p className="muted">Equity, open risk, and the limits on this account.</p>
         </div>
         <div className="head-right">
+          <PeriodStrip />
+          <Link href="/risk/limits" className="btn ghost">
+            Edit limits
+          </Link>
           <Badge status={data.status} />
         </div>
       </div>
+
+      <p className="muted context-note">
+        Limits below are this account&apos;s rules, not {periodLabelShort(filters.period)} performance.
+        Realized P&amp;L and planned risk are separate.
+      </p>
+
+      <div className="books">
+        <Panel title="Realized today">
+          <p className={`num book-value ${Number(m.daily_pnl) < 0 ? "neg" : Number(m.daily_pnl) > 0 ? "pos" : ""}`}>
+            {money(m.daily_pnl, currency)}
+          </p>
+          <p className="muted">Closed result for the current trading day.</p>
+        </Panel>
+        <Panel title="Risk in use">
+          <p className="num book-value">{money(m.daily_risk, currency)}</p>
+          <p className="muted">
+            Risk used today against a {money(data.trading_capacity.daily_loss_limit, currency)} daily loss limit.
+          </p>
+        </Panel>
+        <Panel title="Account drawdown">
+          <p className="num book-value neg">{money(m.current_drawdown, currency)}</p>
+          <p className="muted">
+            From peak equity
+            {m.current_drawdown_pct ? ` · ${num(m.current_drawdown_pct, 1)}%` : ""}. This is not today&apos;s P&amp;L.
+          </p>
+        </Panel>
+      </div>
+
+      <p className="muted context-note">
+        Broker import checks stay on the account.{" "}
+        <Link href="/accounts">Review MT5 reconciliation</Link> before trusting a sync. Nothing here places an order.
+      </p>
 
       {data.reasons.map((r) => (
         <Alert key={r} kind={alertKind}>
@@ -521,8 +563,28 @@ export function RiskCommandView({ data }: { data: RiskCommand }) {
           gap: 16px;
         }
         .head-right {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+        .context-note {
+          margin: 0;
+          font-size: 13px;
+        }
+        .books {
           display: grid;
-          justify-items: end;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 12px;
+        }
+        .book-value {
+          margin: 0 0 6px;
+          font-size: 1.25rem;
+          font-weight: 700;
+        }
+        @media (max-width: 800px) {
+          .books {
+            grid-template-columns: 1fr;
+          }
         }
         .hero-grid {
           display: grid;

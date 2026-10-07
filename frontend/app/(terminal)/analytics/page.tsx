@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { api, getActiveAccountId } from "@/lib/api";
 import { useAiStatus } from "@/lib/ai";
-import { useGlobalFilters } from "@/lib/filters";
+import { useGlobalFilters, PERIOD_LABELS } from "@/lib/filters";
 import { Alert } from "@/components/ui";
 import { IntelligenceRunner } from "@/components/IntelligenceRunner";
 import {
@@ -51,7 +51,7 @@ function AnalyticsLab() {
   const urlTab = (searchParams.get("tab") as TabId) || "overview";
   const [tab, setTab] = useState<TabId>(TABS.some((t) => t.id === urlTab) ? urlTab : "overview");
   const [accountId, setAccountId] = useState<string | null>(null);
-  const { filters: globalFilters } = useGlobalFilters();
+  const { filters: globalFilters, setFilters } = useGlobalFilters();
   const [draft, setDraft] = useState<FilterState>(EMPTY_FILTERS);
   const [applied, setApplied] = useState<FilterState>(filtersWithGlobalPeriod(globalFilters.period));
   const [data, setData] = useState<AnalyticsDashboard | null>(null);
@@ -83,6 +83,20 @@ function AnalyticsLab() {
     const next = filtersWithGlobalPeriod(globalFilters.period, applied);
     setApplied((prev) => (prev.preset === next.preset ? prev : { ...prev, preset: next.preset }));
   }, [globalFilters.period]);
+
+  useEffect(() => {
+    const symbol = globalFilters.symbol ?? "";
+    const session = globalFilters.session ?? "";
+    const setup_id = globalFilters.setupId ?? "";
+    setApplied((prev) => {
+      if (prev.symbol === symbol && prev.session === session && prev.setup_id === setup_id) return prev;
+      return { ...prev, symbol, session, setup_id };
+    });
+    setDraft((prev) => {
+      if (prev.symbol === symbol && prev.session === session && prev.setup_id === setup_id) return prev;
+      return { ...prev, symbol, session, setup_id };
+    });
+  }, [globalFilters.symbol, globalFilters.session, globalFilters.setupId]);
 
   useEffect(() => {
     const id = getActiveAccountId();
@@ -141,8 +155,20 @@ function AnalyticsLab() {
     <div>
       <header className="page-head">
         <div>
+          <p className="ws-kicker">05 · Analytics</p>
           <h1>Analytics</h1>
-          <p className="lede muted">What happened, where your edge is, and what to investigate next.</p>
+          <p className="lede muted">
+            What happened, where your results are, and what to investigate next.
+            {data
+              ? ` ${PERIOD_LABELS[globalFilters.period] ?? applied.preset} · ${data.overview.n_trades} trade${
+                  data.overview.n_trades === 1 ? "" : "s"
+                }.${
+                  data.overview.n_trades < 10
+                    ? " Patterns are still forming. R is shown when a trade has a stop."
+                    : ""
+                }`
+              : ""}
+          </p>
         </div>
       </header>
 
@@ -163,7 +189,14 @@ function AnalyticsLab() {
         draft={draft}
         setDraft={setDraft}
         data={data}
-        onApply={() => setApplied({ ...draft })}
+        onApply={() => {
+          setApplied({ ...draft });
+          setFilters({
+            symbol: draft.symbol || null,
+            session: draft.session || null,
+            setupId: draft.setup_id || null,
+          });
+        }}
         onReset={() => {
           const reset = filtersWithGlobalPeriod(globalFilters.period);
           setDraft(reset);

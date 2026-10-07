@@ -16,6 +16,7 @@ export type OhlcvResponse = {
   stale: boolean;
   warning?: string | null;
   updated_seconds_ago?: number | null;
+  last_bar_at?: string | null;
   candles: MarketCandle[];
   count: number;
 };

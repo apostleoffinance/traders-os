@@ -28,6 +28,8 @@ export type VelaChartProps = {
     stale?: boolean;
     warning?: string | null;
     count?: number;
+    lastBarAt?: string | null;
+    updatedSecondsAgo?: number | null;
     error?: string | null;
   }) => void;
 };
@@ -95,6 +97,8 @@ export function VelaChart({
               stale: m.stale,
               warning: m.warning,
               count: m.count,
+              lastBarAt: m.lastBarAt,
+              updatedSecondsAgo: m.updatedSecondsAgo,
               error: null,
             }),
         });

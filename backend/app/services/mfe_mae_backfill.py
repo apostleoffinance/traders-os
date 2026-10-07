@@ -57,6 +57,7 @@ def backfill_mfe_mae_for_trade(db: Session, trade: Trade) -> bool:
             start=start,
             end=end,
             limit=bar_limit(start, end),
+            account_id=trade.account_id,
         )
     except Exception as exc:
         log.info("mfe backfill unavailable trade=%s symbol=%s: %s", trade.id, trade.symbol, exc)

@@ -202,7 +202,12 @@ export default function IntelligencePage() {
 
   const body = (
     <>
-      {status && !status.available && <Alert kind="warn">{status.message ?? AI_UNAVAILABLE_MESSAGE}</Alert>}
+      {accountId && dash && dash.overview.n_trades < 10 ? (
+        <Alert kind="info">
+          Patterns are still forming. This read is based on {dash.overview.n_trades} trade
+          {dash.overview.n_trades === 1 ? "" : "s"} in {PERIOD_LABELS[globalFilters.period]}. It is not a proven edge.
+        </Alert>
+      ) : null}
       {!accountId && (
         <Alert kind="info">
           Select an account to load intelligence. <Link href="/accounts">Open accounts</Link>
@@ -288,6 +293,7 @@ export default function IntelligencePage() {
       </a>
 
       <header className="hero">
+        <p className="ws-kicker">08 · Intelligence</p>
         <h1>Intelligence</h1>
         <p className="tagline">Your trading, interpreted.</p>
         <p className="support">

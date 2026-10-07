@@ -7,6 +7,13 @@ import { formatMovement, holdingLabel, sessionLabel, tone } from "@/lib/format";
 import type { TradeAnatomyFallbacks } from "@/lib/trade-anatomy";
 import type { TradeReplay, ReplayInsight } from "@/lib/trade-replay";
 
+function candleSourceLabel(provider?: string | null): string {
+  if (provider === "mt5") return "MT5";
+  if (provider === "dukascopy") return "Dukascopy";
+  if (provider) return provider;
+  return "History";
+}
+
 function insightIcon(tone: string): string {
   if (tone === "ok") return "✓";
   if (tone === "warn") return "⚠";
@@ -258,6 +265,17 @@ export function TradeReplayView({
             {sessionLabel(replay.session)} · {replay.timeframe}
             {!isClosed && " · position open"}
           </p>
+          <p className="provenance">
+            {replay.price_series && replay.price_series.point_count > 0
+              ? `Candles: ${candleSourceLabel(replay.price_series.provider)} · ${replay.price_series.timeframe} · ${replay.price_series.bar_count} bars${
+                  replay.price_series.downsampled ? " · simplified" : ""
+                }. ${
+                  replay.price_series.provider === "mt5"
+                    ? "These are the terminal's bars."
+                    : "Missing bars are not filled in."
+                } Times follow the account timezone.`
+              : "No candle series for this trade. The path uses the planned and actual prices only. Missing bars are not filled in."}
+          </p>
         </div>
         <div className="quality">
           <span className="kicker">Decision quality</span>
@@ -338,6 +356,13 @@ export function TradeReplayView({
           margin: 4px 0 0;
           font-size: 13px;
           color: var(--text-secondary);
+        }
+        .provenance {
+          margin: 6px 0 0;
+          max-width: 62ch;
+          font-size: 12px;
+          line-height: 1.4;
+          color: var(--text-muted);
         }
         .quality {
           text-align: right;

@@ -26,6 +26,7 @@ from app.models.account import Account
 from app.models.mt5_connection import Mt5Connection, Mt5ProcessedDeal, Mt5SourceDeal, Mt5SyncSnapshot
 from app.models.trade import Trade
 from app.models.user import User
+from app.market_data.broker_candles import store_bars
 from app.market_data.service import conversion_rate
 from app.services.account_service import refresh_account_balances
 from app.services.mapping import parse_windows
@@ -95,6 +96,10 @@ def apply_sync(db: Session, connection: Mt5Connection, payload: Mt5SyncIn) -> Mt
         connection.status = Mt5ConnectionStatus.CONNECTED.value
 
     counters = SyncCounters()
+    if payload.bars:
+        stored = store_bars(db, connection, payload.bars, correct_time=_correct_broker_time)
+        logger.info("MT5 bars stored connection_id=%s sent=%s stored=%s", connection.id, len(payload.bars), stored)
+
     if payload.event_type == "heartbeat":
         db.commit()
         return Mt5SyncOut(
@@ -103,8 +108,9 @@ def apply_sync(db: Session, connection: Mt5Connection, payload: Mt5SyncIn) -> Mt
             server_time=now,
         )
 
-    # Keep the full successful sync payload before transforming it into trade rows.
-    # This preserves source-level evidence (including opening deals) for future reconciliation.
+    # Keep the trade snapshot without the candle payload. Bars live in broker_candles.
+    snapshot_payload = payload.model_dump(mode="json", exclude={"bars"})
+    snapshot_payload["bars_count"] = len(payload.bars)
     db.add(
         Mt5SyncSnapshot(
             connection_id=connection.id,
@@ -114,7 +120,7 @@ def apply_sync(db: Session, connection: Mt5Connection, payload: Mt5SyncIn) -> Mt
             sync_timestamp_utc=_correct_broker_time(payload.sync_timestamp, connection),
             positions_count=len(payload.positions),
             deals_count=len(payload.recent_deals),
-            payload=payload.model_dump(mode="json"),
+            payload=snapshot_payload,
         )
     )
 

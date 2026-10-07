@@ -36,6 +36,39 @@ class MarketCandle(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class BrokerCandle(Base):
+    """OHLC bars pushed by a broker connection. Never mixed with another provider's series."""
+
+    __tablename__ = "broker_candles"
+    __table_args__ = (
+        UniqueConstraint(
+            "connection_id",
+            "symbol",
+            "timeframe",
+            "timestamp",
+            name="uq_broker_candle",
+        ),
+        Index("ix_broker_candles_lookup", "connection_id", "symbol", "timeframe", "timestamp"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID_PK, primary_key=True, default=uuid.uuid4)
+    connection_id: Mapped[uuid.UUID] = mapped_column(
+        UUID_PK, ForeignKey("mt5_connections.id", ondelete="CASCADE"), nullable=False
+    )
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        UUID_PK, ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    symbol: Mapped[str] = mapped_column(String(32), nullable=False)
+    timeframe: Mapped[str] = mapped_column(String(8), nullable=False)
+    timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    open: Mapped[Decimal] = mapped_column(PRICE, nullable=False)
+    high: Mapped[Decimal] = mapped_column(PRICE, nullable=False)
+    low: Mapped[Decimal] = mapped_column(PRICE, nullable=False)
+    close: Mapped[Decimal] = mapped_column(PRICE, nullable=False)
+    volume: Mapped[Decimal | None] = mapped_column(Numeric(24, 8), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class MarketAnalysis(Base):
     __tablename__ = "market_analyses"
 

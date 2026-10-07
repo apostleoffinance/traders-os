@@ -122,10 +122,27 @@ function QuantLab() {
     <div className="quant-lab">
       <header className="ql-head">
         <div>
-          <h1>Quant Lab</h1>
-          <p className="lede muted">Advanced analysis, better decisions — statistical research on your journal.</p>
+          <p className="ws-kicker">06 · Research lab</p>
+          <h1>Research Lab</h1>
+          <p className="lede muted">
+            Research on your own history. Results stay descriptive until the sample is large enough.
+            This lab does not place orders.
+          </p>
         </div>
       </header>
+
+      {accountId && dash && (
+        <p className="study-record muted">
+          Study record: {applied.preset} period
+          {applied.symbol ? ` · ${applied.symbol}` : ""}
+          {applied.session ? ` · ${applied.session}` : ""}
+          {` · ${dash.overview.n_trades} trade${dash.overview.n_trades === 1 ? "" : "s"}`}
+          {dash.lab?.costs?.gross_vs_net?.cost_drag_pct
+            ? ` · costs are ${dash.lab.costs.gross_vs_net.cost_drag_pct}% of gross`
+            : " · costs appear when the broker sent commission or swap"}
+          . Walk-forward checks are under Research.
+        </p>
+      )}
 
       {accountId && (
         <AnalyticsFilters

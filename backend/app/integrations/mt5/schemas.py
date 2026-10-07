@@ -51,6 +51,17 @@ class Mt5DealIn(BaseModel):
     mfe_mae_bars: int | None = None
 
 
+class Mt5BarIn(BaseModel):
+    symbol_raw: str
+    timeframe: Literal["M1", "M5", "M15", "M30", "H1", "H4", "D1"]
+    timestamp: datetime
+    open: Decimal = Field(gt=0)
+    high: Decimal = Field(gt=0)
+    low: Decimal = Field(gt=0)
+    close: Decimal = Field(gt=0)
+    volume: Decimal | None = Field(default=None, ge=0)
+
+
 class Mt5SyncIn(BaseModel):
     event_type: Literal["sync", "heartbeat"] = "sync"
     platform: Literal["MT5"] = "MT5"
@@ -59,6 +70,7 @@ class Mt5SyncIn(BaseModel):
     account: Mt5AccountIn | None = None
     positions: list[Mt5PositionIn] = Field(default_factory=list)
     recent_deals: list[Mt5DealIn] = Field(default_factory=list)
+    bars: list[Mt5BarIn] = Field(default_factory=list, max_length=1200)
 
 
 class Mt5SyncOut(BaseModel):

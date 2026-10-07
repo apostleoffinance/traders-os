@@ -471,6 +471,18 @@ export function TradeForm({ mode, trade = null }: Props) {
                   <option value="short">Short</option>
                 </select>
               </Field>
+              <Field label="Lot size">
+                <input className="num" value={lot} disabled={lockInitial} onChange={(e) => setLot(e.target.value)} />
+              </Field>
+              <Field label="Stop-loss">
+                <input className="num" value={sl} disabled={lockInitial} onChange={(e) => setSl(e.target.value)} />
+              </Field>
+              <Field label="Entry">
+                <input className="num" value={entry} disabled={lockInitial} onChange={(e) => setEntry(e.target.value)} />
+              </Field>
+              <Field label="Take-profit">
+                <input className="num" value={tp} disabled={lockInitial} onChange={(e) => setTp(e.target.value)} />
+              </Field>
               <Field label="Entry time (local)">
                 <input
                   type="datetime-local"
@@ -494,18 +506,6 @@ export function TradeForm({ mode, trade = null }: Props) {
                     <option key={t}>{t}</option>
                   ))}
                 </select>
-              </Field>
-              <Field label="Entry">
-                <input className="num" value={entry} disabled={lockInitial} onChange={(e) => setEntry(e.target.value)} />
-              </Field>
-              <Field label="Stop-loss">
-                <input className="num" value={sl} disabled={lockInitial} onChange={(e) => setSl(e.target.value)} />
-              </Field>
-              <Field label="Take-profit">
-                <input className="num" value={tp} disabled={lockInitial} onChange={(e) => setTp(e.target.value)} />
-              </Field>
-              <Field label="Lot size">
-                <input className="num" value={lot} disabled={lockInitial} onChange={(e) => setLot(e.target.value)} />
               </Field>
             </div>
             {preview && !isClose && (
@@ -615,17 +615,19 @@ export function TradeForm({ mode, trade = null }: Props) {
           </Panel>
         )}
 
-        {!isClose && (
-          <Panel title="Pre-trade process">
-            <PreTradeCheck
-              template={checklist}
-              checked={checked}
-              onToggle={(id, value) => setChecked((c) => ({ ...c, [id]: value }))}
-              autoChecks={preview?.auto_checks ?? []}
-              status={checkStatus}
-            />
-          </Panel>
-        )}
+        <details className="more-context" open={!isCreate}>
+          <summary>Checklist, notes, and review</summary>
+          {!isClose && (
+            <Panel title="Pre-trade process">
+              <PreTradeCheck
+                template={checklist}
+                checked={checked}
+                onToggle={(id, value) => setChecked((c) => ({ ...c, [id]: value }))}
+                autoChecks={preview?.auto_checks ?? []}
+                status={checkStatus}
+              />
+            </Panel>
+          )}
 
         <div className="cols">
           <Panel title={showPostTrade ? "Review" : "Notes"}>
@@ -722,6 +724,7 @@ export function TradeForm({ mode, trade = null }: Props) {
             )}
           </div>
         </Panel>
+        </details>
 
         {(confirmNeeded || preview?.policy?.requires_confirmation) && !isClose && (
           <label>
@@ -765,6 +768,16 @@ export function TradeForm({ mode, trade = null }: Props) {
         form {
           display: grid;
           gap: 14px;
+        }
+        .more-context {
+          display: grid;
+          gap: 14px;
+        }
+        .more-context summary {
+          cursor: pointer;
+          font-size: 13px;
+          font-weight: 650;
+          color: var(--text-secondary);
         }
         .cols {
           display: grid;

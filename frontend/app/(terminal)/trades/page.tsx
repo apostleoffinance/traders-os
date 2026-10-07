@@ -7,7 +7,10 @@ import type { Setup, Trade } from "@/lib/types";
 import { Alert, Field, Panel } from "@/components/ui";
 import { TradeTable } from "@/components/trader/tables/TradeTable";
 import { LoadingState } from "@/components/trader/LoadingState";
-import { num, signed } from "@/lib/format";
+import { PeriodStrip } from "@/components/trader/PeriodStrip";
+import { useGlobalFilters } from "@/lib/filters";
+import { isTimestampInPeriod, periodLabelShort } from "@/lib/command-center/period";
+import { num, sessionLabel, signed } from "@/lib/format";
 
 export default function TradeHistoryPage() {
   const [trades, setTrades] = useState<Trade[] | null>(null);
@@ -18,12 +21,19 @@ export default function TradeHistoryPage() {
   const [result, setResult] = useState("");
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reloadVersion, setReloadVersion] = useState(0);
+  const { filters: globalFilters, ready: filtersReady, setFilters } = useGlobalFilters();
 
   useEffect(() => {
     const refreshForAccount = () => setReloadVersion((version) => version + 1);
     window.addEventListener("traderos-account", refreshForAccount);
     return () => window.removeEventListener("traderos-account", refreshForAccount);
   }, []);
+
+  useEffect(() => {
+    if (!filtersReady) return;
+    setSession(globalFilters.session ?? "");
+    setSetupId(globalFilters.setupId ?? "");
+  }, [filtersReady, globalFilters.session, globalFilters.setupId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -70,7 +80,13 @@ export default function TradeHistoryPage() {
     };
   }, [session, setupId, direction, result, reloadVersion]);
 
-  const rows = trades ?? [];
+  const rows = useMemo(() => {
+    const all = trades ?? [];
+    return all.filter((t) => {
+      if (t.status === "open") return true;
+      return isTimestampInPeriod(t.exit_timestamp ?? t.trade_timestamp, globalFilters.period);
+    });
+  }, [trades, globalFilters.period]);
   const summary = useMemo(() => {
     const closed = rows.filter((t) => t.status === "closed");
     const open = rows.filter((t) => t.status === "open").length;
@@ -80,9 +96,36 @@ export default function TradeHistoryPage() {
     return { n: rows.length, closed: closed.length, open, totalR, winRate };
   }, [rows]);
 
+  const cohorts = useMemo(() => {
+    const tally = (key: (trade: Trade) => string) => {
+      const counts = new Map<string, number>();
+      for (const trade of rows) {
+        const label = key(trade) || "—";
+        counts.set(label, (counts.get(label) ?? 0) + 1);
+      }
+      return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4);
+    };
+    return {
+      session: tally((trade) => sessionLabel(trade.session)),
+      setup: tally((trade) => trade.setup_name || "No setup"),
+    };
+  }, [rows]);
+
   return (
     <div>
-      <h1>Trades</h1>
+      <div className="journal-context">
+        <PeriodStrip />
+        <p className="muted">
+          {periodLabelShort(globalFilters.period)}. Open trades stay visible. Closed trades follow this period.
+        </p>
+      </div>
+      <p className="ws-kicker">04 · Journal</p>
+      <div className="journal-head">
+        <h1>Journal</h1>
+        <Link href="/trades/new" className="btn">
+          New trade
+        </Link>
+      </div>
       <p className="muted">
         {trades == null ? (
           <LoadingState label="Loading trades…" />
@@ -99,7 +142,14 @@ export default function TradeHistoryPage() {
       <Panel title="Filters">
         <div className="filters">
           <Field label="Session">
-            <select value={session} onChange={(e) => setSession(e.target.value)}>
+            <select
+              value={session}
+              onChange={(e) => {
+                const value = e.target.value;
+                setSession(value);
+                setFilters({ session: value || null });
+              }}
+            >
               <option value="">All</option>
               <option value="london">London</option>
               <option value="london_ny_overlap">London/NY</option>
@@ -109,7 +159,14 @@ export default function TradeHistoryPage() {
             </select>
           </Field>
           <Field label="Setup">
-            <select value={setupId} onChange={(e) => setSetupId(e.target.value)}>
+            <select
+              value={setupId}
+              onChange={(e) => {
+                const value = e.target.value;
+                setSetupId(value);
+                setFilters({ setupId: value || null });
+              }}
+            >
               <option value="">All</option>
               {setups.map((s) => (
                 <option key={s.id} value={s.id}>
@@ -136,6 +193,36 @@ export default function TradeHistoryPage() {
           </Field>
         </div>
       </Panel>
+      {rows.length > 0 && (
+        <div className="ws-split journal-cohorts">
+          <section className="ws-panel">
+            <div className="ws-panel-head">
+              <h2 className="ws-panel-title">By session</h2>
+            </div>
+            <ul>
+              {cohorts.session.map(([label, count]) => (
+                <li key={label}>
+                  <span>{label}</span>
+                  <span className="num">{count} trade{count === 1 ? "" : "s"}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+          <section className="ws-panel">
+            <div className="ws-panel-head">
+              <h2 className="ws-panel-title">By setup</h2>
+            </div>
+            <ul>
+              {cohorts.setup.map(([label, count]) => (
+                <li key={label}>
+                  <span>{label}</span>
+                  <span className="num">{count} trade{count === 1 ? "" : "s"}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        </div>
+      )}
       {loadError && (
         <div className="load-error">
           <Alert kind="danger">{loadError}</Alert>
@@ -185,6 +272,41 @@ export default function TradeHistoryPage() {
         )}
       </div>
       <style jsx>{`
+        .journal-head {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+        }
+        .journal-cohorts {
+          margin: 12px 0;
+        }
+        .journal-cohorts ul {
+          list-style: none;
+          margin: 0;
+          padding: 8px 12px 12px;
+        }
+        .journal-cohorts li {
+          display: flex;
+          justify-content: space-between;
+          gap: 12px;
+          padding: 6px 0;
+          border-bottom: 1px solid var(--border);
+          font-size: 13px;
+        }
+        .journal-context {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          justify-content: space-between;
+          gap: 8px;
+          margin-bottom: 8px;
+        }
+        .journal-context :global(.muted),
+        .journal-context .muted {
+          margin: 0;
+          font-size: 13px;
+        }
         .filters {
           display: grid;
           grid-template-columns: repeat(4, 1fr);

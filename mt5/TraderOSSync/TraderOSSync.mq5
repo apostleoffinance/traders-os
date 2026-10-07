@@ -3,7 +3,7 @@
 //| OBSERVE · COLLECT · SEND — no trade execution functions.         |
 //+------------------------------------------------------------------+
 #property copyright "Trader OS"
-#property version   "0.103"
+#property version   "0.104"
 #property strict
 
 input string ApiBaseUrl          = "http://127.0.0.1:8000";
@@ -89,14 +89,6 @@ string DealEntryType(long entry)
    if(entry == DEAL_ENTRY_OUT_BY)
       return "OUT_BY";
    return "IN";
-  }
-
-//+------------------------------------------------------------------+
-string DealDirection(long type)
-  {
-   if(type == DEAL_TYPE_BUY)
-      return "LONG";
-   return "SHORT";
   }
 
 //+------------------------------------------------------------------+
@@ -329,6 +321,107 @@ string BuildDealsJson()
   }
 
 //+------------------------------------------------------------------+
+void AddUniqueSymbol(string &symbols[], const string sym)
+  {
+   if(StringLen(sym) == 0 || ArraySize(symbols) >= 6)
+      return;
+   for(int i = 0; i < ArraySize(symbols); i++)
+     {
+      if(symbols[i] == sym)
+         return;
+     }
+   int n = ArraySize(symbols);
+   ArrayResize(symbols, n + 1);
+   symbols[n] = sym;
+  }
+
+//+------------------------------------------------------------------+
+string TimeframeCode(const ENUM_TIMEFRAMES tf)
+  {
+   if(tf == PERIOD_M1)  return "M1";
+   if(tf == PERIOD_M5)  return "M5";
+   if(tf == PERIOD_M15) return "M15";
+   if(tf == PERIOD_M30) return "M30";
+   if(tf == PERIOD_H1)  return "H1";
+   if(tf == PERIOD_H4)  return "H4";
+   if(tf == PERIOD_D1)  return "D1";
+   return "";
+  }
+
+//+------------------------------------------------------------------+
+string BuildBarsJson()
+  {
+   string symbols[];
+   AddUniqueSymbol(symbols, _Symbol);
+   int positions = PositionsTotal();
+   for(int i = positions - 1; i >= 0; i--)
+     {
+      ulong ticket = PositionGetTicket(i);
+      if(ticket == 0 || !PositionSelectByTicket(ticket))
+         continue;
+      AddUniqueSymbol(symbols, PositionGetString(POSITION_SYMBOL));
+     }
+
+   string items = "";
+   int count = 0;
+   const int max_items = 900;
+   const int per_series = 160;
+   for(int s = 0; s < ArraySize(symbols) && count < max_items; s++)
+     {
+      string sym = symbols[s];
+      if(!SymbolSelect(sym, true))
+         continue;
+      ENUM_TIMEFRAMES frames[3];
+      int frame_count = 0;
+      if(s == 0)
+        {
+         frames[frame_count++] = PERIOD_M1;
+        }
+      frames[frame_count++] = PERIOD_M15;
+      frames[frame_count++] = PERIOD_H1;
+      for(int f = 0; f < frame_count && count < max_items; f++)
+        {
+         string code = TimeframeCode(frames[f]);
+         if(StringLen(code) == 0)
+            continue;
+         MqlRates rates[];
+         ArraySetAsSeries(rates, true);
+         int copied = CopyRates(sym, frames[f], 0, per_series, rates);
+         if(copied <= 0)
+            continue;
+         for(int b = copied - 1; b >= 0 && count < max_items; b--)
+           {
+            if(rates[b].time <= 0)
+               continue;
+            if(rates[b].open <= 0 || rates[b].high <= 0 || rates[b].low <= 0 || rates[b].close <= 0)
+               continue;
+            if(rates[b].high < rates[b].low || rates[b].high < rates[b].open || rates[b].high < rates[b].close)
+               continue;
+            if(rates[b].low > rates[b].open || rates[b].low > rates[b].close)
+               continue;
+            string item = StringFormat(
+               "{\"symbol_raw\":\"%s\",\"timeframe\":\"%s\",\"timestamp\":\"%s\","
+               "\"open\":%.8f,\"high\":%.8f,\"low\":%.8f,\"close\":%.8f,\"volume\":%.0f}",
+               JsonEscape(sym),
+               code,
+               IsoUtc(rates[b].time),
+               rates[b].open,
+               rates[b].high,
+               rates[b].low,
+               rates[b].close,
+               (double)rates[b].tick_volume
+            );
+            if(StringLen(items) > 0)
+               items += ",";
+            items += item;
+            count++;
+           }
+        }
+     }
+   return "\"bars\":[" + items + "]";
+  }
+
+//+------------------------------------------------------------------+
 bool SendSync()
   {
    string url = ApiBaseUrl;
@@ -345,7 +438,8 @@ bool SendSync()
    body += "\"terminal_connected\":true,";
    body += BuildAccountJson() + ",";
    body += BuildPositionsJson() + ",";
-   body += BuildDealsJson();
+   body += BuildDealsJson() + ",";
+   body += BuildBarsJson();
    body += "}";
 
    char data[];
@@ -356,7 +450,7 @@ bool SendSync()
 
    string headers = "Content-Type: application/json\r\nAuthorization: Bearer " + ConnectionToken + "\r\n";
    ResetLastError();
-   int code = WebRequest("POST", url, headers, 10000, data, result, result_headers);
+   int code = WebRequest("POST", url, headers, 20000, data, result, result_headers);
    if(code == -1)
      {
       int err = GetLastError();

@@ -136,7 +136,8 @@ export function DayInvestigation({
 
         <section className="block">
           <h3>What happened?</h3>
-          <p className="summary">{summary}</p>
+            <p className="summary">{summary}</p>
+            <p className="muted">These are the trades for this day. Your analytics period stays as it is.</p>
           <dl className="stats">
             <div>
               <dt>Trades</dt>

@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 from decimal import Decimal
+from uuid import UUID
 
 from sqlalchemy.orm import Session
 
@@ -15,7 +16,15 @@ from app.core.time import as_utc, utcnow
 from app.engines.fx_math import INSTRUMENTS, get_instrument, normalize_symbol
 from app.market_data import cache
 from app.market_data import fx_rates
+from app.market_data.broker_candles import (
+    BROKER_PROVIDER,
+    freshness_for,
+    load_range as load_broker_range,
+    load_recent as load_broker_recent,
+    uses_broker_feed,
+)
 from app.market_data.conversion import conversion_for_account, needs_quote_price
+from app.market_data.schemas import Candle
 from app.market_data.providers.router import all_providers, providers_for_symbol
 
 log = logging.getLogger("traderos.market")
@@ -84,6 +93,11 @@ def _try_providers(symbol: str) -> list:
     return chain
 
 
+_HISTORY_WARNING = (
+    "No broker candles for this symbol yet. Showing history candles. Gaps are left empty."
+)
+
+
 def get_ohlcv(
     db: Session,
     symbol: str,
@@ -91,9 +105,30 @@ def get_ohlcv(
     *,
     limit: int | None = None,
     preferred_provider: str | None = None,
+    account_id: UUID | None = None,
 ) -> dict:
     key = normalize_symbol(symbol)
     limit = min(limit or settings.market_ohlcv_limit, 1500)
+    pref = preferred_provider.strip().lower() if preferred_provider else ""
+    history_warning: str | None = None
+    if account_id and uses_broker_feed(key) and pref in {"", BROKER_PROVIDER}:
+        broker = load_broker_recent(db, account_id, key, timeframe, limit=limit)
+        if broker:
+            freshness, stale, warning = freshness_for(broker, timeframe)
+            return _bundle_candles(
+                broker,
+                BROKER_PROVIDER,
+                freshness=freshness,
+                stale=stale,
+                warning=warning,
+            )
+        if pref == BROKER_PROVIDER:
+            raise ProviderUnavailable(
+                f"No MT5 candles for {key} {timeframe}. The terminal has not sent bars for this symbol."
+            )
+        history_warning = _HISTORY_WARNING
+    elif pref == BROKER_PROVIDER:
+        raise ProviderUnavailable("MT5 candles are only used for instruments on the connected terminal.")
     chain = _try_providers(key)
     if preferred_provider:
         pref = preferred_provider.strip().lower()
@@ -114,7 +149,10 @@ def get_ohlcv(
             cached = cache.load_cached(db, provider=provider.name, symbol=key, timeframe=timeframe, limit=limit)
             if cached and cache.is_fresh(cached, timeframe):
                 log.info("market cache=hit provider=%s symbol=%s timeframe=%s n=%s", provider.name, key, timeframe, len(cached))
-                return _bundle(cached, provider.name, freshness=DataFreshness.DELAYED.value, stale=False)
+                return _with_history_warning(
+                    _bundle(cached, provider.name, freshness=DataFreshness.DELAYED.value, stale=False),
+                    history_warning,
+                )
             try:
                 fetched = provider.get_ohlcv(key, timeframe, limit=limit)
                 if fetched:
@@ -124,7 +162,10 @@ def get_ohlcv(
                         db, provider=provider.name, symbol=key, timeframe=timeframe, limit=limit
                     )
                     log.info("market cache=miss provider=%s symbol=%s timeframe=%s n=%s", provider.name, key, timeframe, len(rows))
-                    return _bundle(rows, provider.name, freshness=DataFreshness.DELAYED.value, stale=False)
+                    return _with_history_warning(
+                        _bundle(rows, provider.name, freshness=DataFreshness.DELAYED.value, stale=False),
+                        history_warning,
+                    )
             except UnsupportedTimeframe:
                 raise
             except Exception as exc:
@@ -152,16 +193,27 @@ def get_ohlcv_range(
     start: datetime,
     end: datetime,
     limit: int = 5000,
+    account_id: UUID | None = None,
 ) -> list:
     """Fetch OHLC candles for a historical window (for MFE/MAE backfill)."""
-    from app.market_data.schemas import Candle
-
     key = normalize_symbol(symbol)
     start_utc = as_utc(start)
     end_utc = as_utc(end)
     if end_utc <= start_utc:
         return []
     limit = min(max(limit, 10), 5000)
+    if account_id and uses_broker_feed(key):
+        broker = load_broker_range(
+            db,
+            account_id,
+            key,
+            timeframe,
+            start=start_utc,
+            end=end_utc,
+            limit=limit,
+        )
+        if broker:
+            return broker
     chain = _try_providers(key)
     last_error: Exception | None = None
     for provider in chain:
@@ -416,8 +468,45 @@ def conversion_rate(
     return out
 
 
+def _with_history_warning(bundle: dict, history_warning: str | None) -> dict:
+    if history_warning and not bundle.get("warning"):
+        bundle["warning"] = history_warning
+    return bundle
+
+
+def _candles_payload(candles: list[Candle], provider: str) -> list[dict]:
+    return [
+        {
+            "symbol": c.symbol,
+            "provider": provider,
+            "timeframe": c.timeframe,
+            "timestamp": as_utc(c.timestamp).isoformat().replace("+00:00", "Z"),
+            "open": c.open,
+            "high": c.high,
+            "low": c.low,
+            "close": c.close,
+            "volume": c.volume,
+        }
+        for c in candles
+    ]
+
+
+def _bundle_candles(
+    candles: list[Candle],
+    provider: str,
+    *,
+    freshness: str,
+    stale: bool,
+    warning: str | None = None,
+) -> dict:
+    return _finish_bundle(_candles_payload(candles, provider), provider, freshness=freshness, stale=stale, warning=warning)
+
+
 def _bundle(rows, provider: str, *, freshness: str, stale: bool, warning: str | None = None) -> dict:
-    payload = cache.rows_to_payload(rows)
+    return _finish_bundle(cache.rows_to_payload(rows), provider, freshness=freshness, stale=stale, warning=warning)
+
+
+def _finish_bundle(payload, provider: str, *, freshness: str, stale: bool, warning: str | None = None) -> dict:
     last_ts = payload[-1]["timestamp"] if payload else None
     age = None
     if last_ts:
@@ -437,6 +526,7 @@ def _bundle(rows, provider: str, *, freshness: str, stale: bool, warning: str | 
         "stale": stale,
         "warning": warning,
         "updated_seconds_ago": age,
+        "last_bar_at": last_ts,
         "candles": payload,
         "count": len(payload),
     }

@@ -1,99 +1,46 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState, type ComponentType } from "react";
-import {
-  BrainCircuit,
-  Calculator,
-  ChartNoAxesCombined,
-  FileText,
-  FlaskConical,
-  CandlestickChart,
-  History,
-  Rewind,
-  LayoutDashboard,
-  ChevronLeft,
-  ChevronRight,
-  PlusCircle,
-  Settings,
-  ShieldAlert,
-  WalletCards,
-  type LucideProps,
-} from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { api, clearSession, ensureFreshAccessToken, getActiveAccountId, hasSession, isAuthFailure, setActiveAccountId } from "@/lib/api";
 import { PERIOD_LABELS, useGlobalFilters, type PeriodPreset } from "@/lib/filters";
+import { fetchMt5Connection } from "@/lib/mt5";
 import type { Account, User } from "@/lib/types";
 import { BrandMark } from "@/components/BrandMark";
 import { CommandPalette } from "@/components/app-shell/CommandPalette";
-import { MarketPulse } from "@/components/market/MarketPulse";
+import { SessionClock } from "@/components/app-shell/SessionClock";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { money, signed, tone } from "@/lib/format";
+import { formatWhen } from "@/lib/format";
 
 const SIDEBAR_KEY = "trader-os-sidebar-collapsed";
-
-type NavIcon = ComponentType<LucideProps>;
-
-type NavGroup = "workspace" | "journal" | "research" | "market" | "risk" | "manage";
 
 type NavItem = {
   href: string;
   label: string;
-  icon: NavIcon;
-  group: NavGroup;
-  match?: "exact" | "prefix" | "analytics-tab";
-  tab?: string;
-};
-
-const GROUP_LABELS: Record<NavGroup, string> = {
-  workspace: "Workspace",
-  journal: "Journal",
-  research: "Research",
-  market: "Market",
-  risk: "Risk",
-  manage: "Manage",
+  index: string;
+  match?: "exact" | "prefix";
 };
 
 const NAV: NavItem[] = [
-  { href: "/dashboard", label: "Home", icon: LayoutDashboard, group: "workspace", match: "exact" },
-  { href: "/trades", label: "Trade Journal", icon: History, group: "journal", match: "prefix" },
-  { href: "/trades/new", label: "New trade", icon: PlusCircle, group: "journal", match: "exact" },
-  { href: "/calculator", label: "Calculator", icon: Calculator, group: "journal", match: "exact" },
-  { href: "/analytics", label: "Analytics", icon: ChartNoAxesCombined, group: "research", match: "prefix" },
-  { href: "/intelligence", label: "Intelligence", icon: BrainCircuit, group: "research", match: "prefix" },
-  { href: "/quant-lab", label: "Quant Lab", icon: FlaskConical, group: "research", match: "prefix" },
-  { href: "/reports", label: "Reports", icon: FileText, group: "research", match: "prefix" },
-  { href: "/labs/vela", label: "Market Workstation", icon: CandlestickChart, group: "market", match: "prefix" },
-  { href: "/labs/replay", label: "Market Replay", icon: Rewind, group: "market", match: "prefix" },
-  { href: "/risk", label: "Risk", icon: ShieldAlert, group: "risk", match: "prefix" },
-  { href: "/accounts", label: "Accounts", icon: WalletCards, group: "manage", match: "prefix" },
-  { href: "/settings", label: "Settings", icon: Settings, group: "manage", match: "prefix" },
+  { href: "/dashboard", label: "Workspace", index: "01", match: "exact" },
+  { href: "/labs/vela", label: "Markets", index: "02", match: "prefix" },
+  { href: "/risk", label: "Portfolio & Risk", index: "03", match: "exact" },
+  { href: "/trades", label: "Journal", index: "04", match: "prefix" },
+  { href: "/analytics", label: "Analytics", index: "05", match: "prefix" },
+  { href: "/quant-lab", label: "Research Lab", index: "06", match: "prefix" },
+  { href: "/risk/limits", label: "Risk Limits", index: "07", match: "prefix" },
+  { href: "/intelligence", label: "Intelligence", index: "08", match: "prefix" },
+  { href: "/settings", label: "Operations", index: "09", match: "prefix" },
 ];
 
-function navActive(item: NavItem, pathname: string, search: string): boolean {
-  const params = new URLSearchParams(search.startsWith("?") ? search.slice(1) : search);
-  const tab = params.get("tab");
-
-  if (item.match === "analytics-tab") {
-    return pathname === "/analytics" && tab === item.tab;
-  }
-  // Analytics remains the active research destination for every analytics tab.
-  if (item.href === "/analytics") {
-    return pathname === "/analytics";
-  }
-  if (item.match === "exact") {
-    if (item.href === "/trades") {
-      return pathname === "/trades" || (pathname.startsWith("/trades/") && !pathname.startsWith("/trades/new"));
-    }
-    return pathname === item.href;
-  }
+function navActive(item: NavItem, pathname: string): boolean {
   if (item.href === "/trades") {
-    return pathname === "/trades" || (pathname.startsWith("/trades/") && !pathname.startsWith("/trades/new"));
+    return pathname === "/trades" || pathname.startsWith("/trades/");
   }
-  if (item.href === "/dashboard") return pathname === "/dashboard";
-  if (item.href === "/accounts") return pathname === "/accounts" || pathname.startsWith("/accounts/");
-  const base = item.href.split("?")[0];
-  return pathname === base || pathname.startsWith(`${base}/`);
+  if (item.match === "exact") return pathname === item.href;
+  return pathname === item.href || pathname.startsWith(`${item.href}/`);
 }
 
 function readCollapsed(): boolean {
@@ -107,7 +54,6 @@ function readCollapsed(): boolean {
 
 export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const router = useRouter();
   const { filters, setFilters } = useGlobalFilters();
   const [user, setUser] = useState<User | null>(null);
@@ -117,6 +63,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [ready, setReady] = useState(false);
   const [bootError, setBootError] = useState<string | null>(null);
+  const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
 
   useEffect(() => {
     setCollapsed(readCollapsed());
@@ -169,6 +116,24 @@ export function Shell({ children }: { children: React.ReactNode }) {
     })();
   }, [router]);
 
+  useEffect(() => {
+    if (!accountId) {
+      setLastSyncAt(null);
+      return;
+    }
+    let cancelled = false;
+    void fetchMt5Connection(accountId)
+      .then((connection) => {
+        if (!cancelled) setLastSyncAt(connection?.last_sync_at ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) setLastSyncAt(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [accountId]);
+
   function onAccount(id: string) {
     setActiveAccountId(id);
     setAccountId(id);
@@ -193,10 +158,6 @@ export function Shell({ children }: { children: React.ReactNode }) {
   }
 
   const active = useMemo(() => accounts.find((a) => a.id === accountId) ?? null, [accounts, accountId]);
-  const pnl = active ? Number(active.current_equity) - Number(active.starting_balance) : 0;
-
-  const navGroups: NavGroup[] = ["workspace", "journal", "research", "market", "risk", "manage"];
-  const search = searchParams.toString();
 
   function renderNav(opts: { collapsedMode: boolean; showToggle?: boolean; onNavigate?: () => void }) {
     const { collapsedMode, showToggle = false, onNavigate } = opts;
@@ -213,7 +174,12 @@ export function Shell({ children }: { children: React.ReactNode }) {
               aria-label="TraderOS"
             >
               <BrandMark size={collapsedMode ? 28 : 26} />
-              {!collapsedMode && <span className="brand-name">TraderOS</span>}
+              {!collapsedMode && (
+                <span className="brand-name">
+                  TraderOS
+                  <span className="brand-sub">Workstation</span>
+                </span>
+              )}
             </Link>
             {showToggle && (
               <button
@@ -231,34 +197,23 @@ export function Shell({ children }: { children: React.ReactNode }) {
               </button>
             )}
           </div>
-          {!collapsedMode && <p className="brand-tag">Better data. Smarter trades.</p>}
         </div>
         <nav aria-label="Main">
-          {navGroups.map((group, gi) => {
-            const items = NAV.filter((i) => i.group === group);
+          {NAV.map((item) => {
+            const isActive = navActive(item, pathname);
             return (
-              <div key={group} className={gi > 0 ? "nav-group" : ""}>
-                {!collapsedMode && <p className="nav-kicker">{GROUP_LABELS[group]}</p>}
-                {collapsedMode && gi > 0 && <div className="nav-divider" aria-hidden />}
-                {items.map((item) => {
-                  const Icon = item.icon;
-                  const isActive = navActive(item, pathname, search);
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className={isActive ? "nav-link active" : "nav-link"}
-                      onClick={onNavigate}
-                      title={collapsedMode ? item.label : undefined}
-                      aria-label={item.label}
-                      aria-current={isActive ? "page" : undefined}
-                    >
-                      <Icon size={16} strokeWidth={1.75} aria-hidden />
-                      {!collapsedMode && <span className="nav-label">{item.label}</span>}
-                    </Link>
-                  );
-                })}
-              </div>
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`nav-link${isActive ? " active" : ""}`}
+                onClick={onNavigate}
+                title={collapsedMode ? item.label : undefined}
+                aria-label={item.label}
+                aria-current={isActive ? "page" : undefined}
+              >
+                <i className="nav-index">{collapsedMode ? item.index.slice(1) : item.index}</i>
+                {!collapsedMode && <span className="nav-label">{item.label}</span>}
+              </Link>
             );
           })}
         </nav>
@@ -271,15 +226,12 @@ export function Shell({ children }: { children: React.ReactNode }) {
       <div className="shell">
         <aside className="rail desktop">{renderNav({ collapsedMode: collapsed, showToggle: true })}</aside>
         <div className="main">
-          <MarketPulse />
           <header className="top">
             <div className="top-left">
               <button type="button" className="menu" aria-label="Open menu" onClick={() => setNavOpen(true)}>
                 Menu
               </button>
-              <div className="crumb">
-                {active ? `${active.firm} · ${active.program}` : `Times in ${user?.timezone ?? "Africa/Lagos"}`}
-              </div>
+              <SessionClock />
             </div>
             <div className="top-right">
               <button type="button" className="cmd-btn" onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))}>
@@ -297,13 +249,6 @@ export function Shell({ children }: { children: React.ReactNode }) {
                   </option>
                 ))}
               </select>
-              {active && (
-                <div className="eq-chip">
-                  <span className="muted">Equity</span>
-                  <span className="num">{money(active.current_equity)}</span>
-                  <span className={`num ${tone(pnl)}`}>{signed(pnl)}</span>
-                </div>
-              )}
               <ThemeToggle compact />
               <select
                 id="acct"
@@ -331,6 +276,13 @@ export function Shell({ children }: { children: React.ReactNode }) {
             {bootError && <p className="boot-error">{bootError}</p>}
             {children}
           </div>
+          <footer className="status-foot">
+            <span>Account scope: {active ? active.account_name : "none"}</span>
+            <span>Timestamps: UTC</span>
+            <span>
+              Last sync: {lastSyncAt ? formatWhen(lastSyncAt, "UTC") : "no MT5 sync yet"}
+            </span>
+          </footer>
         </div>
       </div>
       {navOpen && (
@@ -379,16 +331,16 @@ export function Shell({ children }: { children: React.ReactNode }) {
           padding-right: 10px;
           align-items: center;
         }
-        .brand-block {
+        :global(.brand-block) {
           display: flex;
           flex-direction: column;
           margin-bottom: 20px;
           width: 100%;
         }
-        .brand-block-collapsed {
+        :global(.brand-block-collapsed) {
           align-items: center;
         }
-        .brand-row {
+        :global(.brand-row) {
           display: flex;
           align-items: center;
           justify-content: space-between;
@@ -396,7 +348,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           width: 100%;
           min-width: 0;
         }
-        .brand-block-collapsed .brand-row {
+        :global(.brand-block-collapsed) :global(.brand-row) {
           flex-direction: column;
           align-items: center;
           gap: 10px;
@@ -421,17 +373,22 @@ export function Shell({ children }: { children: React.ReactNode }) {
           width: 100%;
           flex: none;
         }
-        .brand-name {
+        :global(.brand-name) {
+          display: flex;
+          flex-direction: column;
           font-weight: 600;
-          letter-spacing: 0.06em;
-          font-size: 14px;
+          letter-spacing: 0.08em;
+          font-size: 13px;
+          text-transform: uppercase;
           white-space: nowrap;
+          line-height: 1.15;
         }
-        .brand-tag {
-          margin: 6px 6px 0;
-          font-size: 11px;
+        :global(.brand-sub) {
+          font-family: var(--font-mono), ui-monospace, monospace;
+          font-size: 10px;
+          font-weight: 500;
+          letter-spacing: 0.14em;
           color: var(--rail-muted);
-          line-height: 1.35;
         }
         nav {
           display: flex;
@@ -490,6 +447,13 @@ export function Shell({ children }: { children: React.ReactNode }) {
           background: var(--rail-hover);
           color: var(--rail-text);
         }
+        :global(a.nav-link.secondary) {
+          font-size: 13px;
+          font-weight: 500;
+          color: var(--rail-muted, var(--muted));
+          padding-top: 6px;
+          padding-bottom: 6px;
+        }
         :global(a.nav-link.active) {
           color: var(--rail-text);
           background: var(--rail-active);
@@ -503,8 +467,19 @@ export function Shell({ children }: { children: React.ReactNode }) {
           outline: 2px solid var(--accent);
           outline-offset: 2px;
         }
-        .nav-label {
+        :global(.nav-label) {
           white-space: nowrap;
+        }
+        :global(.nav-index) {
+          font-style: normal;
+          font-family: var(--font-mono), ui-monospace, monospace;
+          font-size: 10px;
+          color: var(--rail-muted);
+          width: 18px;
+          flex-shrink: 0;
+        }
+        :global(a.nav-link.active .nav-index) {
+          color: var(--accent);
         }
         .main {
           display: flex;
@@ -515,12 +490,25 @@ export function Shell({ children }: { children: React.ReactNode }) {
         .top {
           min-height: 48px;
           border-bottom: 1px solid var(--border);
-          background: var(--surface);
+          background: var(--chrome, var(--surface));
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 0 20px;
-          gap: 12px;
+          flex-wrap: wrap;
+          padding: 8px 16px;
+          gap: 8px 12px;
+        }
+        .status-foot {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px 18px;
+          padding: 8px 16px;
+          border-top: 1px solid var(--border);
+          background: var(--chrome, var(--surface));
+          font-family: var(--font-mono), ui-monospace, monospace;
+          font-size: 10px;
+          letter-spacing: 0.04em;
+          color: var(--text-muted);
         }
         .top-left,
         .top-right {
@@ -528,6 +516,14 @@ export function Shell({ children }: { children: React.ReactNode }) {
           align-items: center;
           gap: 10px;
           min-width: 0;
+        }
+        .top-left {
+          flex: 1 1 220px;
+        }
+        .top-right {
+          flex: 1 1 280px;
+          justify-content: flex-end;
+          flex-wrap: wrap;
         }
         .menu {
           display: none;
@@ -556,8 +552,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
           background: var(--surface);
           border: 1px solid var(--border);
           padding: 8px 10px;
-          min-width: 180px;
-          max-width: 260px;
+          min-width: 0;
+          max-width: 200px;
           color: var(--text-primary);
           border-radius: var(--radius-sm);
           font-size: 15px;
@@ -588,13 +584,19 @@ export function Shell({ children }: { children: React.ReactNode }) {
           min-width: 0;
         }
         .who-name {
+          display: none;
           font-size: 15px;
           font-weight: 600;
           color: var(--text-primary);
-          max-width: 220px;
+          max-width: 160px;
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
+        }
+        @media (min-width: 1280px) {
+          .who-name {
+            display: inline;
+          }
         }
         .who-out {
           border: 1px solid var(--line-strong);
@@ -619,14 +621,16 @@ export function Shell({ children }: { children: React.ReactNode }) {
           font-size: 14px;
         }
         .page {
+          flex: 1;
           padding: 20px 24px 48px;
           position: relative;
           z-index: 0;
           color: var(--text-primary);
         }
         .page :global(h1) {
-          font-size: 30px;
-          font-weight: 700;
+          font-size: 22px;
+          font-weight: 600;
+          letter-spacing: -0.02em;
         }
         .page :global(.page-kicker) {
           font-size: 13px;

@@ -281,7 +281,8 @@ def market_status() -> dict[str, Any]:
         "cache_ttl_seconds": settings.market_ticker_cache_ttl_seconds,
         "ohlcv": {
             "endpoint": "/api/market/ohlcv",
-            "fx_chain": [p.name for p in fx_chain()],
+            "fx_chain": ["mt5", *[p.name for p in fx_chain()]],
+            "broker_feed": "mt5",
             "crypto_chain": [p.name for p in crypto_providers() if p.enabled()],
             "preferred_provider_param": "provider",
         },

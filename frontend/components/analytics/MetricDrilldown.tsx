@@ -75,6 +75,18 @@ export function MetricDrilldown({ open, metric, data, onClose }: Props) {
         <p className="evidence-note">
           <strong>{overall.evidence.label} evidence.</strong> {overall.evidence.reason}
         </p>
+        {drill && (
+          <button
+            type="button"
+            className="view-trades"
+            onClick={() => {
+              drill.openTrades(LABELS[metric]);
+              onClose();
+            }}
+          >
+            View these trades
+          </button>
+        )}
 
         {metric === "profit_factor" && wl && (
           <Panel title="Gross profit vs gross loss">

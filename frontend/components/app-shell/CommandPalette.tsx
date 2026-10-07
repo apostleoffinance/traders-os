@@ -13,18 +13,21 @@ type Item = {
 };
 
 const NAV_ITEMS: Item[] = [
-  { id: "cmd", label: "Command Center", href: "/dashboard" },
-  { id: "new", label: "New trade", href: "/trades/new" },
-  { id: "journal", label: "Trade journal", href: "/trades" },
-  { id: "analytics", label: "Analytics Lab", href: "/analytics" },
-  { id: "insights", label: "Intelligence", href: "/intelligence" },
-  { id: "quant", label: "Quant Lab", href: "/quant-lab" },
-  { id: "vela", label: "Market Lab (chart POC)", href: "/labs/vela" },
-  { id: "reports", label: "Performance Reports", href: "/reports" },
-  { id: "risk", label: "Risk Command", href: "/risk" },
-  { id: "calc", label: "Position calculator", href: "/calculator" },
-  { id: "accounts", label: "Accounts", href: "/accounts" },
-  { id: "settings", label: "Settings", href: "/settings" },
+  { id: "cmd", label: "Workspace", hint: "01", href: "/dashboard" },
+  { id: "markets", label: "Markets", hint: "02", href: "/labs/vela" },
+  { id: "risk", label: "Portfolio & Risk", hint: "03", href: "/risk" },
+  { id: "journal", label: "Journal", hint: "04", href: "/trades" },
+  { id: "analytics", label: "Analytics", hint: "05", href: "/analytics" },
+  { id: "quant", label: "Research Lab", hint: "06", href: "/quant-lab" },
+  { id: "limits", label: "Risk Limits", hint: "07", href: "/risk/limits" },
+  { id: "insights", label: "Intelligence", hint: "08", href: "/intelligence" },
+  { id: "ops", label: "Operations", hint: "09", href: "/settings" },
+  { id: "new", label: "New trade", hint: "Journal", href: "/trades/new" },
+  { id: "calc", label: "Position calculator", hint: "Journal", href: "/calculator" },
+  { id: "calendar", label: "Calendar", hint: "Analytics", href: "/analytics?tab=calendar" },
+  { id: "reports", label: "Reports", hint: "Research", href: "/reports" },
+  { id: "replay", label: "Market replay", hint: "Markets", href: "/labs/replay" },
+  { id: "accounts", label: "Accounts", hint: "Operations", href: "/accounts" },
 ];
 
 export function CommandPalette() {
@@ -85,7 +88,9 @@ export function CommandPalette() {
   const navMatches = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return NAV_ITEMS;
-    return NAV_ITEMS.filter((i) => i.label.toLowerCase().includes(q));
+    return NAV_ITEMS.filter(
+      (i) => i.label.toLowerCase().includes(q) || (i.hint?.toLowerCase().includes(q) ?? false),
+    );
   }, [query]);
 
   const items = [...navMatches, ...tradeItems];

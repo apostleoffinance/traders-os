@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.core.exceptions import DomainError, http_error
 from app.core.security import get_current_user_id, get_db
 from app.market_data import service as market_service
+from app.services.access import get_owned_account
 from app.market_data.replay_window import ReplayWindowIn, build_replay_window
 from app.market_data.ticker import get_ticker, market_status
 from app.schemas.market import (
@@ -40,14 +41,25 @@ def ohlcv(
     limit: int = Query(default=500, ge=10, le=1500),
     provider: str | None = Query(
         default=None,
-        description="Optional preferred provider (e.g. dukascopy, binance). Must serve this symbol.",
+        description="Optional preferred provider (e.g. mt5, dukascopy, binance). Must serve this symbol.",
+    ),
+    account_id: UUID | None = Query(
+        default=None,
+        description="When set, FX candles prefer bars pushed by this account's MT5 terminal.",
     ),
     db: Session = Depends(get_db),
     user_id=Depends(get_current_user_id),
 ):
     try:
+        if account_id is not None:
+            get_owned_account(db, user_id, account_id)
         return market_service.get_ohlcv(
-            db, symbol, timeframe, limit=limit, preferred_provider=provider
+            db,
+            symbol,
+            timeframe,
+            limit=limit,
+            preferred_provider=provider,
+            account_id=account_id,
         )
     except DomainError as exc:
         raise http_error(exc) from exc

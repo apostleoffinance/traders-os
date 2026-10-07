@@ -1040,3 +1040,152 @@ def test_snapshot_evidence_endpoint_returns_exact_owner_scoped_payload(client: T
     )
     assert forbidden.status_code == 404
     assert forbidden.json()["detail"] == "MT5 snapshot not found"
+
+
+def _eurusd_bars() -> list[dict]:
+    return [
+        {
+            "symbol_raw": "EURUSD.a",
+            "timeframe": "M15",
+            "timestamp": "2026-08-24T10:00:00+00:00",
+            "open": "1.10000",
+            "high": "1.10100",
+            "low": "1.09900",
+            "close": "1.10050",
+            "volume": "10",
+        },
+        {
+            "symbol_raw": "EURUSD.a",
+            "timeframe": "M15",
+            "timestamp": "2026-08-24T10:15:00+00:00",
+            "open": "1.10050",
+            "high": "1.10200",
+            "low": "1.10020",
+            "close": "1.10120",
+            "volume": "12",
+        },
+        {
+            "symbol_raw": "NOTREAL",
+            "timeframe": "M15",
+            "timestamp": "2026-08-24T10:15:00+00:00",
+            "open": "1.10000",
+            "high": "1.10100",
+            "low": "1.09900",
+            "close": "1.10050",
+        },
+        {
+            "symbol_raw": "EURUSD",
+            "timeframe": "M15",
+            "timestamp": "2026-08-24T10:30:00+00:00",
+            "open": "1.20000",
+            "high": "1.10000",
+            "low": "1.30000",
+            "close": "1.20000",
+        },
+    ]
+
+
+def test_sync_bars_are_the_account_chart_and_stay_private(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    calls = {"n": 0}
+
+    def forbid_history(symbol: str):
+        calls["n"] += 1
+        raise AssertionError(f"history provider called for {symbol}")
+
+    monkeypatch.setattr("app.market_data.service.providers_for_symbol", forbid_history)
+
+    owner = _register(client, "mt5bars@example.com")
+    account_id = _account(client, owner["access_token"])
+    connector_token, _connection_id = _connect(client, owner["access_token"], account_id)
+    sync = client.post(
+        "/api/integrations/mt5/sync",
+        headers={"Authorization": f"Bearer {connector_token}"},
+        json=_sync_body(bars=_eurusd_bars()),
+    )
+    assert sync.status_code == 200, sync.text
+
+    chart = client.get(
+        f"/api/market/ohlcv?symbol=EURUSD&timeframe=M15&limit=50&account_id={account_id}",
+        headers={"Authorization": f"Bearer {owner['access_token']}"},
+    )
+    assert chart.status_code == 200, chart.text
+    body = chart.json()
+    assert body["provider"] == "mt5"
+    assert body["count"] == 2
+    assert str(body["candles"][-1]["close"]).startswith("1.1012")
+    assert body["last_bar_at"]
+    assert calls["n"] == 0
+
+    db_generator = app.dependency_overrides[get_db]()
+    db = next(db_generator)
+    try:
+        snapshot = db.query(Mt5SyncSnapshot).one()
+        assert snapshot.payload["bars_count"] == 4
+        assert "bars" not in snapshot.payload
+    finally:
+        db_generator.close()
+
+    stranger = _register(client, "mt5barsother@example.com")
+    leaked = client.get(
+        f"/api/market/ohlcv?symbol=EURUSD&timeframe=M15&account_id={account_id}",
+        headers={"Authorization": f"Bearer {stranger['access_token']}"},
+    )
+    assert leaked.status_code == 404
+
+
+def test_missing_broker_bars_use_history_without_mixing(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    from datetime import datetime, timezone
+
+    from app.market_data.schemas import Candle
+
+    class History:
+        name = "dukascopy"
+
+        def get_ohlcv(self, symbol: str, timeframe: str, **kwargs):
+            return [
+                Candle(
+                    symbol=symbol,
+                    provider=self.name,
+                    timeframe=timeframe,
+                    timestamp=datetime(2026, 8, 24, 9, 0, tzinfo=timezone.utc),
+                    open=Decimal("2"),
+                    high=Decimal("2"),
+                    low=Decimal("2"),
+                    close=Decimal("2"),
+                    volume=None,
+                )
+            ]
+
+    monkeypatch.setattr("app.market_data.service.providers_for_symbol", lambda symbol: [History()])
+
+    owner = _register(client, "mt5history@example.com")
+    account_id = _account(client, owner["access_token"])
+    connector_token, _connection_id = _connect(client, owner["access_token"], account_id)
+    sync = client.post(
+        "/api/integrations/mt5/sync",
+        headers={"Authorization": f"Bearer {connector_token}"},
+        json=_sync_body(bars=_eurusd_bars()),
+    )
+    assert sync.status_code == 200, sync.text
+
+    forced = client.get(
+        f"/api/market/ohlcv?symbol=EURUSD&timeframe=M15&provider=dukascopy&account_id={account_id}",
+        headers={"Authorization": f"Bearer {owner['access_token']}"},
+    )
+    assert forced.status_code == 200, forced.text
+    assert forced.json()["provider"] == "dukascopy"
+    assert str(forced.json()["candles"][-1]["close"]).startswith("2")
+
+    empty = client.get(
+        f"/api/market/ohlcv?symbol=GBPUSD&timeframe=M15&account_id={account_id}",
+        headers={"Authorization": f"Bearer {owner['access_token']}"},
+    )
+    assert empty.status_code == 200, empty.text
+    assert empty.json()["provider"] == "dukascopy"
+    assert "history candles" in (empty.json().get("warning") or "")
+
+    missing = client.get(
+        f"/api/market/ohlcv?symbol=GBPUSD&timeframe=M15&provider=mt5&account_id={account_id}",
+        headers={"Authorization": f"Bearer {owner['access_token']}"},
+    )
+    assert missing.status_code == 503

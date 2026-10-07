@@ -17,11 +17,9 @@ export function InsufficientSample({
     <div className="insufficient" role="status">
       <strong>Building your sample</strong>
       <p>
-        We need more closed trades before {context} becomes reliable. Suggested minimum: {threshold} trades.
+        Patterns are still forming. More trades will make {context} clearer.
       </p>
-      <p className="count">
-        Current sample: {n} trade{n === 1 ? "" : "s"}
-      </p>
+      <p className="count">Based on {n} trade{n === 1 ? "" : "s"}.</p>
       <style jsx>{`
         .insufficient {
           border: 1px dashed var(--border);

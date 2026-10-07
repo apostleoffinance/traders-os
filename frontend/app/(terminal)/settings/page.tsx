@@ -1,10 +1,12 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { api, setStoredUser } from "@/lib/api";
+import Link from "next/link";
+import { api, getActiveAccountId, setStoredUser } from "@/lib/api";
 import type { ChecklistLibrary, ChecklistTemplate, User } from "@/lib/types";
 import { Alert, Button, Field, Panel } from "@/components/ui";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { Mt5ConnectionPanel } from "@/components/Mt5ConnectionPanel";
 import { TimezoneSelect } from "@/components/TimezoneSelect";
 import { TelegramMark, YouTubeMark } from "@/components/SocialMarks";
 import { ChecklistBuilder, draftFromTemplate, type ChecklistDraftItem } from "@/components/ChecklistBuilder";
@@ -29,11 +31,19 @@ export default function SettingsPage() {
   const [reminderError, setReminderError] = useState<string | null>(null);
   const [reminderHour, setReminderHour] = useState(18);
   const [pushAvailable, setPushAvailable] = useState(false);
+  const [accountId, setAccountId] = useState<string | null>(null);
 
   function applyTemplate(lib: ChecklistLibrary, tmpl: ChecklistTemplate) {
     setTemplateId(tmpl.id);
     setItems(draftFromTemplate(lib, tmpl.items));
   }
+
+  useEffect(() => {
+    const syncAccount = () => setAccountId(getActiveAccountId());
+    syncAccount();
+    window.addEventListener("traderos-account", syncAccount);
+    return () => window.removeEventListener("traderos-account", syncAccount);
+  }, []);
 
   useEffect(() => {
     void (async () => {
@@ -125,7 +135,16 @@ export default function SettingsPage() {
 
   return (
     <div>
-      <h1>Settings</h1>
+      <p className="ws-kicker">09 · Operations</p>
+      <h1>Operations</h1>
+      <p className="muted">Profile, checklist, and the MT5 connection for the selected account.</p>
+      {accountId ? (
+        <Mt5ConnectionPanel accountId={accountId} />
+      ) : (
+        <p className="muted">
+          Select an account to see its connection. <Link href="/accounts">Open accounts</Link>
+        </p>
+      )}
       {saved && <Alert kind="info">Saved. The selected template is what New trade loads for that setup.</Alert>}
       <div className="cols">
         <div className="left">
