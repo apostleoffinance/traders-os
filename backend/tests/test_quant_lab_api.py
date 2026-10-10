@@ -89,7 +89,7 @@ def test_quant_lab_endpoint_returns_200(client: TestClient) -> None:
     assert body["meta"]["account_name"] == "Quant Test"
     assert "overview" in body
     context = body["meta"]["date_range"]["research_context"]
-    assert context["timezone"] == "UTC"
+    assert context["timezone"] == "Africa/Lagos"
     assert context["filters"]["preset"] == "all"
     assert context["population"]["filtered_trades"] == 0
     assert context["population"]["closed_trades"] == 0
