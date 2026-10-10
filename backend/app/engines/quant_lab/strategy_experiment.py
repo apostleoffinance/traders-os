@@ -50,6 +50,14 @@ def _adjusted_rows(
     return adjusted
 
 
+def _profit_factor(trades: Sequence[AnalyticsTrade]) -> Decimal | None:
+    gross_profit = sum((trade.net_pnl for trade in trades if trade.net_pnl > ZERO), ZERO)
+    gross_loss = abs(sum((trade.net_pnl for trade in trades if trade.net_pnl < ZERO), ZERO))
+    if gross_loss == ZERO:
+        return None
+    return ratio(gross_profit / gross_loss)
+
+
 def _scenario(trades: Sequence[AnalyticsTrade], *, starting: Decimal, split_ratio: float, extra_cost: Decimal) -> dict:
     adjusted = _adjusted_rows(trades, extra_cost)
     expectancy = build_expectancy(adjusted)
@@ -61,7 +69,7 @@ def _scenario(trades: Sequence[AnalyticsTrade], *, starting: Decimal, split_rati
         "net_pnl": money(net_pnl),
         "expectancy_r": expectancy["expectancy_r"],
         "win_rate": expectancy["win_rate"],
-        "profit_factor": expectancy.get("profit_factor"),
+        "profit_factor": _profit_factor(adjusted),
         "in_sample": walk["in_sample"],
         "out_of_sample": walk["out_of_sample"],
         "out_of_sample_change": walk["differences"],
