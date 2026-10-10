@@ -46,6 +46,11 @@ class Mt5Connection(Base):
 
 class Mt5ProcessedDeal(Base):
     __tablename__ = "mt5_processed_deals"
+    # Match migration 0007: one canonical processed row per broker deal per connection.
+    # Keeping this in ORM metadata protects create_all-based tests and local databases too.
+    __table_args__ = (
+        UniqueConstraint("connection_id", "deal_id", name="uq_mt5_processed_deals"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID_PK, primary_key=True, default=uuid.uuid4)
     connection_id: Mapped[uuid.UUID] = mapped_column(
