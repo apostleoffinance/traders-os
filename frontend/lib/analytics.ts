@@ -9,6 +9,22 @@ export type Evidence = {
   reason: string;
 };
 
+export type ResearchContext = {
+  timezone: string;
+  filters: Record<string, string | null>;
+  population: {
+    account_trades: number;
+    filtered_trades: number;
+    closed_trades: number;
+    open_or_unclosed_trades: number;
+    closed_trades_with_pnl: number;
+    closed_trades_missing_pnl: number;
+    closed_trades_missing_r: number;
+  };
+  sample: Evidence;
+  limitations: string[];
+};
+
 export type GroupRow = {
   key: string;
   n: number;
@@ -46,6 +62,7 @@ export type EquityPt = {
 
 export type AnalyticsDashboard = {
   account: { id: string; name: string; currency: string; firm: string };
+  research_context: ResearchContext;
   filters: {
     preset: string;
     date_from: string | null;
