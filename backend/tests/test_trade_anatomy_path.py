@@ -116,3 +116,33 @@ def test_enrich_replay_adds_series_and_timing():
     assert out["excursions"]["mae_at"] is not None
     assert out["excursions"]["mae_t"] == 0.0
     assert out["excursions"]["mfe_t"] == 0.5
+
+
+
+def test_price_series_reports_intraday_gaps_and_separates_long_fx_intervals():
+    start = datetime(2026, 3, 10, 8, 0, tzinfo=timezone.utc)
+    candles = [
+        _candle(start, "1.1000", "1.1010", "1.0990", "1.1005"),
+        _candle(start + timedelta(minutes=1), "1.1005", "1.1010", "1.1000", "1.1008"),
+        _candle(start + timedelta(hours=8), "1.1008", "1.1020", "1.1005", "1.1015"),
+        _candle(start + timedelta(hours=8, minutes=3), "1.1015", "1.1020", "1.1010", "1.1018"),
+    ]
+    series = build_price_series(candles, start=start, end=start + timedelta(hours=8, minutes=3), asset_class="fx")
+    assert series is not None
+    assert series["gap_count"] == 1
+    assert len(series["long_intervals"]) == 1
+    assert series["coverage_status"] == "gaps_detected"
+    assert series["gap_note"]
+
+
+def test_crypto_long_intervals_are_not_assumed_to_be_market_closures():
+    start = datetime(2026, 3, 10, 8, 0, tzinfo=timezone.utc)
+    candles = [
+        _candle(start, "65000", "65100", "64900", "65050"),
+        _candle(start + timedelta(hours=8), "65050", "65200", "65000", "65150"),
+    ]
+    series = build_price_series(candles, start=start, end=start + timedelta(hours=8), asset_class="crypto")
+    assert series is not None
+    assert series["gap_count"] == 1
+    assert series["long_intervals"] == []
+    assert series["coverage_status"] == "gaps_detected"
