@@ -34,7 +34,7 @@ def upgrade() -> None:
         sa.Column("coverage_status", sa.String(length=16), nullable=False),
         sa.Column("fingerprint", sa.String(length=64), nullable=False),
         sa.Column("snapshot_json", sa.JSON().with_variant(postgresql.JSONB(), "postgresql"), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["account_id"], ["accounts.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["trade_id"], ["trades.id"], ondelete="CASCADE"),
