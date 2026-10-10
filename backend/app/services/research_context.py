@@ -52,7 +52,7 @@ def build_research_context(
         notes.append(f"{missing_pnl} closed trade(s) have no realized P&L and are excluded from performance calculations.")
     if missing_r:
         notes.append(f"{missing_r} closed trade(s) have no R multiple; R-based metrics use fewer observations.")
-    if len(closed) < 10:
+    if 0 < len(closed) < 10:
         notes.append("Treat observed patterns as descriptive, not as a proven trading edge.")
 
     normalized_filters = {
