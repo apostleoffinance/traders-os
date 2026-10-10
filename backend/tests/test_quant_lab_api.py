@@ -88,3 +88,27 @@ def test_quant_lab_endpoint_returns_200(client: TestClient) -> None:
     body = r.json()
     assert body["meta"]["account_name"] == "Quant Test"
     assert "overview" in body
+    context = body["meta"]["date_range"]["research_context"]
+    assert context["timezone"] == "UTC"
+    assert context["filters"]["preset"] == "all"
+    assert context["population"]["filtered_trades"] == 0
+    assert context["population"]["closed_trades"] == 0
+    assert context["sample"]["level"] == "INSUFFICIENT"
+
+    analytics = client.get(
+        f"/api/analytics/dashboard?account_id={account_id}&preset=all",
+        headers=headers,
+    )
+    assert analytics.status_code == 200, analytics.text
+    analytics_body = analytics.json()
+    assert analytics_body["research_context"]["population"]["filtered_trades"] == 0
+    assert analytics_body["research_context"]["filters"]["preset"] == "all"
+
+    intelligence = client.get(
+        f"/api/analytics/intelligence?account_id={account_id}&preset=all",
+        headers=headers,
+    )
+    assert intelligence.status_code == 200, intelligence.text
+    intelligence_body = intelligence.json()
+    assert intelligence_body["research_context"]["population"]["closed_trades"] == 0
+    assert intelligence_body["research_context"]["filters"]["preset"] == "all"
