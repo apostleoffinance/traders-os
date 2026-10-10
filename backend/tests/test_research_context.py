@@ -20,7 +20,7 @@ def _row(*, status: str, exit_at: str | None, pnl: str | None, r: str | None):
 def test_research_context_discloses_filters_sample_and_missing_values() -> None:
     rows = [
         _row(status="closed", exit_at="2026-09-01T10:00:00Z", pnl="12", r="1.2"),
-        _row(status="closed", exit_at="2026-09-02T10:00:00Z", pnl="None", r=None),
+        _row(status="closed", exit_at="2026-09-02T10:00:00Z", pnl=None, r=None),
         _row(status="open", exit_at=None, pnl=None, r=None),
     ]
     context = build_research_context(
