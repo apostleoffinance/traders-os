@@ -18,7 +18,7 @@ export function ResearchContextNotice({ context }: { context: ResearchContext | 
           <p>{context.sample.reason}</p>
         </div>
         <span className={`evidence ${context.sample.level.toLowerCase()}`}>
-          {context.sample.label} · n={population.closed_trades}
+          P&amp;L: {context.sample.label} · n={context.sample.n} · R n={context.r_sample.n}
         </span>
       </div>
       <div className="counts">
