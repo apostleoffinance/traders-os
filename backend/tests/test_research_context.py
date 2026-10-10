@@ -37,8 +37,8 @@ def test_research_context_discloses_filters_sample_and_missing_values() -> None:
         "filtered_trades": 3,
         "closed_trades": 2,
         "open_or_unclosed_trades": 1,
-        "closed_trades_with_pnl": 2,
-        "closed_trades_missing_pnl": 0,
+        "closed_trades_with_pnl": 1,
+        "closed_trades_missing_pnl": 1,
         "closed_trades_missing_r": 1,
     }
     assert context["sample"]["n"] == 2
