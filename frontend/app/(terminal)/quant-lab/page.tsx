@@ -24,6 +24,7 @@ import {
 } from "@/components/quant-lab/QuantLabPanels";
 import { AnalyticsDrilldownProvider } from "@/components/analytics/AnalyticsDrilldownContext";
 import { DrilldownFilterBar } from "@/components/analytics/primitives/DrilldownFilterBar";
+import { ResearchContextNotice } from "@/components/analytics/ResearchContextNotice";
 import { Alert } from "@/components/ui";
 
 const RobustnessLab = dynamic(
@@ -185,6 +186,7 @@ function QuantLab() {
           onFiltersChange={setApplied}
         >
           {dash && <DrilldownFilterBar filters={applied} data={dash} onChange={setApplied} />}
+          <ResearchContextNotice context={data.meta.date_range?.research_context} />
           <DataQualityStrip dq={data.overview.data_quality} meta={data.meta} />
           <div className="tab-panel" role="tabpanel">
             {tab === "overview" && (
