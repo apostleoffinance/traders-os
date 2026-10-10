@@ -217,7 +217,7 @@ function QuantLab() {
             )}
             {tab === "research" && (
               <>
-                <ResearchIntelligenceLab accountId={accountId} data={data} />
+                <ResearchIntelligenceLab accountId={accountId} data={data} filters={applied} />
                 <BehaviorResearchLab accountId={accountId} filters={applied} data={data} />
               </>
             )}

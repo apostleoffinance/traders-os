@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from decimal import Decimal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
@@ -632,4 +633,49 @@ def quant_walk_forward(
         training_to=training_to,
         validation_from=validation_from,
         validation_to=validation_to,
+    )
+
+
+
+class StrategyExperimentParams(BaseModel):
+    """Explicit assumptions for a reproducible historical cohort experiment."""
+
+    split_ratio: float = Field(default=0.7, ge=0.5, lt=0.9)
+    additional_cost_per_trade: Decimal = Field(default=Decimal("0"), ge=0)
+
+
+@quant_lab_router.post("/experiment")
+def quant_strategy_experiment(
+    account_id: UUID,
+    body: StrategyExperimentParams,
+    preset: str = Query("all"),
+    date_from: str | None = None,
+    date_to: str | None = None,
+    symbol: str | None = None,
+    session: str | None = None,
+    setup_id: UUID | None = None,
+    direction: str | None = None,
+    timeframe: str | None = None,
+    psychology: str | None = None,
+    result: str | None = None,
+    db: Session = Depends(get_db),
+    user_id=Depends(get_current_user_id),
+):
+    return _call(
+        quant_lab_service.strategy_experiment,
+        db,
+        user_id,
+        account_id,
+        preset=preset,
+        date_from=date_from,
+        date_to=date_to,
+        symbol=symbol,
+        session=session,
+        setup_id=setup_id,
+        direction=direction,
+        timeframe=timeframe,
+        psychology=psychology,
+        result=result,
+        split_ratio=body.split_ratio,
+        additional_cost_per_trade=body.additional_cost_per_trade,
     )

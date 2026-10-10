@@ -12,6 +12,8 @@ import { QuantStudyFooter } from "@/components/quant-lab/primitives/QuantStudyFo
 import { colorForPnl } from "@/lib/chart-colors";
 import { signed, num } from "@/lib/format";
 import { formatSampleSize } from "@/lib/visualization";
+import { StrategyExperimentPanel } from "@/components/quant-lab/StrategyExperimentPanel";
+import type { FilterState } from "@/lib/analytics";
 
 const SEVERITY_CLASS: Record<string, string> = {
   warning: "warn",
@@ -23,9 +25,11 @@ const SEVERITY_CLASS: Record<string, string> = {
 export function ResearchIntelligenceLab({
   accountId,
   data,
+  filters,
 }: {
   accountId: string;
   data: QuantLabPayload;
+  filters: FilterState;
 }) {
   const router = useRouter();
   const { C } = useLiveChart();
@@ -90,6 +94,7 @@ export function ResearchIntelligenceLab({
 
   return (
     <div className="stack">
+      <StrategyExperimentPanel accountId={accountId} filters={filters} />
       <ChartCard
         title={getQuantStudy("edge_confidence")?.title ?? "Edge confidence"}
         question={getQuantStudy("edge_confidence")?.primaryQuestion}

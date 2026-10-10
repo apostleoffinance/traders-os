@@ -367,3 +367,25 @@ def compare_combination(
         },
         "comparison": result,
     }
+
+
+def strategy_experiment(
+    db,
+    user,
+    account_id,
+    *,
+    split_ratio: float = 0.7,
+    additional_cost_per_trade: Decimal = Decimal("0"),
+    **filters,
+) -> dict:
+    """Evaluate the selected historical cohort with chronological validation and cost stress."""
+    from app.engines.quant_lab.strategy_experiment import build_strategy_experiment
+
+    account, rows, date_range = _load_rows(db, user, account_id, **filters)
+    return build_strategy_experiment(
+        rows,
+        starting=Decimal(account.starting_balance),
+        split_ratio=split_ratio,
+        additional_cost_per_trade=additional_cost_per_trade,
+        research_context=date_range.get("research_context"),
+    )
