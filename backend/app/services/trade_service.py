@@ -679,6 +679,11 @@ def get_trade_replay(db: Session, user_id: UUID, trade_id: UUID) -> dict:
         except Exception:
             log.info("trade replay path enrichment skipped trade=%s", trade_id)
 
+    if "market_snapshot" not in payload:
+        payload["market_snapshot"] = {
+            "status": "unavailable",
+            "reason": "Historical candles could not be loaded for this trade window.",
+        }
     return payload
 
 
