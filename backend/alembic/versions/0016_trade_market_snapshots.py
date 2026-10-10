@@ -25,6 +25,7 @@ def upgrade() -> None:
         sa.Column("trade_id", sa.Uuid(), nullable=False),
         sa.Column("provider", sa.String(length=32), nullable=False),
         sa.Column("timeframe", sa.String(length=8), nullable=False),
+        sa.Column("version", sa.Integer(), nullable=False),
         sa.Column("window_start", sa.DateTime(timezone=True), nullable=False),
         sa.Column("window_end", sa.DateTime(timezone=True), nullable=False),
         sa.Column("fetched_at", sa.DateTime(timezone=True), nullable=False),
@@ -40,6 +41,7 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["trade_id"], ["trades.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("trade_id", "timeframe", "fingerprint", name="uq_trade_market_snapshot_fingerprint"),
+        sa.UniqueConstraint("trade_id", "timeframe", "version", name="uq_trade_market_snapshot_version"),
     )
     op.create_index("ix_trade_market_snapshots_user_id", "trade_market_snapshots", ["user_id"])
     op.create_index("ix_trade_market_snapshots_account_id", "trade_market_snapshots", ["account_id"])
