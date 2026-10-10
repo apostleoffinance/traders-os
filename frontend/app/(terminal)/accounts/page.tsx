@@ -51,6 +51,11 @@ export default function AccountsPage() {
       setProgram("TenEdge Instant");
       setName("TenTrade TenEdge Instant $1K");
       setBalance("1000");
+    } else {
+      setFirm("");
+      setProgram("");
+      setName("");
+      setBalance("");
     }
   }
 
