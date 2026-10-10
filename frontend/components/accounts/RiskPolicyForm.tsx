@@ -67,24 +67,43 @@ function validatePolicy(form: Partial<RiskProfile>): string | null {
   return null;
 }
 
+function readableMessage(value: unknown): string | null {
+  if (typeof value === "string" && value.trim() && !value.includes("[object Object]")) return value;
+  if (Array.isArray(value)) {
+    const parts = value.map((item) => {
+      if (typeof item === "string") return item;
+      if (item && typeof item === "object") {
+        const entry = item as Record<string, unknown>;
+        const msg = entry.msg ?? entry.message ?? entry.detail;
+        if (typeof msg === "string") return msg;
+        const loc = Array.isArray(entry.loc) ? entry.loc.filter((part) => typeof part === "string").join(".") : "";
+        return loc ? `${loc}: invalid value` : null;
+      }
+      return null;
+    }).filter((item): item is string => Boolean(item));
+    if (parts.length) return parts.join(" ");
+  }
+  return null;
+}
+
 function readableError(error: unknown): string {
-  if (error instanceof Error && error.message.trim()) return error.message;
-  if (typeof error === "string" && error.trim()) return error;
+  if (typeof error === "string") {
+    const message = readableMessage(error);
+    if (message) return message;
+  }
   if (error && typeof error === "object") {
     const record = error as Record<string, unknown>;
-    const message = record.message ?? record.detail;
-    if (typeof message === "string" && message.trim()) return message;
-    if (Array.isArray(message)) {
-      const parts = message.map((item) => {
-        if (typeof item === "string") return item;
-        if (item && typeof item === "object") {
-          const entry = item as Record<string, unknown>;
-          return typeof entry.msg === "string" ? entry.msg : null;
-        }
-        return null;
-      }).filter((item): item is string => Boolean(item));
-      if (parts.length) return parts.join(" ");
+    const fromError = error instanceof Error ? readableMessage(error.message) : null;
+    if (fromError) return fromError;
+    // ApiError keeps the original response body; inspect it if its message was
+    // serialized poorly by an upstream layer.
+    const body = record.body && typeof record.body === "object" ? record.body as Record<string, unknown> : null;
+    if (body) {
+      const fromBody = readableMessage(body.message) ?? readableMessage(body.detail);
+      if (fromBody) return fromBody;
     }
+    const message = readableMessage(record.message) ?? readableMessage(record.detail);
+    if (message) return message;
   }
   return "Trader OS could not save these risk limits. Check the values and try again.";
 }
@@ -165,7 +184,7 @@ export function RiskPolicyForm({
   return (
     <Panel title="Risk limits">
       <p className="muted">
-        Monetary limits are absolute amounts in {currency}, not percentages. For example, enter 5 for a {currency} 5 risk limit.
+        Monetary limits are absolute amounts in {currency}, not percentages. For example, enter 5 to set a risk limit of 5 {currency}.
         Personal limits should be stricter than applicable firm limits. Leave firm daily drawdown blank when the firm has no daily limit.
       </p>
       {error && <Alert kind="danger">{error}</Alert>}
