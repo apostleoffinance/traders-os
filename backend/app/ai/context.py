@@ -9,7 +9,7 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session, joinedload
 
-from app.ai.evidence import build_comparable_report, candidate_patterns, prior_trades
+from app.ai.evidence import build_comparable_report, candidate_patterns, comparable_trades, prior_trades
 from app.ai.guardrails.confidence import classify_confidence, confidence_reason
 from app.ai.period import PeriodSpec, resolve_period, slice_trades
 from app.ai.serialize import to_jsonable
@@ -45,6 +45,29 @@ def load_account_trades(db: Session, user_id: UUID, account_id: UUID) -> list[Tr
         .order_by(Trade.trade_timestamp.asc())
         .all()
     )
+
+
+def _evidence_ref(trade: Trade, role: str) -> dict:
+    closed_pnl = trade.realized_pnl if trade.status == "closed" else None
+    risk = Decimal(trade.risk_amount or 0)
+    realized_r = trade.realized_r
+    if realized_r is None and closed_pnl is not None and risk > ZERO:
+        realized_r = Decimal(closed_pnl) / risk
+    return {
+        "trade_id": str(trade.id),
+        "role": role,
+        "symbol": trade.symbol,
+        "status": trade.status,
+        "entry_at": as_utc(trade.trade_timestamp).isoformat(),
+        "exit_at": as_utc(trade.exit_timestamp).isoformat() if trade.exit_timestamp else None,
+        "net_pnl": closed_pnl,
+        "r_multiple": realized_r if closed_pnl is not None else None,
+    }
+
+
+def _evidence_refs(trades: list[Trade], role: str, limit: int = 30) -> list[dict]:
+    closed = [t for t in trades if t.status == "closed" and t.exit_timestamp is not None]
+    return [_evidence_ref(t, role) for t in closed[-limit:]]
 
 
 def _perf(trades: list[Trade], starting: Decimal) -> dict:
@@ -160,6 +183,13 @@ def build_trade_review_context(
             "user": {"timezone": user.timezone},
             "account": account_context(account, user, snap),
             "current_trade": trade_payload(trade),
+            "evidence_refs": [
+                _evidence_ref(trade, "current_trade"),
+                *[
+                    _evidence_ref(item, "historical_comparable")
+                    for item in comparable_trades(trade, trades)[-10:]
+                ],
+            ],
             "historical_at_the_time": {
                 "note": "Comparable trades are strictly before this trade's exit/entry. No look-ahead.",
                 "comparable_trades": report.n,
@@ -236,6 +266,7 @@ def build_period_context(
                 lambda t: t.psychology.emotion_before if t.psychology else "unknown",
             ),
             "behavior": behavioral_stats(selected),
+            "evidence_refs": _evidence_refs(selected, "selected_period_trade", limit=50),
             "confidence_reason": confidence_reason(int(selected_perf["n"]), classify_confidence(int(selected_perf["n"]))),
         }
     )
@@ -337,5 +368,6 @@ def build_account_analytics_context(
             "intelligence_lab": intelligence,
             "quant_lab": quant_lab,
             "candidate_patterns": candidate_patterns(trades, starting),
+            "evidence_refs": _evidence_refs(recent, "recent_account_trade", limit=30),
         }
     )
