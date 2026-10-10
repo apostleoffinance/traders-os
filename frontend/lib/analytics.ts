@@ -22,6 +22,7 @@ export type ResearchContext = {
     closed_trades_missing_r: number;
   };
   sample: Evidence;
+  r_sample: Evidence;
   limitations: string[];
 };
 
