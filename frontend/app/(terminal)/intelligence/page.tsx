@@ -36,6 +36,7 @@ import { AnalyticsDrilldownProvider } from "@/components/analytics/AnalyticsDril
 import { AnalyticsFilters } from "@/components/analytics/Filters";
 import { DrilldownFilterBar } from "@/components/analytics/primitives/DrilldownFilterBar";
 import { Alert } from "@/components/ui";
+import { ResearchContextNotice } from "@/components/analytics/ResearchContextNotice";
 
 const FindingDetailDrawer = dynamic(
   () => import("@/components/intelligence/FindingDetailDrawer").then((m) => m.FindingDetailDrawer),
@@ -330,6 +331,7 @@ export default function IntelligencePage() {
               />
               {dash && (
                 <DrilldownFilterBar filters={applied} data={dash} onChange={setApplied} excludePeriod />
+                <ResearchContextNotice context={dash.research_context} />
               )}
             </div>
             <main id="intel-main">{body}</main>
