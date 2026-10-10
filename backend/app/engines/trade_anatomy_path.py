@@ -111,7 +111,7 @@ def _gap_summary(candles: Sequence[Candle], *, asset_class: str) -> dict[str, An
     long_intervals: list[dict[str, Any]] = []
     for previous, current in zip(ordered, ordered[1:]):
         seconds = int((as_utc(current.timestamp) - as_utc(previous.timestamp)).total_seconds())
-        if seconds <= 120:
+        if seconds <= 60:
             continue
         interval = {
             "from": as_utc(previous.timestamp).isoformat().replace("+00:00", "Z"),
