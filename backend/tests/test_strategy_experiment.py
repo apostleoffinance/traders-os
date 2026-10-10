@@ -73,7 +73,7 @@ def test_strategy_experiment_is_reproducible_and_cost_stress_reduces_net_pnl() -
     assert first["cost_sensitivity"][0]["out_of_sample"]["n"] == 3
     assert Decimal(first["cost_sensitivity"][1]["net_pnl"]) == Decimal(first["cost_sensitivity"][0]["net_pnl"]) - Decimal("20.00")
     assert Decimal(first["cost_sensitivity"][2]["net_pnl"]) == Decimal(first["cost_sensitivity"][0]["net_pnl"]) - Decimal("40.00")
-    assert first["recorded_costs"]["commission_and_swap_absolute_total"] == "6.00"
+    assert first["recorded_costs"]["commission_and_swap_absolute_total"] == Decimal("6.00")
     assert "not a candle-level backtest" in first["disclaimer"].lower()
 
 
