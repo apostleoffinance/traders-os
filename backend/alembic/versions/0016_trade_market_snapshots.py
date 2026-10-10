@@ -7,6 +7,7 @@ Revises: 0015_broker_candles
 from typing import Sequence, Union
 
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 from alembic import op
 
 revision: str = "0016_trade_market_snapshots"
@@ -32,7 +33,7 @@ def upgrade() -> None:
         sa.Column("largest_gap_seconds", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("coverage_status", sa.String(length=16), nullable=False),
         sa.Column("fingerprint", sa.String(length=64), nullable=False),
-        sa.Column("snapshot_json", sa.JSON(), nullable=False),
+        sa.Column("snapshot_json", sa.JSON().with_variant(postgresql.JSONB(), "postgresql"), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["account_id"], ["accounts.id"], ondelete="CASCADE"),
