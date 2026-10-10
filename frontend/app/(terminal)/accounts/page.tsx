@@ -12,11 +12,11 @@ export default function AccountsPage() {
   const router = useRouter();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [mt5ByAccount, setMt5ByAccount] = useState<Record<string, Mt5Connection>>({});
-  const [template, setTemplate] = useState("tentrade_tenedge_1k");
-  const [firm, setFirm] = useState("TenTrade");
-  const [program, setProgram] = useState("TenEdge Instant");
-  const [name, setName] = useState("TenTrade TenEdge Instant $1K");
-  const [balance, setBalance] = useState("1000");
+  const [template, setTemplate] = useState("");
+  const [firm, setFirm] = useState("");
+  const [program, setProgram] = useState("");
+  const [name, setName] = useState("");
+  const [balance, setBalance] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -126,7 +126,7 @@ export default function AccountsPage() {
       <div className="layout">
         <Panel title="Existing">
           {error && <Alert kind="danger">{error}</Alert>}
-          {accounts.length === 0 && <p className="muted">No accounts yet.</p>}
+          {accounts.length === 0 && <p className="muted">No trading accounts yet. Add an account to start tracking performance, or connect MT5 after creating it to import your history.</p>}
           <ul>
             {accounts.map((a) => {
               const mt5 = mt5ByAccount[a.id];
@@ -169,12 +169,12 @@ export default function AccountsPage() {
             })}
           </ul>
         </Panel>
-        <Panel title="New account">
+        <Panel title="Add a trading account">
           <form onSubmit={onCreate}>
             <Field label="Template">
               <select value={template} onChange={(e) => applyTemplate(e.target.value)}>
+                <option value="">Choose a template (optional)</option>
                 <option value="tentrade_tenedge_1k">TenTrade TenEdge Instant $1K</option>
-                <option value="">Custom</option>
               </select>
             </Field>
             <Field label="Firm">
@@ -187,9 +187,9 @@ export default function AccountsPage() {
               <input value={name} onChange={(e) => setName(e.target.value)} required />
             </Field>
             <Field label="Starting balance (USD)">
-              <input type="number" step="0.01" min="0.01" value={balance} onChange={(e) => setBalance(e.target.value)} />
+              <input type="number" step="0.01" min="0.01" value={balance} onChange={(e) => setBalance(e.target.value)} placeholder="e.g. 1000" required />
             </Field>
-            <Button type="submit">Create account</Button>
+            <Button type="submit">Add trading account</Button>
           </form>
         </Panel>
       </div>
