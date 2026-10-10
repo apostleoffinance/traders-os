@@ -33,7 +33,7 @@ class MarketCandle(Base):
     low: Mapped[Decimal] = mapped_column(PRICE, nullable=False)
     close: Mapped[Decimal] = mapped_column(PRICE, nullable=False)
     volume: Mapped[Decimal | None] = mapped_column(Numeric(24, 8), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 
 class BrokerCandle(Base):
