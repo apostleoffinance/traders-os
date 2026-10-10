@@ -28,3 +28,6 @@ def test_trade_market_snapshot_has_deduplication_constraint() -> None:
     assert unique_constraints[
         frozenset({"trade_id", "timeframe", "fingerprint"})
     ] == "uq_trade_market_snapshot_fingerprint"
+    assert unique_constraints[
+        frozenset({"trade_id", "timeframe", "version"})
+    ] == "uq_trade_market_snapshot_version"
