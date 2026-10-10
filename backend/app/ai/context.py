@@ -187,7 +187,10 @@ def build_trade_review_context(
                 _evidence_ref(trade, "current_trade"),
                 *[
                     _evidence_ref(item, "historical_comparable")
-                    for item in comparable_trades(trade, trades)[-10:]
+                    for item in [
+                        candidate for candidate in comparable_trades(trade, trades)
+                        if candidate.status == "closed" and candidate.exit_timestamp is not None
+                    ][-10:]
                 ],
             ],
             "historical_at_the_time": {
