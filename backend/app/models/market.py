@@ -33,7 +33,7 @@ class MarketCandle(Base):
     low: Mapped[Decimal] = mapped_column(PRICE, nullable=False)
     close: Mapped[Decimal] = mapped_column(PRICE, nullable=False)
     volume: Mapped[Decimal | None] = mapped_column(Numeric(24, 8), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 
 class BrokerCandle(Base):
@@ -141,3 +141,39 @@ class ChartAnnotation(Base):
     )
 
     analysis: Mapped[MarketAnalysis] = relationship(back_populates="annotations")
+
+
+
+class TradeMarketSnapshot(Base):
+    """Immutable display snapshot linking a canonical trade to the market data used for replay."""
+
+    __tablename__ = "trade_market_snapshots"
+    __table_args__ = (
+        UniqueConstraint("trade_id", "timeframe", "fingerprint", name="uq_trade_market_snapshot_fingerprint"),
+        UniqueConstraint("trade_id", "timeframe", "version", name="uq_trade_market_snapshot_version"),
+        Index("ix_trade_market_snapshots_trade_created", "trade_id", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID_PK, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID_PK, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        UUID_PK, ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    trade_id: Mapped[uuid.UUID] = mapped_column(
+        UUID_PK, ForeignKey("trades.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    provider: Mapped[str] = mapped_column(String(32), nullable=False)
+    timeframe: Mapped[str] = mapped_column(String(8), nullable=False)
+    version: Mapped[int] = mapped_column(nullable=False)
+    window_start: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    window_end: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    candle_count: Mapped[int] = mapped_column(nullable=False)
+    gap_count: Mapped[int] = mapped_column(nullable=False, default=0)
+    largest_gap_seconds: Mapped[int] = mapped_column(nullable=False, default=0)
+    coverage_status: Mapped[str] = mapped_column(String(16), nullable=False)
+    fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    snapshot_json: Mapped[dict] = mapped_column(JSONType, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

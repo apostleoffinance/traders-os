@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
 from datetime import datetime
 from decimal import Decimal
 from uuid import UUID, uuid4
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.enums import (
@@ -24,6 +27,7 @@ from app.engines.discipline_engine import TradeDisciplineInput, score_trade
 from app.engines.fx_math import (
     ZERO,
     classify_result,
+    get_instrument,
     holding_seconds,
     planned_metrics,
     realized_pnl,
@@ -39,6 +43,7 @@ from app.models.account import Account
 from app.models.checklist import TradeChecklistResponse
 from app.models.risk_event import RiskEvent
 from app.models.setup import Setup
+from app.models.market import TradeMarketSnapshot
 from app.models.trade import Psychology, Trade, TradeScreenshot
 from app.models.user import User
 from app.market_data.service import conversion_rate
@@ -487,6 +492,133 @@ def get_trade(db: Session, user_id: UUID, trade_id: UUID) -> Trade:
     return trade
 
 
+def _persist_trade_market_snapshot(
+    db: Session,
+    user: User,
+    trade: Trade,
+    candles: list,
+    payload: dict,
+    *,
+    start: datetime,
+    end: datetime,
+) -> None:
+    """Persist a versioned immutable replay snapshot; never mutate the trade record."""
+    series = payload.get("price_series")
+    if not candles or not isinstance(series, dict):
+        payload["market_snapshot"] = {
+            "status": "unavailable",
+            "reason": "No historical candle series was available for this trade window.",
+        }
+        return
+
+    ordered = sorted(candles, key=lambda candle: as_utc(candle.timestamp))
+    fingerprint_rows = [
+        {
+            "provider": candle.provider,
+            "symbol": candle.symbol,
+            "timeframe": candle.timeframe,
+            "timestamp": as_utc(candle.timestamp).isoformat(),
+            "open": str(candle.open),
+            "high": str(candle.high),
+            "low": str(candle.low),
+            "close": str(candle.close),
+            "volume": str(candle.volume) if candle.volume is not None else None,
+        }
+        for candle in ordered
+    ]
+    fingerprint = hashlib.sha256(
+        json.dumps(fingerprint_rows, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    provider = ordered[0].provider
+    timeframe = "M1"
+    row = (
+        db.query(TradeMarketSnapshot)
+        .filter(
+            TradeMarketSnapshot.trade_id == trade.id,
+            TradeMarketSnapshot.timeframe == timeframe,
+            TradeMarketSnapshot.fingerprint == fingerprint,
+        )
+        .one_or_none()
+    )
+    if row is None:
+        next_version = (
+            db.query(TradeMarketSnapshot)
+            .filter(TradeMarketSnapshot.trade_id == trade.id, TradeMarketSnapshot.timeframe == timeframe)
+            .count()
+            + 1
+        )
+        fetched_at = utcnow()
+        snapshot_payload = {
+            "trade_id": str(trade.id),
+            "account_id": str(trade.account_id),
+            "provider": provider,
+            "timeframe": timeframe,
+            "window": {
+                "start": as_utc(start).isoformat().replace("+00:00", "Z"),
+                "end": as_utc(end).isoformat().replace("+00:00", "Z"),
+            },
+            "price_series": series,
+            "excursions": payload.get("excursions"),
+            "trade_levels": {
+                "entry": str(trade.entry_price),
+                "stop_loss": str(trade.stop_loss),
+                "take_profit": str(trade.take_profit) if trade.take_profit is not None else None,
+                "exit": str(trade.exit_price) if trade.exit_price is not None else None,
+            },
+        }
+        row = TradeMarketSnapshot(
+            user_id=user.id,
+            account_id=trade.account_id,
+            trade_id=trade.id,
+            provider=provider,
+            timeframe=timeframe,
+            version=next_version,
+            window_start=as_utc(start),
+            window_end=as_utc(end),
+            fetched_at=fetched_at,
+            candle_count=len(ordered),
+            gap_count=int(series.get("gap_count") or 0),
+            largest_gap_seconds=int(series.get("largest_gap_seconds") or 0),
+            coverage_status=str(series.get("coverage_status") or "unknown"),
+            fingerprint=fingerprint,
+            snapshot_json=snapshot_payload,
+        )
+        db.add(row)
+        try:
+            db.commit()
+            db.refresh(row)
+        except IntegrityError:
+            db.rollback()
+            row = (
+                db.query(TradeMarketSnapshot)
+                .filter(
+                    TradeMarketSnapshot.trade_id == trade.id,
+                    TradeMarketSnapshot.timeframe == timeframe,
+                    TradeMarketSnapshot.fingerprint == fingerprint,
+                )
+                .one_or_none()
+            )
+            if row is None:
+                raise
+
+    payload["market_snapshot"] = {
+        "status": "available",
+        "id": str(row.id),
+        "version": row.version,
+        "fingerprint": row.fingerprint,
+        "provider": row.provider,
+        "timeframe": row.timeframe,
+        "window_start": as_utc(row.window_start).isoformat().replace("+00:00", "Z"),
+        "window_end": as_utc(row.window_end).isoformat().replace("+00:00", "Z"),
+        "captured_at": as_utc(row.fetched_at).isoformat().replace("+00:00", "Z"),
+        "candle_count": row.candle_count,
+        "gap_count": row.gap_count,
+        "largest_gap_seconds": row.largest_gap_seconds,
+        "coverage_status": row.coverage_status,
+        "immutable_snapshot": True,
+    }
+
+
 def get_trade_replay(db: Session, user_id: UUID, trade_id: UUID) -> dict:
     trade = get_trade(db, user_id, trade_id)
     account = get_owned_account(db, user_id, trade.account_id)
@@ -526,10 +658,42 @@ def get_trade_replay(db: Session, user_id: UUID, trade_id: UUID) -> dict:
                     end=end,
                     mfe_price=Decimal(trade.mfe_price) if trade.mfe_price is not None else None,
                     mae_price=Decimal(trade.mae_price) if trade.mae_price is not None else None,
+                    asset_class=get_instrument(trade.symbol).asset_class,
                 )
+                try:
+                    _persist_trade_market_snapshot(
+                        db, user, trade, candles, payload, start=start, end=end
+                    )
+                except Exception:
+                    db.rollback()
+                    log.info("trade market snapshot persistence skipped trade=%s", trade_id)
+                    payload["market_snapshot"] = {
+                        "status": "persistence_failed",
+                        "reason": "The candle path loaded, but its immutable snapshot could not be stored.",
+                    }
+            else:
+                payload["market_snapshot"] = {
+                    "status": "unavailable",
+                    "reason": "No historical candles were returned for the trade hold window.",
+                }
         except Exception:
             log.info("trade replay path enrichment skipped trade=%s", trade_id)
 
+    if "market_snapshot" not in payload:
+        if (
+            trade.status != TradeStatus.CLOSED.value
+            or trade.trade_timestamp is None
+            or trade.exit_timestamp is None
+        ):
+            payload["market_snapshot"] = {
+                "status": "not_applicable",
+                "reason": "A closed trade with an entry and exit timestamp is required to capture a historical replay snapshot.",
+            }
+        else:
+            payload["market_snapshot"] = {
+                "status": "unavailable",
+                "reason": "Historical candles could not be loaded for this trade window.",
+            }
     return payload
 
 
