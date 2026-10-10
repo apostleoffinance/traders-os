@@ -105,12 +105,53 @@ def _downsample(candles: Sequence[Candle], max_points: int) -> list[Candle]:
     return [candles[i] for i in sorted(idxs)]
 
 
+def _gap_summary(candles: Sequence[Candle], *, asset_class: str) -> dict[str, Any]:
+    ordered = sorted(candles, key=lambda c: as_utc(c.timestamp))
+    intraday_gaps: list[dict[str, Any]] = []
+    long_intervals: list[dict[str, Any]] = []
+    for previous, current in zip(ordered, ordered[1:]):
+        seconds = int((as_utc(current.timestamp) - as_utc(previous.timestamp)).total_seconds())
+        if seconds <= 120:
+            continue
+        interval = {
+            "from": as_utc(previous.timestamp).isoformat().replace("+00:00", "Z"),
+            "to": as_utc(current.timestamp).isoformat().replace("+00:00", "Z"),
+            "duration_seconds": seconds,
+            "missing_m1_bars_estimate": max(1, round(seconds / 60) - 1),
+        }
+        # FX has scheduled closures. Long gaps are disclosed separately rather than
+        # misrepresented as missing bars; crypto is treated as a 24/7 market.
+        if asset_class != "crypto" and seconds > 6 * 60 * 60:
+            long_intervals.append(interval)
+        else:
+            intraday_gaps.append(interval)
+    largest = max((g["duration_seconds"] for g in intraday_gaps), default=0)
+    if intraday_gaps:
+        status = "gaps_detected"
+    elif long_intervals:
+        status = "long_intervals_present"
+    else:
+        status = "no_intraday_gaps_detected"
+    return {
+        "coverage_status": status,
+        "gap_count": len(intraday_gaps),
+        "largest_gap_seconds": largest,
+        "gaps": intraday_gaps[:20],
+        "long_intervals": long_intervals[:10],
+        "gap_note": (
+            "Gap counts are based on timestamp intervals between returned M1 bars, not an estimated coverage percentage. "
+            "Long FX intervals may reflect scheduled market closures or unavailable data and are shown separately."
+        ),
+    }
+
+
 def build_price_series(
     candles: Sequence[Candle],
     *,
     start: datetime,
     end: datetime,
     max_points: int = MAX_SERIES_POINTS,
+    asset_class: str = "fx",
 ) -> dict[str, Any] | None:
     """
     OHLC close path over the hold window. Returns None when no candles.
@@ -167,13 +208,19 @@ def build_price_series(
         )
 
     provider = getattr(ordered[0], "provider", None) if ordered else None
+    gaps = _gap_summary(ordered, asset_class=asset_class)
     return {
         "source": "m1_ohlc",
         "provider": provider,
         "timeframe": "M1",
+        "window_start": start_utc.isoformat().replace("+00:00", "Z"),
+        "window_end": end_utc.isoformat().replace("+00:00", "Z"),
+        "first_bar_at": as_utc(ordered[0].timestamp).isoformat().replace("+00:00", "Z"),
+        "last_bar_at": as_utc(ordered[-1].timestamp).isoformat().replace("+00:00", "Z"),
         "bar_count": len(ordered),
         "point_count": len(points),
         "downsampled": len(ordered) > len(sampled),
+        **gaps,
         "points": points,
     }
 
@@ -188,6 +235,7 @@ def enrich_replay_with_candles(
     end: datetime,
     mfe_price: Decimal | None,
     mae_price: Decimal | None,
+    asset_class: str = "fx",
 ) -> dict[str, Any]:
     """Mutate/return replay payload with timed excursions + price_series when possible."""
     timed = timed_excursions_from_candles(
@@ -197,7 +245,7 @@ def enrich_replay_with_candles(
         mfe_price=mfe_price,
         mae_price=mae_price,
     )
-    series = build_price_series(candles, start=start, end=end)
+    series = build_price_series(candles, start=start, end=end, asset_class=asset_class)
 
     excursions = dict(payload.get("excursions") or {})
     if timed is not None:
