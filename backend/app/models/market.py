@@ -150,6 +150,7 @@ class TradeMarketSnapshot(Base):
     __tablename__ = "trade_market_snapshots"
     __table_args__ = (
         UniqueConstraint("trade_id", "timeframe", "fingerprint", name="uq_trade_market_snapshot_fingerprint"),
+        UniqueConstraint("trade_id", "timeframe", "version", name="uq_trade_market_snapshot_version"),
         Index("ix_trade_market_snapshots_trade_created", "trade_id", "created_at"),
     )
 
@@ -165,6 +166,7 @@ class TradeMarketSnapshot(Base):
     )
     provider: Mapped[str] = mapped_column(String(32), nullable=False)
     timeframe: Mapped[str] = mapped_column(String(8), nullable=False)
+    version: Mapped[int] = mapped_column(nullable=False)
     window_start: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     window_end: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
