@@ -41,7 +41,8 @@ def test_research_context_discloses_filters_sample_and_missing_values() -> None:
         "closed_trades_missing_pnl": 1,
         "closed_trades_missing_r": 1,
     }
-    assert context["sample"]["n"] == 2
+    assert context["sample"]["n"] == 1
+    assert context["r_sample"]["n"] == 1
     assert context["sample"]["level"] == "INSUFFICIENT"
     assert any("descriptive" in note for note in context["limitations"])
     assert any("R multiple" in note for note in context["limitations"])
@@ -55,4 +56,5 @@ def test_research_context_empty_cohort_is_explicit() -> None:
     )
     assert context["population"]["closed_trades"] == 0
     assert context["sample"]["n"] == 0
+    assert context["r_sample"]["n"] == 0
     assert context["limitations"] == ["No closed trades match the selected filters."]
