@@ -541,6 +541,12 @@ def _persist_trade_market_snapshot(
         .one_or_none()
     )
     if row is None:
+        next_version = (
+            db.query(TradeMarketSnapshot)
+            .filter(TradeMarketSnapshot.trade_id == trade.id, TradeMarketSnapshot.timeframe == timeframe)
+            .count()
+            + 1
+        )
         fetched_at = utcnow()
         snapshot_payload = {
             "trade_id": str(trade.id),
@@ -566,6 +572,7 @@ def _persist_trade_market_snapshot(
             trade_id=trade.id,
             provider=provider,
             timeframe=timeframe,
+            version=next_version,
             window_start=as_utc(start),
             window_end=as_utc(end),
             fetched_at=fetched_at,
@@ -594,17 +601,10 @@ def _persist_trade_market_snapshot(
             if row is None:
                 raise
 
-    versions = (
-        db.query(TradeMarketSnapshot)
-        .filter(TradeMarketSnapshot.trade_id == trade.id, TradeMarketSnapshot.timeframe == timeframe)
-        .order_by(TradeMarketSnapshot.created_at.asc(), TradeMarketSnapshot.id.asc())
-        .all()
-    )
-    version = next((i for i, snapshot in enumerate(versions, start=1) if snapshot.id == row.id), len(versions))
     payload["market_snapshot"] = {
         "status": "available",
         "id": str(row.id),
-        "version": version,
+        "version": row.version,
         "fingerprint": row.fingerprint,
         "provider": row.provider,
         "timeframe": row.timeframe,
