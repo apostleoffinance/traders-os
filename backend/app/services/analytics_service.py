@@ -38,6 +38,7 @@ from app.models.trade import Trade
 from app.models.checklist import TradeChecklistResponse
 from app.models.user import User
 from app.services.access import get_owned_account
+from app.services.research_context import build_research_context
 from app.services.mapping import profile_view, trade_to_closed, trade_to_journal, trade_to_psych
 
 
@@ -506,6 +507,24 @@ def dashboard(
             "currency": account.currency,
             "firm": account.firm,
         },
+        "research_context": build_research_context(
+            filtered,
+            timezone=user.timezone,
+            total_account_trades=len(all_trades),
+            filters={
+                "preset": resolved,
+                "date_from": start.isoformat() if start else None,
+                "date_to": end.isoformat() if end else None,
+                "symbol": symbol,
+                "session": session,
+                "setup_id": str(setup_id) if setup_id else None,
+                "direction": direction,
+                "timeframe": timeframe,
+                "psychology": psychology,
+                "result": result,
+                "hour": hour,
+            },
+        ),
         "filters": {
             "preset": resolved,
             "date_from": start.isoformat() if start else None,
@@ -692,12 +711,31 @@ def intelligence_lab(
 
     profile = profile_view(account.risk_profile)
     rows = [trade_to_analytics(t) for t in filtered]
-    return build_intelligence_lab(
+    selected_result = result
+    payload = build_intelligence_lab(
         rows,
         starting=Decimal(account.starting_balance),
         configured_risk=profile.risk_per_trade,
         max_trades_per_day=profile.max_trades_per_day,
     )
+    payload["research_context"] = build_research_context(
+        filtered,
+        timezone=user.timezone,
+        total_account_trades=len(all_trades),
+        filters={
+            "preset": resolved,
+            "date_from": start.isoformat() if start else None,
+            "date_to": end.isoformat() if end else None,
+            "symbol": symbol,
+            "session": session,
+            "setup_id": str(setup_id) if setup_id else None,
+            "direction": direction,
+            "timeframe": timeframe,
+            "psychology": psychology,
+            "result": selected_result,
+        },
+    )
+    return payload
 
 
 def comparison_lab(
