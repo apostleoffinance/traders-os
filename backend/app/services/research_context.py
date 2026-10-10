@@ -44,15 +44,18 @@ def build_research_context(
         if _value(row, "realized_r", "r_multiple") is None
     )
     valid_for_performance = len(closed) - missing_pnl
-    sample = evidence_payload(len(closed))
+    sample = evidence_payload(valid_for_performance)
+    r_sample = evidence_payload(len(closed) - missing_r)
     notes: list[str] = []
     if not closed:
         notes.append("No closed trades match the selected filters.")
+    elif valid_for_performance == 0:
+        notes.append("No closed trades with realized P&L are available for performance analysis.")
     if missing_pnl:
         notes.append(f"{missing_pnl} closed trade(s) have no realized P&L and are excluded from performance calculations.")
     if missing_r:
         notes.append(f"{missing_r} closed trade(s) have no R multiple; R-based metrics use fewer observations.")
-    if 0 < len(closed) < 10:
+    if 0 < valid_for_performance < 10:
         notes.append("Treat observed patterns as descriptive, not as a proven trading edge.")
 
     normalized_filters = {
@@ -72,5 +75,6 @@ def build_research_context(
             "closed_trades_missing_r": missing_r,
         },
         "sample": sample,
+        "r_sample": r_sample,
         "limitations": notes,
     }
