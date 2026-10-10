@@ -11,6 +11,7 @@ from app.models.user import User
 from app.services.analytics_service import _apply_filters, _trades, resolve_date_window
 from app.services.access import get_owned_account
 from app.services.mapping import profile_view
+from app.services.research_context import build_research_context
 
 
 def _configured_risk(account) -> Decimal | None:
@@ -63,10 +64,28 @@ def _load_rows(
         result=result,
     )
     rows = [trade_to_analytics(t) for t in filtered]
+    selected_filters = {
+        "preset": resolved,
+        "date_from": start.isoformat() if start else None,
+        "date_to": end.isoformat() if end else None,
+        "symbol": symbol,
+        "session": session,
+        "setup_id": str(setup_id) if setup_id else None,
+        "direction": direction,
+        "timeframe": timeframe,
+        "psychology": psychology,
+        "result": result,
+    }
     date_range = {
         "preset": resolved,
         "from": start.isoformat() if start else None,
         "to": end.isoformat() if end else None,
+        "research_context": build_research_context(
+            rows,
+            timezone=user.timezone,
+            total_account_trades=len(all_trades),
+            filters=selected_filters,
+        ),
     }
     return account, rows, date_range
 
