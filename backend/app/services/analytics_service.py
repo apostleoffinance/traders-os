@@ -712,13 +712,13 @@ def intelligence_lab(
     profile = profile_view(account.risk_profile)
     rows = [trade_to_analytics(t) for t in filtered]
     selected_result = result
-    result = build_intelligence_lab(
+    payload = build_intelligence_lab(
         rows,
         starting=Decimal(account.starting_balance),
         configured_risk=profile.risk_per_trade,
         max_trades_per_day=profile.max_trades_per_day,
     )
-    result["research_context"] = build_research_context(
+    payload["research_context"] = build_research_context(
         filtered,
         timezone=user.timezone,
         total_account_trades=len(all_trades),
@@ -735,7 +735,7 @@ def intelligence_lab(
             "result": selected_result,
         },
     )
-    return result
+    return payload
 
 
 def comparison_lab(
