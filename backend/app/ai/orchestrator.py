@@ -13,6 +13,7 @@ from app.ai.config import PROMPT_VERSION
 from app.ai.guardrails.output_validator import validate_response
 from app.ai.guardrails.trading_signal_guard import contains_prohibited
 from app.ai.prompts import SYSTEM_PROMPT
+from app.ai.response_evidence import build_response_evidence
 from app.ai.providers.router import FailoverRouter
 from app.ai.schema_prompt import json_schema_for_prompt
 from app.ai.schemas import SCHEMA_BY_TYPE
@@ -139,6 +140,7 @@ def run_analysis(
                 "cached": True,
                 "created_at": hit.created_at.isoformat() if hit.created_at else None,
                 "result": hit.response_json,
+                "evidence": build_response_evidence(context),
             }
 
     user_msg = json.dumps({"task": task_prompt, "context": context}, default=str)
@@ -188,4 +190,5 @@ def run_analysis(
         "cached": False,
         "created_at": row.created_at.isoformat() if row.created_at else None,
         "result": result,
+        "evidence": build_response_evidence(context),
     }

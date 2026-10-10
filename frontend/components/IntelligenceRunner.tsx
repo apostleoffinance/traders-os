@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import Link from "next/link";
 import { api } from "@/lib/api";
 import { AI_UNAVAILABLE_MESSAGE, formatAiError } from "@/lib/ai";
 import { Alert, Button, Panel } from "@/components/ui";
@@ -13,6 +14,21 @@ export type AIEnvelope = {
   cached: boolean;
   created_at: string | null;
   result: Record<string, unknown>;
+  evidence?: {
+    source: string;
+    supporting_trades: Array<{
+      trade_id: string;
+      role: string;
+      symbol: string;
+      status: string;
+      entry_at: string | null;
+      exit_at: string | null;
+      net_pnl: string | number | null;
+      r_multiple: string | number | null;
+    }>;
+    source_trade_count: number;
+    limitations: string[];
+  };
 };
 
 function renderValue(value: unknown): ReactNode {
@@ -113,9 +129,43 @@ export function IntelligenceRunner({
           title={`${data.analysis_type.replace(/_/g, " ")} · ${data.provider}${data.cached ? " · cached" : ""}`}
         >
           <div className="finding">{renderValue(data.result)}</div>
+          {data.evidence && (
+            <section className="source-evidence" aria-label="Supporting source trades">
+              <h3>Supporting source trades</h3>
+              {data.evidence.supporting_trades.length > 0 ? (
+                <ul>
+                  {data.evidence.supporting_trades.map((ref) => (
+                    <li key={ref.trade_id}>
+                      <Link href={`/trades/${ref.trade_id}`}>{ref.symbol} · {ref.role.replace(/_/g, " ")}</Link>
+                      <span>{ref.status}</span>
+                      {ref.net_pnl !== null && <span>P&amp;L {ref.net_pnl}</span>}
+                      {ref.r_multiple !== null && <span>{ref.r_multiple}R</span>}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="muted">No direct trade links were supplied for this response; interpret it as aggregate-context analysis.</p>
+              )}
+              {data.evidence.limitations.length > 0 && (
+                <ul className="limitations">
+                  {data.evidence.limitations.map((note) => <li key={note}>{note}</li>)}
+                </ul>
+              )}
+            </section>
+          )}
         </Panel>
       )}
       <style jsx>{`
+        .source-evidence {
+          margin-top: 14px;
+          padding-top: 12px;
+          border-top: 1px solid var(--border);
+        }
+        .source-evidence h3 { margin: 0 0 8px; font-size: 12px; font-weight: 600; }
+        .source-evidence ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+        .source-evidence li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; font-size: 12px; }
+        .source-evidence li span { color: var(--text-muted); }
+        .limitations { margin-top: 8px !important; color: var(--text-secondary); }
         .actions {
           display: flex;
           gap: 8px;

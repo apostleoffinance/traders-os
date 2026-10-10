@@ -68,7 +68,22 @@ def test_persist_and_cache_same_context() -> None:
     db.commit()
 
     router = FailoverRouter([JsonProvider()])
-    ctx = {"n": 4, "expectancy_r": "-0.2"}
+    ctx = {
+        "n": 4,
+        "expectancy_r": "-0.2",
+        "evidence_refs": [
+            {
+                "trade_id": "trade-source-1",
+                "role": "recent_account_trade",
+                "symbol": "EURUSD",
+                "status": "closed",
+                "entry_at": "2026-09-01T10:00:00Z",
+                "exit_at": "2026-09-01T11:00:00Z",
+                "net_pnl": "5.00",
+                "r_multiple": "1.00",
+            }
+        ],
+    }
     first = run_analysis(
         db,
         user_id=user.id,
@@ -90,4 +105,7 @@ def test_persist_and_cache_same_context() -> None:
     assert first["cached"] is False
     assert second["cached"] is True
     assert second["id"] == first["id"]
+    assert first["evidence"]["source_trade_count"] == 1
+    assert first["evidence"]["supporting_trades"][0]["trade_id"] == "trade-source-1"
+    assert second["evidence"] == first["evidence"]
     db.close()
