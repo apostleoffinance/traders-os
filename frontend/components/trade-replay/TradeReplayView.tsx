@@ -276,6 +276,24 @@ export function TradeReplayView({
                 } Times follow the account timezone.`
               : "No candle series for this trade. The path uses the planned and actual prices only. Missing bars are not filled in."}
           </p>
+          {replay.price_series && (
+            <p className="provenance">
+              Candle continuity: {replay.price_series.coverage_status ?? "not assessed"} ·
+              {replay.price_series.gap_count ?? 0} intraday gap(s) ·
+              longest {Math.round((replay.price_series.largest_gap_seconds ?? 0) / 60)} min.
+              {replay.price_series.long_intervals?.length
+                ? " " + replay.price_series.long_intervals.length + " long interval(s) may reflect market closure or missing data."
+                : ""}
+              {replay.price_series.gap_note ? " " + replay.price_series.gap_note : ""}
+            </p>
+          )}
+          {replay.market_snapshot && (
+            <p className="provenance">
+              {replay.market_snapshot.status === "available"
+                ? "Saved market snapshot v" + replay.market_snapshot.version + " · " + replay.market_snapshot.provider + " · " + replay.market_snapshot.candle_count + " source bars · " + replay.market_snapshot.gap_count + " intraday gaps · captured " + replay.market_snapshot.captured_at + "."
+                : replay.market_snapshot.reason ?? "Market snapshot unavailable."}
+            </p>
+          )}
         </div>
         <div className="quality">
           <span className="kicker">Decision quality</span>
