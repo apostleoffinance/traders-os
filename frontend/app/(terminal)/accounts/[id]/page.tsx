@@ -28,7 +28,7 @@ export default function AccountDetailPage() {
         {money(account.current_equity)}
       </p>
       <Mt5ConnectionPanel accountId={params.id} autoOpen={connectMt5} />
-      <RiskPolicyForm accountId={params.id} initial={account.risk_profile} />
+      <RiskPolicyForm accountId={params.id} currency={account.currency} initial={account.risk_profile} />
     </div>
   );
 }
