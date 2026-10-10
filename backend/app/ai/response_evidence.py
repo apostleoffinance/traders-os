@@ -35,12 +35,31 @@ def build_response_evidence(context: dict[str, Any]) -> dict[str, Any]:
     research_context = context.get("research_context")
     if not isinstance(research_context, dict):
         research_context = {}
+    sample = research_context.get("sample")
+    if sample is None:
+        metrics = context.get("selected") or context.get("overall") or context.get("last_n") or {}
+        historical = context.get("historical_at_the_time") or {}
+        sample = {
+            "n": metrics.get("n", historical.get("comparable_trades")),
+            "confidence": metrics.get("evidence_confidence") or historical.get("evidence_confidence"),
+            "reason": metrics.get("sample_note") or historical.get("confidence_reason"),
+        }
+    filters = research_context.get("filters")
+    if filters is None and isinstance(context.get("period"), dict):
+        period = context["period"]
+        filters = {
+            "period_label": period.get("label"),
+            "preset": period.get("preset"),
+            "start": period.get("start"),
+            "end": period.get("end"),
+            "timezone": context.get("user", {}).get("timezone") if isinstance(context.get("user"), dict) else None,
+        }
     return {
         "source": "server_validated_context",
         "supporting_trades": refs,
         "source_trade_count": len(refs),
-        "sample": research_context.get("sample"),
-        "filters": research_context.get("filters"),
+        "sample": sample,
+        "filters": filters,
         "limitations": (
             ["No direct trade-level references were included; interpret this as aggregate-context analysis."]
             if not refs
