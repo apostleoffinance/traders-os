@@ -25,6 +25,7 @@ import { ExecutionTab } from "@/components/analytics/tabs/ExecutionTab";
 import { RiskTab } from "@/components/analytics/tabs/RiskTab";
 import { CalendarTab } from "@/components/analytics/tabs/CalendarTab";
 import { MetricDrilldown } from "@/components/analytics/MetricDrilldown";
+import { ResearchContextNotice } from "@/components/analytics/ResearchContextNotice";
 
 const TABS = [
   { id: "overview", label: "Overview" },
@@ -204,6 +205,7 @@ function AnalyticsLab() {
         }}
       />
       {data && <DrilldownFilterBar filters={applied} data={data} onChange={setApplied} />}
+      {data && <ResearchContextNotice context={data.research_context} />}
       {error && (
         <div className="analytics-error" role="alert">
           <Alert kind="danger">{error}</Alert>
