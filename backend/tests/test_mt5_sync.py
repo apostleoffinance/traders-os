@@ -321,8 +321,9 @@ def test_partial_close_keeps_trade_open(client: TestClient) -> None:
 def test_duplicate_deal_ignored(client: TestClient) -> None:
     auth = _register(client, "mt5d@example.com")
     account_id = _account(client, auth["access_token"])
-    connector_token, _ = _connect(client, auth["access_token"], account_id)
+    connector_token, connection_id = _connect(client, auth["access_token"], account_id)
     headers = {"Authorization": f"Bearer {connector_token}"}
+    user_headers = {"Authorization": f"Bearer {auth['access_token']}"}
 
     client.post("/api/integrations/mt5/sync", headers=headers, json=_sync_body())
     close_body = _sync_body(
@@ -347,6 +348,19 @@ def test_duplicate_deal_ignored(client: TestClient) -> None:
     again = client.post("/api/integrations/mt5/sync", headers=headers, json=close_body)
     assert again.status_code == 200
     assert again.json()["trades_closed"] == 0
+
+    # A replayed close deal must not double-count the broker economics.
+    trades = client.get(f"/api/trades?account_id={account_id}", headers=user_headers)
+    assert trades.status_code == 200, trades.text
+    assert len(trades.json()) == 1
+    assert Decimal(trades.json()[0]["realized_pnl"]) == Decimal("1.46")
+
+    report = client.get(
+        f"/api/integrations/mt5/connections/{connection_id}/reconciliation",
+        headers=user_headers,
+    )
+    assert report.status_code == 200, report.text
+    assert report.json()["coverage"]["processed_deals"] == 1
 
 
 def test_sync_does_not_overwrite_trader_notes(client: TestClient) -> None:
