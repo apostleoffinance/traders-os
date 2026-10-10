@@ -28,3 +28,5 @@ Repeated replay requests with the same candle fingerprint reuse the existing sna
 The replay is historical OHLC context, not tick reconstruction. It does not prove that the trade would have filled at the displayed prices and cannot recover bid/ask spread, intrabar ordering, or executable slippage from candles alone. Downsampled points are for visualization; the fingerprint is calculated from the full returned source series.
 
 Open trades or records without both entry and exit timestamps are explicitly marked not applicable for hold-window snapshot capture; they are not reported as provider failures.
+
+Schema note: Alembic revision `0016_trade_market_snapshots` follows `0015_broker_candles`; the ORM identity constraint is covered by a regression test.
