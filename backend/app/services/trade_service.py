@@ -680,10 +680,20 @@ def get_trade_replay(db: Session, user_id: UUID, trade_id: UUID) -> dict:
             log.info("trade replay path enrichment skipped trade=%s", trade_id)
 
     if "market_snapshot" not in payload:
-        payload["market_snapshot"] = {
-            "status": "unavailable",
-            "reason": "Historical candles could not be loaded for this trade window.",
-        }
+        if (
+            trade.status != TradeStatus.CLOSED.value
+            or trade.trade_timestamp is None
+            or trade.exit_timestamp is None
+        ):
+            payload["market_snapshot"] = {
+                "status": "not_applicable",
+                "reason": "A closed trade with an entry and exit timestamp is required to capture a historical replay snapshot.",
+            }
+        else:
+            payload["market_snapshot"] = {
+                "status": "unavailable",
+                "reason": "Historical candles could not be loaded for this trade window.",
+            }
     return payload
 
 
