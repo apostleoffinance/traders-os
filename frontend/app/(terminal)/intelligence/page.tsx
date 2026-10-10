@@ -330,8 +330,10 @@ export default function IntelligencePage() {
                 }}
               />
               {dash && (
-                <DrilldownFilterBar filters={applied} data={dash} onChange={setApplied} excludePeriod />
-                <ResearchContextNotice context={dash.research_context} />
+                <>
+                  <DrilldownFilterBar filters={applied} data={dash} onChange={setApplied} excludePeriod />
+                  <ResearchContextNotice context={dash.research_context} />
+                </>
               )}
             </div>
             <main id="intel-main">{body}</main>
