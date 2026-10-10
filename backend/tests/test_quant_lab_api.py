@@ -112,3 +112,22 @@ def test_quant_lab_endpoint_returns_200(client: TestClient) -> None:
     intelligence_body = intelligence.json()
     assert intelligence_body["research_context"]["population"]["closed_trades"] == 0
     assert intelligence_body["research_context"]["filters"]["preset"] == "all"
+
+    experiment = client.post(
+        f"/api/quant-lab/experiment?account_id={account_id}&preset=all",
+        headers=headers,
+        json={"split_ratio": 0.7, "additional_cost_per_trade": "2"},
+    )
+    assert experiment.status_code == 200, experiment.text
+    experiment_body = experiment.json()
+    assert experiment_body["research_context"]["filters"]["preset"] == "all"
+    assert len(experiment_body["cost_sensitivity"]) == 3
+    assert experiment_body["cost_sensitivity"][0]["sample_size"] == 0
+    assert "not a candle-level backtest" in experiment_body["disclaimer"].lower()
+
+    invalid_experiment = client.post(
+        f"/api/quant-lab/experiment?account_id={account_id}",
+        headers=headers,
+        json={"split_ratio": 0.95, "additional_cost_per_trade": "2"},
+    )
+    assert invalid_experiment.status_code == 422
