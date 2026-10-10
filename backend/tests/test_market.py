@@ -10,6 +10,7 @@ import pytest
 from app.engines.fx_math import get_instrument
 from app.market_data.conversion import conversion_for_account
 from app.market_data.normalization import candle, parse_utc_ms, validate_ohlc
+from app.market_data.providers.router import providers_for_symbol
 
 
 def test_ohlc_validation_rejects_inverted_bar() -> None:
@@ -89,3 +90,16 @@ def test_missing_conversion_does_not_fabricate() -> None:
     r = conversion_for_account(spec, "USD")
     assert r.rate is None
     assert "cannot be verified" in (r.reason or "").lower()
+
+
+
+def test_provider_router_keeps_fx_and_crypto_adapters_separate() -> None:
+    fx_names = [provider.name for provider in providers_for_symbol("EURUSD")]
+    crypto_names = [provider.name for provider in providers_for_symbol("BTCUSDT")]
+
+    assert fx_names
+    assert fx_names[0] == "dukascopy"
+    assert all(name in {"dukascopy", "oanda"} for name in fx_names)
+    assert crypto_names
+    assert "dukascopy" not in crypto_names
+    assert "oanda" not in crypto_names
