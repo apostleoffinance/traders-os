@@ -30,3 +30,7 @@ Analytics, Intelligence, and Quant Lab responses should disclose the cohort used
 - Quant Lab: `meta.date_range.research_context`, next to the resolved date window.
 
 This is an additive response contract; it does not change financial calculations or create trading signals.
+
+## Metric-specific sample sizes
+
+The shared `sample` uses closed observations with realized P&L. The separate `r_sample` uses closed observations with an R multiple. These counts can differ and must not be silently substituted for each other. Each statistic's own data-quality and minimum-sample requirements remain authoritative.
