@@ -1,4 +1,4 @@
-import type { FilterState } from "@/lib/analytics";
+import type { FilterState, ResearchContext } from "@/lib/analytics";
 import { buildAnalyticsQuery } from "@/lib/analytics";
 
 export type SamplePolicy = {
@@ -60,7 +60,12 @@ export type QuantLabPayload = {
   meta: {
     filtered_trades: number;
     valid_trades: number;
-    date_range: { preset: string; from: string | null; to: string | null } | null;
+    date_range: {
+      preset: string;
+      from: string | null;
+      to: string | null;
+      research_context?: ResearchContext;
+    } | null;
     account_name: string | null;
     starting_balance: string | null;
   };
