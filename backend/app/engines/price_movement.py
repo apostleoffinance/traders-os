@@ -47,7 +47,7 @@ def movement_spec(instrument: InstrumentSpec) -> MovementSpec:
     unit = MovementUnit(instrument.movement_unit)
     labels = {
         MovementUnit.PIP: ("pips", "p"),
-        MovementUnit.PRICE_UNIT: ("price units", "pt"),
+        MovementUnit.PRICE_UNIT: ("price units", "units"),
         MovementUnit.TICK: ("ticks", "t"),
         MovementUnit.POINT: ("points", "pt"),
         MovementUnit.CURRENCY: (instrument.quote_currency, instrument.quote_currency),
@@ -117,7 +117,10 @@ def trade_movement_metrics(
     mae_price: Decimal | None,
 ) -> dict:
     instrument = get_instrument(symbol)
-    risk = _movement_value(instrument, entry, stop_loss)
+    risk_raw = _movement_value(instrument, entry, stop_loss)
+    # Risk distance is a magnitude regardless of trade direction; only realized
+    # movement is signed. This keeps long and short trades consistent.
+    risk = abs(risk_raw) if risk_raw is not None else None
     target_raw = _movement_value(instrument, entry, take_profit)
     target = abs(target_raw) if target_raw is not None else None
     realized = _movement_value(instrument, entry, exit_price, direction)
