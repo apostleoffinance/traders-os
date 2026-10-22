@@ -525,13 +525,13 @@ export function TradeForm({ mode, trade = null }: Props) {
                 <div>
                   <dt>Risk distance</dt>
                   <dd className="num">
-                    {preview.movement?.risk == null ? "—" : `${preview.movement.risk} ${preview.movement.short_label}`}
+                    {preview.movement?.risk == null ? "—" : `${preview.movement.risk} ${preview.movement.label}`}
                   </dd>
                 </div>
                 <div>
                   <dt>Target distance</dt>
                   <dd className="num">
-                    {preview.movement?.target == null ? "—" : `${preview.movement.target} ${preview.movement.short_label}`}
+                    {preview.movement?.target == null ? "—" : `${preview.movement.target} ${preview.movement.label}`}
                   </dd>
                 </div>
               </dl>
