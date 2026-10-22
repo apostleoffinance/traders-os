@@ -168,6 +168,37 @@ def test_non_fx_movement_uses_catalog_unit() -> None:
         to_price=Decimal("75200"),
     )
     assert gold.unit == MovementUnit.PRICE_UNIT
-    assert gold.absolute == Decimal("1250.0")
+    assert gold.absolute == Decimal("12.50")
     assert crypto.unit == MovementUnit.CURRENCY
     assert crypto.absolute == Decimal("800")
+
+
+def test_risk_distance_is_positive_for_long_and_short() -> None:
+    long_metrics = trade_movement_metrics(
+        symbol="EURUSD", direction=Direction.LONG,
+        entry=Decimal("1.10000"), stop_loss=Decimal("1.09500"),
+        take_profit=Decimal("1.11000"), exit_price=None,
+        mfe_price=None, mae_price=None,
+    )
+    short_metrics = trade_movement_metrics(
+        symbol="EURUSD", direction=Direction.SHORT,
+        entry=Decimal("1.10000"), stop_loss=Decimal("1.10500"),
+        take_profit=Decimal("1.09000"), exit_price=None,
+        mfe_price=None, mae_price=None,
+    )
+    assert long_metrics["risk"] == Decimal("50.0")
+    assert short_metrics["risk"] == Decimal("50.0")
+    assert long_metrics["target"] == Decimal("100.0")
+    assert short_metrics["target"] == Decimal("100.0")
+
+
+def test_gold_movement_is_reported_as_price_units_not_hundredths_of_units() -> None:
+    movement = calculate_price_movement(
+        instrument="XAUUSD",
+        from_price=Decimal("2400.00"),
+        to_price=Decimal("2412.50"),
+    )
+    assert movement.unit == MovementUnit.PRICE_UNIT
+    assert movement.absolute == Decimal("12.50")
+    assert movement.label == "price units"
+    assert movement.short_label == "units"

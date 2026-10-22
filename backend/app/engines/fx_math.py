@@ -108,8 +108,8 @@ INSTRUMENTS: Mapping[str, InstrumentSpec] = {
         asset_class=AssetClass.COMMODITY.value,
         size_unit="lots",
         movement_unit="PRICE_UNIT",
-        movement_increment=Decimal("0.01"),
-        movement_precision=1,
+        movement_increment=Decimal("1"),
+        movement_precision=2,
     ),
     "BTCUSDT": _fx(
         "BTCUSDT",
