@@ -19,6 +19,7 @@ export function MovementSummary({ data }: { data: AnalyticsDashboard }) {
               <th>Avg target</th>
               <th>Avg realized</th>
               <th>Avg MFE</th>
+              <th>Avg MAE</th>
               <th>Capture</th>
             </tr>
           </thead>
@@ -34,6 +35,7 @@ export function MovementSummary({ data }: { data: AnalyticsDashboard }) {
                 <td className="num">{formatMovement(row.average_target, row.label)}</td>
                 <td className="num">{formatMovement(row.average_realized, row.label)}</td>
                 <td className="num">{formatMovement(row.average_mfe, row.label)}</td>
+                <td className="num">{formatMovement(row.average_mae, row.label)}</td>
                 <td className="num">{row.average_capture_percent == null ? "—" : `${row.average_capture_percent}%`}</td>
               </tr>
             ))}
