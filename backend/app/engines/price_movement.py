@@ -126,8 +126,11 @@ def trade_movement_metrics(
     realized = _movement_value(instrument, entry, exit_price, direction)
     mfe_raw = _movement_value(instrument, entry, mfe_price, direction)
     mae_raw = _movement_value(instrument, entry, mae_price, direction)
-    mfe = abs(mfe_raw) if mfe_raw is not None else None
-    mae = abs(mae_raw) if mae_raw is not None else None
+    mfe = max(ZERO, mfe_raw) if mfe_raw is not None else None
+    # MAE is stored as a positive magnitude, but only when price moved against
+    # the position. Direction-aware signing prevents favorable movement from
+    # being mislabeled as adverse excursion.
+    mae = max(ZERO, -mae_raw) if mae_raw is not None else None
     capture = None
     left_on_table = None
     if realized is not None and mfe is not None and mfe > ZERO and realized > ZERO:
