@@ -76,7 +76,7 @@ export default function AccountsPage() {
       });
       setActiveAccountId(created.id);
       await load();
-      router.push(`/accounts/${created.id}?connect=mt5`);
+      router.push(`/accounts/${created.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to create account");
     }

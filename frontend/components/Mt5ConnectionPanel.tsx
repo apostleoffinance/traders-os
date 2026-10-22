@@ -184,7 +184,7 @@ export function Mt5ConnectionPanel({ accountId, autoOpen = false }: Props) {
             )}
           </>
         ) : (
-          <p className="muted">Not connected — set up once to journal trades automatically.</p>
+          <p className="muted">MT5 sync is optional. You can journal trades manually without connecting; connect MT5 only if you want automatic trade imports.</p>
         )}
         <div className="actions">
           {(!connection || connection.status === "revoked") && (
