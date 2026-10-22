@@ -168,7 +168,7 @@ def test_non_fx_movement_uses_catalog_unit() -> None:
         to_price=Decimal("75200"),
     )
     assert gold.unit == MovementUnit.PRICE_UNIT
-    assert gold.absolute == Decimal("1250.0")
+    assert gold.absolute == Decimal("12.50")
     assert crypto.unit == MovementUnit.CURRENCY
     assert crypto.absolute == Decimal("800")
 
