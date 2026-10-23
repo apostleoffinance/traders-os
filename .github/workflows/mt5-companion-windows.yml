@@ -1,0 +1,37 @@
+name: TraderOS MT5 Companion Windows Build
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "mt5/TraderOSCompanion/**"
+      - ".github/workflows/mt5-companion-windows.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build-installer:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: mt5/TraderOSCompanion
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Inno Setup
+        run: choco install innosetup --yes --no-progress
+      - name: Add Inno Setup to PATH
+        shell: pwsh
+        run: '"C:\Program Files (x86)\Inno Setup 6" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append'
+      - name: Build companion and installer
+        shell: pwsh
+        run: .\build-windows.ps1
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TraderOS-MT5-Companion-Windows-Installer
+          path: mt5/TraderOSCompanion/dist/TraderOS-MT5-Companion-Setup.exe
+          if-no-files-found: error
