@@ -112,7 +112,7 @@ def send_sync(api: str, token: str, payload: dict) -> dict:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Read-only MT5 to TraderOS connector")
-    parser.add_argument("--api", default="https://www.traders-os.vercel.app", help="TraderOS API origin")
+    parser.add_argument("--api", default="https://traders-os.vercel.app", help="TraderOS API origin")
     parser.add_argument("--login", type=int, default=0, help="MT5 login number")
     parser.add_argument("--server", default="", help="Exact MT5 server name")
     parser.add_argument("--interval", type=int, default=POLL_SECONDS)
