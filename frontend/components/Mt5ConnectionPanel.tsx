@@ -94,7 +94,7 @@ export function Mt5ConnectionPanel({ accountId, autoOpen = false }: Props) {
 
   async function onDisconnect() {
     if (!connection || connection.status === "revoked") return;
-    if (!window.confirm("Disconnect MT5? The EA will stop syncing until you connect again.")) return;
+    if (!window.confirm("Disconnect MT5? The companion will stop syncing until you connect again.")) return;
     try {
       await revokeMt5Connection(connection.id);
       setFreshToken(null);
@@ -106,7 +106,7 @@ export function Mt5ConnectionPanel({ accountId, autoOpen = false }: Props) {
 
   async function onRegenerate() {
     if (!connection || connection.status === "revoked") return;
-    if (!window.confirm("Regenerate connection code? The previous EA token will stop working.")) return;
+    if (!window.confirm("Regenerate connection code? The previous token will stop working in the companion.")) return;
     try {
       const created = await regenerateMt5Connection(connection.id);
       setFreshToken(created.connection_token);
@@ -134,8 +134,7 @@ export function Mt5ConnectionPanel({ accountId, autoOpen = false }: Props) {
         }
       >
         <p className="muted">
-          Trades sync from your MT5 terminal while the Expert Advisor is running. Read-only — cannot
-          place or close trades.
+          Trades sync from your MT5 desktop terminal through the Direct MT5 Companion. Read-only — cannot place, modify, or close trades.
         </p>
         {error && <Alert kind="danger">{error}</Alert>}
         {loading ? (
@@ -172,14 +171,12 @@ export function Mt5ConnectionPanel({ accountId, autoOpen = false }: Props) {
             </div>
             {awaiting && (
               <Alert kind="info">
-                Waiting for the EA to connect. Open the setup guide, finish installation in MT5, then
-                leave Algo Trading enabled.
+                Waiting for the Direct MT5 Companion to connect. Install and start the Windows companion, then enter your MT5 account details and TraderOS connection token.
               </Alert>
             )}
             {status === "stale" && (
               <Alert kind="warn">
-                No sync received recently. Check that MT5 is open, Algo Trading is on, and the EA is
-                still attached to a chart.
+                No sync received recently. Check that the Windows companion is running, MT5 is open, and the computer is awake and connected to the internet.
               </Alert>
             )}
           </>

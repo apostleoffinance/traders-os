@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { Mt5ConnectionCreated } from "@/lib/mt5";
-import { mt5ApiBaseUrl, mt5EaDownloadUrl } from "@/lib/mt5";
+import { mt5ApiBaseUrl } from "@/lib/mt5";
 import type { Mt5Connection } from "@/lib/types";
 import { Alert, Button } from "@/components/ui";
 
@@ -37,7 +37,6 @@ export function Mt5ConnectDrawer({
   const [copied, setCopied] = useState<CopyField>(null);
 
   const apiUrl = mt5ApiBaseUrl();
-  const downloadUrl = mt5EaDownloadUrl();
 
   useEffect(() => {
     if (!open) return;
@@ -168,75 +167,67 @@ export function Mt5ConnectDrawer({
           <section>
             <div className="download-card">
               <div>
-                <p className="label">Step 1 — Download</p>
-                <p className="muted">Pre-built Expert Advisor. No MetaEditor or compiling required.</p>
+                <p className="label">Step 1 — Download the Windows companion</p>
+                <p className="muted">
+                  Use the TraderOS Direct MT5 Companion. It connects to your desktop MT5 terminal
+                  without an Expert Advisor or chart attachment.
+                </p>
               </div>
-              <a className="download-btn" href={downloadUrl} download="TraderOSSync.zip">
-                Download TraderOSSync.zip
+              <a
+                className="download-btn"
+                href="https://github.com/apostleoffinance/traders-os/actions/workflows/mt5-companion-windows.yml"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Get Windows installer
               </a>
             </div>
 
             <ol className="steps">
               <li>
-                Unzip and copy the <code>TraderOSSync</code> folder into MT5:{" "}
-                <strong>File → Open Data Folder → MQL5 → Experts</strong>
+                Open the GitHub Actions page above, select the latest successful{" "}
+                <strong>TraderOS MT5 Companion Windows Build</strong> run, and download the{" "}
+                <code>TraderOS-MT5-Companion-Windows-Installer</code> artifact. Extract the ZIP
+                and run <code>TraderOS-MT5-Companion-Setup.exe</code>. If no successful run or
+                artifact is available, the installer has not been published yet.
               </li>
               <li>
-                In MT5 <strong>Navigator → Expert Advisors</strong>, refresh, then drag{" "}
-                <strong>TraderOSSync</strong> onto any chart
+                Install and sign in to the official <strong>MT5 desktop terminal</strong> for your
+                broker. Keep the terminal installed on this same Windows computer.
               </li>
               <li>
-                Set <strong>ApiBaseUrl</strong> to:
-                <div className="copy-row">
-                  <code className="copy-value">{apiUrl}</code>
-                  <Button type="button" kind="ghost" onClick={() => void copyText(apiUrl, "api")}>
-                    {copied === "api" ? "Copied" : "Copy"}
-                  </Button>
-                </div>
+                In the companion app, enter your MT5 login, the exact MT5 server name, and your
+                investor/read-only password if your broker supports one. Enter your TraderOS
+                connection token below.
               </li>
               <li>
-                Set <strong>ConnectionToken</strong> to your code:
+                <strong>TraderOS connection token</strong>
                 {token ? (
                   <div className="copy-row">
                     <code className="copy-value">{token}</code>
                     <Button type="button" kind="ghost" onClick={() => void copyText(token, "token")}>
-                      {copied === "token" ? "Copied" : "Copy"}
+                      {copied === "token" ? "Copied" : "Copy token"}
                     </Button>
                   </div>
                 ) : (
-                  <div className="row">
-                    <Button type="button" onClick={() => setStep("token")}>
-                      Show connection code
-                    </Button>
-                    {!existingConnection && (
-                      <Button type="button" kind="ghost" onClick={() => void generateToken()} disabled={busy}>
-                        Generate code
-                      </Button>
-                    )}
-                  </div>
+                  <Alert kind="warn">
+                    The existing token cannot be displayed again. Close this guide and choose{" "}
+                    <strong>Regenerate code</strong> on the MT5 panel, then reopen the guide and
+                    copy the newly generated token.
+                  </Alert>
                 )}
               </li>
               <li>
-                <strong>Tools → Options → Expert Advisors</strong> → enable{" "}
-                <em>Allow WebRequest for listed URL</em> and add:
-                <div className="copy-row">
-                  <code className="copy-value">{apiUrl}</code>
-                  <Button type="button" kind="ghost" onClick={() => void copyText(apiUrl, "api")}>
-                    {copied === "api" ? "Copied" : "Copy"}
-                  </Button>
-                </div>
-                <span className="hint">Use the URL only — no <code>/api/...</code> path.</span>
-              </li>
-              <li>Enable <strong>Algo Trading</strong> on the chart</li>
-              <li>
-                Check the chart <strong>Experts</strong> tab for <code>TraderOSSync OK</code>. This page
-                will show <strong>LIVE SYNC</strong> within a few seconds.
+                Start the companion and confirm its status reports a successful connection and sync.
+                Return to TraderOS and allow a few seconds for the account status to update.
               </li>
             </ol>
 
             <Alert kind="info">
-              Keep MT5 open while you trade. If sync stops, confirm Algo Trading is on and your computer
-              did not sleep.
+              No EA, chart attachment, WebRequest allowlisting, or Algo Trading setting is required
+              for the Direct MT5 Companion. Keep this Windows computer awake, online, signed in,
+              and MT5 running while you trade. The companion is read-only and cannot place, modify,
+              or close trades.
             </Alert>
           </section>
         )}
