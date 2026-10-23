@@ -26,7 +26,7 @@ A small, read-only Windows companion that connects to the MetaTrader 5 terminal 
 5. Run the companion:
 
    ```powershell
-   python traderos_mt5_companion.py --api https://www.traders-os.vercel.app
+   python traderos_mt5_companion.py --api https://traders-os.vercel.app
    ```
 
    Replace the API origin with the actual deployed TraderOS API origin if it differs from the web app origin. The API origin must serve `/api/integrations/mt5/sync`.
