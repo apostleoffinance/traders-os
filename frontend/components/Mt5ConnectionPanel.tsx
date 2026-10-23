@@ -94,7 +94,7 @@ export function Mt5ConnectionPanel({ accountId, autoOpen = false }: Props) {
 
   async function onDisconnect() {
     if (!connection || connection.status === "revoked") return;
-    if (!window.confirm("Disconnect MT5? The EA will stop syncing until you connect again.")) return;
+    if (!window.confirm("Disconnect MT5? The companion will stop syncing until you connect again.")) return;
     try {
       await revokeMt5Connection(connection.id);
       setFreshToken(null);
@@ -106,7 +106,7 @@ export function Mt5ConnectionPanel({ accountId, autoOpen = false }: Props) {
 
   async function onRegenerate() {
     if (!connection || connection.status === "revoked") return;
-    if (!window.confirm("Regenerate connection code? The previous EA token will stop working.")) return;
+    if (!window.confirm("Regenerate connection code? The previous token will stop working in the companion.")) return;
     try {
       const created = await regenerateMt5Connection(connection.id);
       setFreshToken(created.connection_token);
