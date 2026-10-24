@@ -1,0 +1,32 @@
+name: TraderOS MT5 Companion macOS Preview
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "mt5/TraderOSCompanionMac/**"
+      - ".github/workflows/mt5-companion-macos.yml"
+
+jobs:
+  package:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Python syntax
+        run: python3 -m py_compile mt5/TraderOSCompanionMac/traderos_mt5_mac_app.py
+      - name: Create Mac preview package
+        run: |
+          mkdir -p dist/TraderOS-MT5-Companion-Mac
+          cp mt5/TraderOSCompanionMac/traderos_mt5_mac_app.py dist/TraderOS-MT5-Companion-Mac/
+          cp mt5/TraderOSCompanionMac/requirements.txt dist/TraderOS-MT5-Companion-Mac/
+          cp mt5/TraderOSCompanionMac/install-and-run.command dist/TraderOS-MT5-Companion-Mac/
+          cp mt5/TraderOSCompanionMac/README.md dist/TraderOS-MT5-Companion-Mac/
+          chmod +x dist/TraderOS-MT5-Companion-Mac/install-and-run.command
+          cd dist
+          zip -r TraderOS-MT5-Companion-Mac-Preview.zip TraderOS-MT5-Companion-Mac
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TraderOS-MT5-Companion-Mac-Preview
+          path: dist/TraderOS-MT5-Companion-Mac-Preview.zip
+          if-no-files-found: error
+          retention-days: 14

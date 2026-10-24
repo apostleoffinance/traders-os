@@ -167,29 +167,30 @@ export function Mt5ConnectDrawer({
           <section>
             <div className="download-card">
               <div>
-                <p className="label">Step 1 — Download the Windows companion</p>
+                <p className="label">Choose your operating system</p>
                 <p className="muted">
-                  Use the TraderOS Direct MT5 Companion. It connects to your desktop MT5 terminal
-                  without an Expert Advisor or chart attachment.
+                  Windows has a companion installer. The Mac package is an experimental preview and
+                  has not yet been validated against a live broker account.
                 </p>
               </div>
-              <a
-                className="download-btn"
-                href="https://github.com/apostleoffinance/traders-os/actions/workflows/mt5-companion-windows.yml"
-                target="_blank"
-                rel="noreferrer"
-              >
-                Get Windows installer
-              </a>
+              <div className="download-options">
+                <a className="download-btn" href="https://github.com/apostleoffinance/traders-os/actions/workflows/mt5-companion-windows.yml" target="_blank" rel="noreferrer">
+                  Windows installer
+                </a>
+                <a className="download-btn" href="https://github.com/apostleoffinance/traders-os/actions/workflows/mt5-companion-macos.yml" target="_blank" rel="noreferrer">
+                  Mac preview
+                </a>
+              </div>
             </div>
 
             <ol className="steps">
               <li>
-                Open the GitHub Actions page above, select the latest successful{" "}
-                <strong>TraderOS MT5 Companion Windows Build</strong> run, and download the{" "}
-                <code>TraderOS-MT5-Companion-Windows-Installer</code> artifact. Extract the ZIP
-                and run <code>TraderOS-MT5-Companion-Setup.exe</code>. If no successful run or
-                artifact is available, the installer has not been published yet.
+                <strong>Windows:</strong> open the Windows build workflow, select the latest successful
+                run, and download the <code>TraderOS-MT5-Companion-Windows-Installer</code> artifact.
+                Extract it and run <code>TraderOS-MT5-Companion-Setup.exe</code>. <strong>Mac:</strong>{" "}
+                open the Mac preview workflow, download the <code>TraderOS-MT5-Companion-Mac-Preview</code>
+                artifact, extract it, and follow its README. The Mac package requires Python and installs
+                third-party dependencies; treat it as experimental and test with a demo/read-only account.
               </li>
               <li>
                 Install and sign in to the official <strong>MT5 desktop terminal</strong> for your
@@ -224,10 +225,10 @@ export function Mt5ConnectDrawer({
             </ol>
 
             <Alert kind="info">
-              No EA, chart attachment, WebRequest allowlisting, or Algo Trading setting is required
-              for the Direct MT5 Companion. Keep this Windows computer awake, online, signed in,
-              and MT5 running while you trade. The companion is read-only and cannot place, modify,
-              or close trades.
+              No EA, chart attachment, WebRequest allowlisting, or Algo Trading setting is required.
+              Keep your computer awake and online, and keep MT5 and the companion running while you
+              trade. The connector is read-only and cannot place, modify, or close trades. The Mac
+              build is experimental and has not yet passed an end-to-end broker test.
             </Alert>
           </section>
         )}
@@ -380,7 +381,7 @@ export function Mt5ConnectDrawer({
           text-decoration: none;
           white-space: nowrap;
         }
-        .download-btn:hover {
+        .download-options { display: flex; gap: 8px; flex-wrap: wrap; }\n        .download-btn:hover {
           background: color-mix(in srgb, var(--accent) 12%, transparent);
         }
       `}</style>
