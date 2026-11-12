@@ -296,12 +296,25 @@ export function RiskAnalyticsLab({ data }: { data: AnalyticsDashboard }) {
       <style jsx>{`
         .stats {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-          gap: 12px;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 14px 16px;
+          min-width: 0;
+          align-items: start;
         }
+        .stats > * { min-width: 0; }
         .muted,
         .list {
           font-size: 13px;
+          line-height: 1.55;
+          overflow-wrap: anywhere;
+        }
+        .list { padding-left: 18px; margin: 0; }
+        .list li + li { margin-top: 6px; }
+        @media (max-width: 900px) {
+          .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        @media (max-width: 520px) {
+          .stats { grid-template-columns: minmax(0, 1fr); }
         }
       `}</style>
     </>
