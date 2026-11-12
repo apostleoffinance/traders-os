@@ -118,15 +118,25 @@ export function BehaviourSignals({
         }
         .grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-          gap: 10px;
-          align-items: start;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 12px;
+          align-items: stretch;
+          min-width: 0;
+        }
+        .grid > * { min-width: 0; }
+        @media (max-width: 1050px) {
+          .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        @media (max-width: 680px) {
+          .grid { grid-template-columns: minmax(0, 1fr); }
         }
         .mini {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+          grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr));
           gap: 10px;
+          min-width: 0;
         }
+        .mini > * { min-width: 0; }
         .muted {
           margin: 8px 0 0;
           font-size: 12px;
