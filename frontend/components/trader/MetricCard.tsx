@@ -12,9 +12,11 @@ const cardStyles = `
     background: var(--surface);
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    min-height: 96px;
+    align-items: flex-start;
+    gap: 7px;
+    min-height: 92px;
     min-width: 0;
+    max-width: 100%;
     overflow: hidden;
   }
   .metric-card.clickable {
@@ -27,18 +29,26 @@ const cardStyles = `
     background: color-mix(in srgb, var(--accent-soft) 35%, var(--surface));
   }
   .label {
-    font-size: 11px;
+    display: block;
+    max-width: 100%;
+    font-size: 12px;
+    line-height: 1.35;
     text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--text-muted);
+    letter-spacing: 0.045em;
+    color: var(--text-secondary);
     font-weight: 600;
+    overflow-wrap: anywhere;
   }
   .value {
-    font-size: 24px;
-    font-weight: 700;
+    display: block;
+    max-width: 100%;
+    font-size: clamp(21px, 1.45vw, 24px);
+    font-weight: 650;
     font-family: var(--font-mono), ui-monospace, Menlo, monospace;
     font-variant-numeric: tabular-nums;
-    line-height: 1.1;
+    line-height: 1.2;
+    letter-spacing: -0.025em;
+    overflow-wrap: anywhere;
     color: var(--text-primary);
   }
   .value.pos { color: var(--pos); }
@@ -49,7 +59,9 @@ const cardStyles = `
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 8px;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+    width: 100%;
     margin-top: auto;
   }
   .delta {
@@ -60,13 +72,18 @@ const cardStyles = `
   .delta.pos { color: var(--pos); }
   .delta.neg { color: var(--neg); }
   .hint {
-    font-size: 11px;
+    font-size: 12px;
+    line-height: 1.4;
     color: var(--text-muted);
+    overflow-wrap: anywhere;
   }
   .spark-wrap {
+    width: 100%;
+    min-width: 0;
     margin-top: 2px;
   }
   .progress-track {
+    width: 100%;
     height: 3px;
     background: var(--surface-2);
     border-radius: 2px;
@@ -76,6 +93,10 @@ const cardStyles = `
     height: 100%;
     background: var(--accent);
     border-radius: 2px;
+  }
+  @media (max-width: 640px) {
+    .metric-card { padding: 12px 14px; min-height: 84px; }
+    .value { font-size: 21px; }
   }
 `;
 
