@@ -26,14 +26,16 @@ export function Stat({
 }) {
   const resolved = resolveStatSize(value, size);
   return (
-    <div className={cn("min-w-0", className)}>
-      <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--text-secondary)]">{label}</div>
+    <div className={cn("min-w-0 max-w-full", className)}>
+      <div className="mb-1 text-[12px] leading-[1.35] font-semibold uppercase tracking-[0.045em] text-[var(--text-secondary)] [overflow-wrap:anywhere]">
+        {label}
+      </div>
       <div
         className={cn(
-          "num font-semibold leading-snug break-words",
-          resolved === "metric" && "text-[19px]",
-          resolved === "label" && "line-clamp-2 text-[15px]",
-          resolved === "compact" && "text-base",
+          "num max-w-full font-semibold leading-[1.25] tracking-[-0.02em] [overflow-wrap:anywhere]",
+          resolved === "metric" && "text-[18px]",
+          resolved === "label" && "line-clamp-2 text-[14px]",
+          resolved === "compact" && "text-[16px]",
           tone === "pos" && "text-positive",
           tone === "neg" && "text-negative",
           tone === "warn" && "text-warning",
@@ -42,7 +44,7 @@ export function Stat({
       >
         {value}
       </div>
-      {hint ? <div className="mt-1 text-xs leading-snug text-[var(--text-secondary)]">{hint}</div> : null}
+      {hint ? <div className="mt-1 text-xs leading-snug text-[var(--text-secondary)] [overflow-wrap:anywhere]">{hint}</div> : null}
     </div>
   );
 }
