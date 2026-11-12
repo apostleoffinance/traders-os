@@ -40,10 +40,19 @@ function UtilBar({
         }
         .lab {
           display: flex;
+          align-items: baseline;
           justify-content: space-between;
-          gap: 8px;
+          flex-wrap: wrap;
+          gap: 3px 12px;
           font-size: 12px;
-          margin-bottom: 4px;
+          line-height: 1.4;
+          margin-bottom: 5px;
+        }
+        .lab > span { min-width: 0; overflow-wrap: anywhere; }
+        .lab > span:last-child {
+          margin-left: auto;
+          text-align: right;
+          font-variant-numeric: tabular-nums;
         }
         .track {
           height: 8px;
@@ -144,16 +153,27 @@ export function RiskBudget({ data }: { data: AnalyticsDashboard }) {
       <style jsx>{`
         .kpis {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-          gap: 10px;
-          margin-bottom: 14px;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 12px;
+          margin-bottom: 16px;
+          min-width: 0;
+        }
+        .kpis > * { min-width: 0; }
+        @media (max-width: 1000px) {
+          .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        @media (max-width: 520px) {
+          .kpis { grid-template-columns: minmax(0, 1fr); }
         }
         .reasons {
           margin: 8px 0 0;
           padding-left: 18px;
           font-size: 12px;
+          line-height: 1.55;
           color: var(--text-muted);
+          overflow-wrap: anywhere;
         }
+        .reasons li + li { margin-top: 5px; }
         :global(.cmd) {
           font-size: 12px;
           font-weight: 600;
