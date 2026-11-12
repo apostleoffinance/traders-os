@@ -49,13 +49,16 @@ export function ReportBehaviorSection({ behavior }: { behavior: Record<string, u
       <DisciplineScatterPanel intel={intel} />
       <style jsx>{`
         .dq {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 10px 16px;
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
+          gap: 8px 12px;
           margin-bottom: 14px;
           font-size: 13px;
+          line-height: 1.45;
           color: var(--text-muted);
+          min-width: 0;
         }
+        .dq > span { min-width: 0; overflow-wrap: anywhere; }
       `}</style>
     </ReportChapter>
   );
