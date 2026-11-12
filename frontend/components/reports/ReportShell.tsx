@@ -144,11 +144,12 @@ export function ReportShell({
       <style jsx>{`
         .report-shell {
           display: grid;
-          grid-template-columns: 200px 1fr;
+          grid-template-columns: minmax(168px, 200px) minmax(0, 1fr);
           gap: 24px;
           align-items: start;
           max-width: 100%;
           min-width: 0;
+          overflow-wrap: anywhere;
         }
         .report-nav {
           position: sticky;
@@ -181,6 +182,7 @@ export function ReportShell({
         .report-body {
           min-width: 0;
           max-width: 100%;
+          overflow-wrap: anywhere;
         }
         .block {
           margin-bottom: 28px;

@@ -428,9 +428,18 @@ export function ExecutionLab({
         }
         .kpis {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+          grid-template-columns: repeat(4, minmax(0, 1fr));
           gap: 12px;
-          margin-bottom: 10px;
+          margin-bottom: 12px;
+          min-width: 0;
+          align-items: stretch;
+        }
+        .kpis > * { min-width: 0; }
+        @media (max-width: 980px) {
+          .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        @media (max-width: 520px) {
+          .kpis { grid-template-columns: minmax(0, 1fr); }
         }
       `}</style>
     </>

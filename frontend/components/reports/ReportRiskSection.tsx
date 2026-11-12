@@ -103,12 +103,19 @@ export function ReportRiskSection({ risk, currency }: { risk: Record<string, unk
           background: color-mix(in srgb, var(--neg) 8%, transparent);
         }
         .budget {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+          gap: 6px 16px;
           margin-bottom: 14px;
           font-size: 13px;
+          line-height: 1.5;
           color: var(--text-muted);
+          min-width: 0;
         }
         .budget p {
-          margin: 0 0 4px;
+          min-width: 0;
+          margin: 0;
+          overflow-wrap: anywhere;
         }
       `}</style>
     </ReportChapter>

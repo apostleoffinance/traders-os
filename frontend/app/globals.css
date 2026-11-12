@@ -561,3 +561,37 @@ a.nav-link.active {
     border-bottom: 1px solid var(--border);
   }
 }
+
+
+/* Analytics workstation consistency: shared responsive type and layout guardrails. */
+:root {
+  --type-kpi: 24px;
+  --type-kpi-secondary: 18px;
+  --type-section: 18px;
+  --type-card-label: 12px;
+  --type-body: 13px;
+  --type-meta: 11px;
+  --space-card: 16px;
+  --space-grid: 12px;
+}
+.tos-kpi-grid, .kpi-grid, .stats, .kpis, .mini-stats { min-width: 0; }
+.tos-kpi-grid > *, .kpi-grid > *, .stats > *, .kpis > *, .mini-stats > * {
+  min-width: 0;
+  max-width: 100%;
+}
+.tos-panel, .chart-card, .chart-panel, .ws-panel, .metric-card {
+  min-width: 0;
+  max-width: 100%;
+}
+.tos-panel-title { font-size: 13px; line-height: 1.35; }
+@media (max-width: 1100px) {
+  .tos-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 767px) {
+  html, body { font-size: 14px; }
+  .tos-panel { padding: 12px; }
+  .tos-kpi-grid, .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+}
+@media (max-width: 480px) {
+  .tos-kpi-grid, .kpi-grid { grid-template-columns: minmax(0, 1fr); }
+}
