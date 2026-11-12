@@ -120,8 +120,17 @@ export function BehaviourIntelligenceLab({ intel }: { intel: IntelligenceLab }) 
       <style jsx>{`
         .stats {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-          gap: 12px;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 14px 16px;
+          min-width: 0;
+          align-items: start;
+        }
+        .stats > * { min-width: 0; }
+        @media (max-width: 900px) {
+          .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        @media (max-width: 520px) {
+          .stats { grid-template-columns: minmax(0, 1fr); }
         }
         .tbl {
           width: 100%;
